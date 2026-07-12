@@ -2,7 +2,7 @@
 
 <div align="center">
 
-  <p><strong>The complete prep resource for AI Engineer, LLM Engineer, and Applied AI interviews.</strong><br/>679 questions with worked answers, 8 system design case studies, 13 runnable coding challenges, company interview questions for 20 companies, and guides for 10 engineering roles.</p>
+  <p><strong>The complete prep resource for AI Engineer, LLM Engineer, and Applied AI interviews.</strong><br/>739 questions with worked answers, 8 system design case studies, 13 runnable coding challenges, company interview questions for 25 companies, and guides for 10 engineering roles.</p>
 
   <a href="https://github.com/ombharatiya/AI-Engineer-Interview-Questions/stargazers">
     <img src="https://img.shields.io/github/stars/ombharatiya/AI-Engineer-Interview-Questions?style=flat" alt="GitHub stars" />
@@ -27,10 +27,15 @@
   <a href="14-company-interview-questions/meta-ai.md">Meta</a> ·
   <a href="14-company-interview-questions/xai.md">xAI</a> ·
   <a href="14-company-interview-questions/mistral.md">Mistral</a> ·
+  <a href="14-company-interview-questions/deepseek.md">DeepSeek</a> ·
+  <a href="14-company-interview-questions/moonshot-ai.md">Moonshot AI</a> ·
+  <a href="14-company-interview-questions/zhipu-ai.md">Zhipu AI</a> ·
+  <a href="14-company-interview-questions/sarvam-ai.md">Sarvam AI</a> ·
   <a href="14-company-interview-questions/microsoft.md">Microsoft</a> ·
   <a href="14-company-interview-questions/amazon.md">Amazon</a> ·
   <a href="14-company-interview-questions/apple.md">Apple</a> ·
   <a href="14-company-interview-questions/nvidia.md">NVIDIA</a> ·
+  <a href="14-company-interview-questions/qwen-alibaba.md">Qwen (Alibaba)</a> ·
   <a href="14-company-interview-questions/databricks.md">Databricks</a> ·
   <a href="14-company-interview-questions/scale-ai.md">Scale AI</a> ·
   <a href="14-company-interview-questions/perplexity.md">Perplexity</a> ·
@@ -76,7 +81,7 @@ If you can clear all 75, you are ready for most AI engineering loops. If you can
 
 ## Company interview questions
 
-Interview questions, loop maps, and prep priorities for 20 companies, tiered from frontier labs to applied AI shops. Everything is built from public information (job postings, engineering blogs, published interview reports), not leaked material, and each page has a "last reviewed" note and sources.
+Interview questions, loop maps, and prep priorities for 25 companies, tiered from frontier labs to applied AI shops, and spanning the US, Europe, China, and India. Everything is built from public information (job postings, engineering blogs, technical reports, published interview reports), not leaked material, and each page has a "last reviewed" note and sources.
 
 | Company | Tier |
 |---|---|
@@ -85,11 +90,16 @@ Interview questions, loop maps, and prep priorities for 20 companies, tiered fro
 | [Google DeepMind](14-company-interview-questions/google-deepmind.md) | Frontier lab |
 | [Meta](14-company-interview-questions/meta-ai.md) | Frontier lab |
 | [xAI](14-company-interview-questions/xai.md) | Frontier lab |
-| [Mistral AI](14-company-interview-questions/mistral.md) | Frontier lab |
+| [Mistral AI](14-company-interview-questions/mistral.md) | Frontier lab (Europe) |
+| [DeepSeek](14-company-interview-questions/deepseek.md) | Frontier lab (China) |
+| [Moonshot AI](14-company-interview-questions/moonshot-ai.md) | Frontier lab (China) |
+| [Zhipu AI](14-company-interview-questions/zhipu-ai.md) | Frontier lab (China) |
+| [Sarvam AI](14-company-interview-questions/sarvam-ai.md) | Frontier lab (India) |
 | [Microsoft](14-company-interview-questions/microsoft.md) | Big tech |
 | [Amazon](14-company-interview-questions/amazon.md) | Big tech |
 | [Apple](14-company-interview-questions/apple.md) | Big tech |
 | [NVIDIA](14-company-interview-questions/nvidia.md) | Big tech |
+| [Qwen (Alibaba)](14-company-interview-questions/qwen-alibaba.md) | Big tech (China) |
 | [Databricks](14-company-interview-questions/databricks.md) | AI-native & infra |
 | [Scale AI](14-company-interview-questions/scale-ai.md) | AI-native & infra |
 | [Perplexity](14-company-interview-questions/perplexity.md) | AI-native & infra |
