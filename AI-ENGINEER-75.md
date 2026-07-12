@@ -127,4 +127,4 @@ No peeking at the reference solution until you have a working (or failing, but a
 
 ---
 
-**Total: 75 items.** Once you have cleared this list, go deeper with the full question banks in each [topic](README.md#topics), the remaining [system design case studies](11-ai-system-design/), and the rest of the [coding challenges](12-coding-challenges/). For a company-specific pass, see the [company guides](14-company-guides/).
+**Total: 75 items.** Once you have cleared this list, go deeper with the full question banks in each [topic](README.md#topics), the remaining [system design case studies](11-ai-system-design/), and the rest of the [coding challenges](12-coding-challenges/). For a company-specific pass, see the [company interview questions](14-company-interview-questions/).

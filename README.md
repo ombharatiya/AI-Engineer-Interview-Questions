@@ -1,56 +1,109 @@
 # AI Engineer Interview Questions
 
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
-[![Topics](https://img.shields.io/badge/topics-13-informational.svg)](#topics)
-[![Questions](https://img.shields.io/badge/questions-321-orange.svg)](#topics)
+<div align="center">
 
-A complete, practical prep resource for AI Engineer, LLM Engineer, and Applied AI interviews, and for every other engineering role that now gets AI questions in the loop. Each topic has a crash-course primer, a full question bank with worked answers, runnable coding challenges, worked system design case studies, and company guides built from public information, not leaked material.
+  <p><strong>The complete prep resource for AI Engineer, LLM Engineer, and Applied AI interviews.</strong><br/>679 questions with worked answers, 8 system design case studies, 13 runnable coding challenges, company interview questions for 20 companies, and guides for 10 engineering roles.</p>
 
-Work through a topic with `questions.md` open and the answer collapsed until you've tried it yourself, or follow [STUDY_PLAN.md](STUDY_PLAN.md) if you want a schedule instead of browsing.
+  <a href="https://github.com/ombharatiya/AI-Engineer-Interview-Questions/stargazers">
+    <img src="https://img.shields.io/github/stars/ombharatiya/AI-Engineer-Interview-Questions?style=flat" alt="GitHub stars" />
+  </a>
+  <a href="https://github.com/ombharatiya/AI-Engineer-Interview-Questions/network/members">
+    <img src="https://img.shields.io/github/forks/ombharatiya/AI-Engineer-Interview-Questions?style=flat" alt="GitHub forks" />
+  </a>
+  <a href="https://github.com/ombharatiya/AI-Engineer-Interview-Questions/blob/main/LICENSE">
+    <img src="https://img.shields.io/github/license/ombharatiya/AI-Engineer-Interview-Questions?style=flat" alt="License" />
+  </a>
+  <a href="https://github.com/ombharatiya/AI-Engineer-Interview-Questions/commits/main">
+    <img src="https://img.shields.io/github/last-commit/ombharatiya/AI-Engineer-Interview-Questions?style=flat" alt="Last Commit" />
+  </a>
+  <a href="CONTRIBUTING.md">
+    <img src="https://img.shields.io/badge/PRs-welcome-brightgreen?style=flat" alt="PRs Welcome" />
+  </a>
 
-**13 topics** · **321 questions** · **8 system design case studies** · **13 coding challenges** · **20 company guides** · **10 role guides**
+  <p><strong>Company interview questions:</strong><br/>
+  <a href="14-company-interview-questions/anthropic.md">Anthropic</a> ·
+  <a href="14-company-interview-questions/openai.md">OpenAI</a> ·
+  <a href="14-company-interview-questions/google-deepmind.md">Google DeepMind</a> ·
+  <a href="14-company-interview-questions/meta-ai.md">Meta</a> ·
+  <a href="14-company-interview-questions/xai.md">xAI</a> ·
+  <a href="14-company-interview-questions/mistral.md">Mistral</a> ·
+  <a href="14-company-interview-questions/microsoft.md">Microsoft</a> ·
+  <a href="14-company-interview-questions/amazon.md">Amazon</a> ·
+  <a href="14-company-interview-questions/apple.md">Apple</a> ·
+  <a href="14-company-interview-questions/nvidia.md">NVIDIA</a> ·
+  <a href="14-company-interview-questions/databricks.md">Databricks</a> ·
+  <a href="14-company-interview-questions/scale-ai.md">Scale AI</a> ·
+  <a href="14-company-interview-questions/perplexity.md">Perplexity</a> ·
+  <a href="14-company-interview-questions/cursor-anysphere.md">Cursor</a> ·
+  <a href="14-company-interview-questions/cohere.md">Cohere</a> ·
+  <a href="14-company-interview-questions/hugging-face.md">Hugging Face</a> ·
+  <a href="14-company-interview-questions/together-ai.md">Together AI</a> ·
+  <a href="14-company-interview-questions/glean.md">Glean</a> ·
+  <a href="14-company-interview-questions/palantir.md">Palantir</a> ·
+  <a href="14-company-interview-questions/sierra.md">Sierra</a>
+  </p>
+
+</div>
 
 ---
 
-## Company guides
+## 🎯 Start here: The AI Engineer 75
 
-Loop structure and emphasis differ a lot between a frontier lab, a big tech AI org, and a fast-moving startup. Guides are built from public information (job postings, engineering blogs, published interview reports), not leaked material, and each one has a "last reviewed" note and sources.
+**[The AI Engineer 75](AI-ENGINEER-75.md)** is this repo's Blind 75: the 75 highest-signal items across everything here, in checkbox form.
 
-| Company | Tier | Guide |
+| What | How many | Bar to clear |
 |---|---|---|
-| Anthropic | Frontier lab | [Guide](14-company-guides/anthropic.md) |
-| OpenAI | Frontier lab | [Guide](14-company-guides/openai.md) |
-| Google DeepMind | Frontier lab | [Guide](14-company-guides/google-deepmind.md) |
-| Meta | Frontier lab | [Guide](14-company-guides/meta-ai.md) |
-| xAI | Frontier lab | [Guide](14-company-guides/xai.md) |
-| Mistral AI | Frontier lab | [Guide](14-company-guides/mistral.md) |
-| Microsoft | Big tech | [Guide](14-company-guides/microsoft.md) |
-| Amazon | Big tech | [Guide](14-company-guides/amazon.md) |
-| Apple | Big tech | [Guide](14-company-guides/apple.md) |
-| NVIDIA | Big tech | [Guide](14-company-guides/nvidia.md) |
-| Databricks | AI-native & infra | [Guide](14-company-guides/databricks.md) |
-| Scale AI | AI-native & infra | [Guide](14-company-guides/scale-ai.md) |
-| Perplexity | AI-native & infra | [Guide](14-company-guides/perplexity.md) |
-| Cursor (Anysphere) | AI-native & infra | [Guide](14-company-guides/cursor-anysphere.md) |
-| Cohere | AI-native & infra | [Guide](14-company-guides/cohere.md) |
-| Hugging Face | AI-native & infra | [Guide](14-company-guides/hugging-face.md) |
-| Together AI | AI-native & infra | [Guide](14-company-guides/together-ai.md) |
-| Glean | AI-native & infra | [Guide](14-company-guides/glean.md) |
-| Palantir | Applied / forward-deployed | [Guide](14-company-guides/palantir.md) |
-| Sierra | Applied / forward-deployed | [Guide](14-company-guides/sierra.md) |
+| Must-know questions | 64 | Answer out loud, cold, before opening the answer |
+| System design mocks | 4 | 45-60 minutes each on a doc before reading the solution |
+| From-scratch coding challenges | 7 | Working implementation before peeking at the reference |
+
+If you can clear all 75, you are ready for most AI engineering loops. If you can't, the gaps tell you exactly which topic to study. Everything else in this repo is the depth behind this list.
+
+## How much prep do you actually need?
+
+| Your runway | Do this | Volume |
+|---|---|---|
+| Days | [The AI Engineer 75](AI-ENGINEER-75.md), then [CHEATSHEET.md](CHEATSHEET.md) the night before | 75 items + one evening review |
+| 1 week | The 75 + the [1-week cram plan](STUDY_PLAN.md) | 75 items + 6 crash courses |
+| 2-4 weeks | The [4-week plan](STUDY_PLAN.md): all 13 crash courses, full question banks on your weak topics, 3 design mocks | ~150-321 questions + 3 case studies + all 13 challenges |
+| 1-2 months+ | The [8-week plan](STUDY_PLAN.md): all 321 topic questions, all 8 case studies, all 13 challenges, plus a portfolio project | Everything, plus building |
+| Targeting a company | Add that company's interview questions from the banner above | +10-12 tailored questions and the loop map |
+| Not an "AI Engineer" title | Start from your [role guide](#role-guides) instead | Role-calibrated study map |
+
+**Essential shortcuts:** [The AI Engineer 75](AI-ENGINEER-75.md) · [Night-before cheat sheet](CHEATSHEET.md) · [Study plans](STUDY_PLAN.md) · [Curated papers and courses](resources/README.md) · [aidaddy.tech](https://aidaddy.tech), the companion site for AI system design and interview prep
 
 ---
 
-## Start here: The AI Engineer 75
+## Company interview questions
 
-Not sure where to spend limited prep time? [AI-ENGINEER-75.md](AI-ENGINEER-75.md) is a Blind-75-style checklist: the 75 highest-signal questions, case studies, and coding challenges pulled from across the whole repo. If you only do one thing before an interview, do this - it's the fastest way to find out whether you're actually ready.
+Interview questions, loop maps, and prep priorities for 20 companies, tiered from frontier labs to applied AI shops. Everything is built from public information (job postings, engineering blogs, published interview reports), not leaked material, and each page has a "last reviewed" note and sources.
 
----
+| Company | Tier |
+|---|---|
+| [Anthropic](14-company-interview-questions/anthropic.md) | Frontier lab |
+| [OpenAI](14-company-interview-questions/openai.md) | Frontier lab |
+| [Google DeepMind](14-company-interview-questions/google-deepmind.md) | Frontier lab |
+| [Meta](14-company-interview-questions/meta-ai.md) | Frontier lab |
+| [xAI](14-company-interview-questions/xai.md) | Frontier lab |
+| [Mistral AI](14-company-interview-questions/mistral.md) | Frontier lab |
+| [Microsoft](14-company-interview-questions/microsoft.md) | Big tech |
+| [Amazon](14-company-interview-questions/amazon.md) | Big tech |
+| [Apple](14-company-interview-questions/apple.md) | Big tech |
+| [NVIDIA](14-company-interview-questions/nvidia.md) | Big tech |
+| [Databricks](14-company-interview-questions/databricks.md) | AI-native & infra |
+| [Scale AI](14-company-interview-questions/scale-ai.md) | AI-native & infra |
+| [Perplexity](14-company-interview-questions/perplexity.md) | AI-native & infra |
+| [Cursor (Anysphere)](14-company-interview-questions/cursor-anysphere.md) | AI-native & infra |
+| [Cohere](14-company-interview-questions/cohere.md) | AI-native & infra |
+| [Hugging Face](14-company-interview-questions/hugging-face.md) | AI-native & infra |
+| [Together AI](14-company-interview-questions/together-ai.md) | AI-native & infra |
+| [Glean](14-company-interview-questions/glean.md) | AI-native & infra |
+| [Palantir](14-company-interview-questions/palantir.md) | Applied / forward-deployed |
+| [Sierra](14-company-interview-questions/sierra.md) | Applied / forward-deployed |
 
-## Find your path
+## Role guides
 
-**By role.** Not applying for a pure "AI Engineer" title? Start here. AI questions now show up in backend, frontend, product, data, DevOps, QA, mobile, and security loops, and the depth expected varies a lot by role.
+AI questions now show up in backend, frontend, product, data, DevOps, QA, mobile, and security loops, and the depth expected varies a lot by role. Each guide maps how that role's interviews changed, what you are actually expected to know (and what you are not), and 12-14 role-specific questions.
 
 | Role | Guide |
 |---|---|
@@ -65,13 +118,9 @@ Not sure where to spend limited prep time? [AI-ENGINEER-75.md](AI-ENGINEER-75.md
 | Security Engineer | [Guide](15-role-guides/security-engineer.md) |
 | "Am I an ML Engineer or AI Engineer?" | [Guide](15-role-guides/ml-engineer-vs-ai-engineer.md) |
 
-**By company.** See the [company guides table](#company-guides) above.
-
-**By topic.** See the topics table below.
-
----
-
 ## Topics
+
+Each topic has a crash-course primer (`README.md`) and a full question bank with worked, collapsible answers (`questions.md`). Work with the answer collapsed until you have tried it yourself.
 
 | # | Topic | Questions | What it covers |
 |---|-------|-----------|-----------------|
@@ -89,10 +138,6 @@ Not sure where to spend limited prep time? [AI-ENGINEER-75.md](AI-ENGINEER-75.md
 | 12 | [Coding Challenges](12-coding-challenges/) | 13 challenges | Implement attention, BPE, sampling, KV cache, an agent loop, and more, from scratch |
 | 13 | [Interview Process & Behavioral](13-interview-process-and-behavioral/) | 22 | Loop anatomy by company type, take-homes, portfolio projects, AI-specific behavioural questions |
 
-Plus: [resources/](resources/) for curated papers, blogs, courses, and books; [STUDY_PLAN.md](STUDY_PLAN.md) for a day-by-day schedule; [CHEATSHEET.md](CHEATSHEET.md) for the night before your interview.
-
----
-
 ## System design case studies
 
 Full worked examples in [11-ai-system-design/case-studies](11-ai-system-design/case-studies/), each following the same template: requirements, architecture, evaluation plan, cost estimate, failure modes, and likely follow-ups.
@@ -107,8 +152,6 @@ Full worked examples in [11-ai-system-design/case-studies](11-ai-system-design/c
 | 6 | [Document Intelligence Pipeline](11-ai-system-design/case-studies/06-document-intelligence-pipeline.md) |
 | 7 | [Text-to-SQL Agent](11-ai-system-design/case-studies/07-text-to-sql-agent.md) |
 | 8 | [Meeting Assistant](11-ai-system-design/case-studies/08-meeting-assistant.md) |
-
----
 
 ## Coding challenges
 
@@ -130,11 +173,32 @@ Thirteen self-contained Python files in [12-coding-challenges](12-coding-challen
 | 12 | [Eval Metrics](12-coding-challenges/12_eval_metrics.py) | Medium | pass@k unbiased estimator, QA F1/EM, judge harness skeleton |
 | 13 | [Streaming Parser](12-coding-challenges/13_streaming_parser.py) | Hard | SSE parser, incremental tool-call argument assembly |
 
----
-
 ## Contributing
 
 Corrections, new questions, and new case studies are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for the format.
+
+---
+
+<div align="center">
+
+### ⭐ Found this useful? Star it so you can find it again.
+
+New questions, company coverage, and study material land here regularly. Watching the repo is the easiest way to catch every update.
+
+<a href="https://github.com/ombharatiya/AI-Engineer-Interview-Questions/subscription">
+  <img src="https://img.shields.io/badge/🔔 Watch This Repo-Get Every Update-blue?style=for-the-badge" alt="Watch Repo" />
+</a>&nbsp;
+<a href="https://github.com/ombharatiya/AI-Engineer-Interview-Questions">
+  <img src="https://img.shields.io/badge/⭐ Star-Show Support-yellow?style=for-the-badge" alt="Star Repo" />
+</a>
+
+**Follow [@ombharatiya](https://github.com/ombharatiya)** for interview tips and updates, and see [aidaddy.tech](https://aidaddy.tech) for the companion AI system design and interview prep site:
+
+[![GitHub](https://img.shields.io/badge/GitHub-@ombharatiya-181717?style=flat-square&logo=github)](https://github.com/ombharatiya)
+[![Twitter](https://img.shields.io/badge/Twitter-@ombharatiya-1DA1F2?style=flat-square&logo=twitter)](https://twitter.com/ombharatiya)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-ombharatiya-0A66C2?style=flat-square&logo=linkedin)](https://linkedin.com/in/ombharatiya)
+
+</div>
 
 ## License
 
