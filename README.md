@@ -2,7 +2,7 @@
 
 <div align="center">
 
-  <p><strong>The complete prep resource for AI Engineer, LLM Engineer, and Applied AI interviews.</strong><br/>679 questions with worked answers, 8 system design case studies, 13 runnable coding challenges, and dedicated guides for 20 companies and 10 engineering roles.</p>
+  <p><strong>The complete prep resource for AI Engineer, LLM Engineer, and Applied AI interviews.</strong><br/>679 questions with worked answers, 8 system design case studies, 13 runnable coding challenges, company interview questions for 20 companies, and guides for 10 engineering roles.</p>
 
   <a href="https://github.com/ombharatiya/AI-Engineer-Interview-Questions/stargazers">
     <img src="https://img.shields.io/github/stars/ombharatiya/AI-Engineer-Interview-Questions?style=flat" alt="GitHub stars" />
@@ -20,27 +20,27 @@
     <img src="https://img.shields.io/badge/PRs-welcome-brightgreen?style=flat" alt="PRs Welcome" />
   </a>
 
-  <p><strong>Company guides:</strong><br/>
-  <a href="14-company-guides/anthropic.md">Anthropic</a> ·
-  <a href="14-company-guides/openai.md">OpenAI</a> ·
-  <a href="14-company-guides/google-deepmind.md">Google DeepMind</a> ·
-  <a href="14-company-guides/meta-ai.md">Meta</a> ·
-  <a href="14-company-guides/xai.md">xAI</a> ·
-  <a href="14-company-guides/mistral.md">Mistral</a> ·
-  <a href="14-company-guides/microsoft.md">Microsoft</a> ·
-  <a href="14-company-guides/amazon.md">Amazon</a> ·
-  <a href="14-company-guides/apple.md">Apple</a> ·
-  <a href="14-company-guides/nvidia.md">NVIDIA</a> ·
-  <a href="14-company-guides/databricks.md">Databricks</a> ·
-  <a href="14-company-guides/scale-ai.md">Scale AI</a> ·
-  <a href="14-company-guides/perplexity.md">Perplexity</a> ·
-  <a href="14-company-guides/cursor-anysphere.md">Cursor</a> ·
-  <a href="14-company-guides/cohere.md">Cohere</a> ·
-  <a href="14-company-guides/hugging-face.md">Hugging Face</a> ·
-  <a href="14-company-guides/together-ai.md">Together AI</a> ·
-  <a href="14-company-guides/glean.md">Glean</a> ·
-  <a href="14-company-guides/palantir.md">Palantir</a> ·
-  <a href="14-company-guides/sierra.md">Sierra</a>
+  <p><strong>Company interview questions:</strong><br/>
+  <a href="14-company-interview-questions/anthropic.md">Anthropic</a> ·
+  <a href="14-company-interview-questions/openai.md">OpenAI</a> ·
+  <a href="14-company-interview-questions/google-deepmind.md">Google DeepMind</a> ·
+  <a href="14-company-interview-questions/meta-ai.md">Meta</a> ·
+  <a href="14-company-interview-questions/xai.md">xAI</a> ·
+  <a href="14-company-interview-questions/mistral.md">Mistral</a> ·
+  <a href="14-company-interview-questions/microsoft.md">Microsoft</a> ·
+  <a href="14-company-interview-questions/amazon.md">Amazon</a> ·
+  <a href="14-company-interview-questions/apple.md">Apple</a> ·
+  <a href="14-company-interview-questions/nvidia.md">NVIDIA</a> ·
+  <a href="14-company-interview-questions/databricks.md">Databricks</a> ·
+  <a href="14-company-interview-questions/scale-ai.md">Scale AI</a> ·
+  <a href="14-company-interview-questions/perplexity.md">Perplexity</a> ·
+  <a href="14-company-interview-questions/cursor-anysphere.md">Cursor</a> ·
+  <a href="14-company-interview-questions/cohere.md">Cohere</a> ·
+  <a href="14-company-interview-questions/hugging-face.md">Hugging Face</a> ·
+  <a href="14-company-interview-questions/together-ai.md">Together AI</a> ·
+  <a href="14-company-interview-questions/glean.md">Glean</a> ·
+  <a href="14-company-interview-questions/palantir.md">Palantir</a> ·
+  <a href="14-company-interview-questions/sierra.md">Sierra</a>
   </p>
 
 </div>
@@ -67,39 +67,39 @@ If you can clear all 75, you are ready for most AI engineering loops. If you can
 | 1 week | The 75 + the [1-week cram plan](STUDY_PLAN.md) | 75 items + 6 crash courses |
 | 2-4 weeks | The [4-week plan](STUDY_PLAN.md): all 13 crash courses, full question banks on your weak topics, 3 design mocks | ~150-321 questions + 3 case studies + all 13 challenges |
 | 1-2 months+ | The [8-week plan](STUDY_PLAN.md): all 321 topic questions, all 8 case studies, all 13 challenges, plus a portfolio project | Everything, plus building |
-| Targeting a company | Add that company's guide from the banner above | +10-12 tailored questions and the loop map |
+| Targeting a company | Add that company's interview questions from the banner above | +10-12 tailored questions and the loop map |
 | Not an "AI Engineer" title | Start from your [role guide](#role-guides) instead | Role-calibrated study map |
 
 **Essential shortcuts:** [The AI Engineer 75](AI-ENGINEER-75.md) · [Night-before cheat sheet](CHEATSHEET.md) · [Study plans](STUDY_PLAN.md) · [Curated papers and courses](resources/README.md) · [aidaddy.tech](https://aidaddy.tech), the companion site for AI system design and interview prep
 
 ---
 
-## Company guides
+## Company interview questions
 
-Loop structure and emphasis differ a lot between a frontier lab, a big tech AI org, and a fast-moving startup. Guides are built from public information (job postings, engineering blogs, published interview reports), not leaked material, and each one has a "last reviewed" note and sources.
+Interview questions, loop maps, and prep priorities for 20 companies, tiered from frontier labs to applied AI shops. Everything is built from public information (job postings, engineering blogs, published interview reports), not leaked material, and each page has a "last reviewed" note and sources.
 
-| Company | Tier | Guide |
-|---|---|---|
-| Anthropic | Frontier lab | [Guide](14-company-guides/anthropic.md) |
-| OpenAI | Frontier lab | [Guide](14-company-guides/openai.md) |
-| Google DeepMind | Frontier lab | [Guide](14-company-guides/google-deepmind.md) |
-| Meta | Frontier lab | [Guide](14-company-guides/meta-ai.md) |
-| xAI | Frontier lab | [Guide](14-company-guides/xai.md) |
-| Mistral AI | Frontier lab | [Guide](14-company-guides/mistral.md) |
-| Microsoft | Big tech | [Guide](14-company-guides/microsoft.md) |
-| Amazon | Big tech | [Guide](14-company-guides/amazon.md) |
-| Apple | Big tech | [Guide](14-company-guides/apple.md) |
-| NVIDIA | Big tech | [Guide](14-company-guides/nvidia.md) |
-| Databricks | AI-native & infra | [Guide](14-company-guides/databricks.md) |
-| Scale AI | AI-native & infra | [Guide](14-company-guides/scale-ai.md) |
-| Perplexity | AI-native & infra | [Guide](14-company-guides/perplexity.md) |
-| Cursor (Anysphere) | AI-native & infra | [Guide](14-company-guides/cursor-anysphere.md) |
-| Cohere | AI-native & infra | [Guide](14-company-guides/cohere.md) |
-| Hugging Face | AI-native & infra | [Guide](14-company-guides/hugging-face.md) |
-| Together AI | AI-native & infra | [Guide](14-company-guides/together-ai.md) |
-| Glean | AI-native & infra | [Guide](14-company-guides/glean.md) |
-| Palantir | Applied / forward-deployed | [Guide](14-company-guides/palantir.md) |
-| Sierra | Applied / forward-deployed | [Guide](14-company-guides/sierra.md) |
+| Company | Tier |
+|---|---|
+| [Anthropic](14-company-interview-questions/anthropic.md) | Frontier lab |
+| [OpenAI](14-company-interview-questions/openai.md) | Frontier lab |
+| [Google DeepMind](14-company-interview-questions/google-deepmind.md) | Frontier lab |
+| [Meta](14-company-interview-questions/meta-ai.md) | Frontier lab |
+| [xAI](14-company-interview-questions/xai.md) | Frontier lab |
+| [Mistral AI](14-company-interview-questions/mistral.md) | Frontier lab |
+| [Microsoft](14-company-interview-questions/microsoft.md) | Big tech |
+| [Amazon](14-company-interview-questions/amazon.md) | Big tech |
+| [Apple](14-company-interview-questions/apple.md) | Big tech |
+| [NVIDIA](14-company-interview-questions/nvidia.md) | Big tech |
+| [Databricks](14-company-interview-questions/databricks.md) | AI-native & infra |
+| [Scale AI](14-company-interview-questions/scale-ai.md) | AI-native & infra |
+| [Perplexity](14-company-interview-questions/perplexity.md) | AI-native & infra |
+| [Cursor (Anysphere)](14-company-interview-questions/cursor-anysphere.md) | AI-native & infra |
+| [Cohere](14-company-interview-questions/cohere.md) | AI-native & infra |
+| [Hugging Face](14-company-interview-questions/hugging-face.md) | AI-native & infra |
+| [Together AI](14-company-interview-questions/together-ai.md) | AI-native & infra |
+| [Glean](14-company-interview-questions/glean.md) | AI-native & infra |
+| [Palantir](14-company-interview-questions/palantir.md) | Applied / forward-deployed |
+| [Sierra](14-company-interview-questions/sierra.md) | Applied / forward-deployed |
 
 ## Role guides
 
@@ -183,7 +183,7 @@ Corrections, new questions, and new case studies are welcome. See [CONTRIBUTING.
 
 ### ⭐ Found this useful? Star it so you can find it again.
 
-New questions, company guides, and study material land here regularly. Watching the repo is the easiest way to catch every update.
+New questions, company coverage, and study material land here regularly. Watching the repo is the easiest way to catch every update.
 
 <a href="https://github.com/ombharatiya/AI-Engineer-Interview-Questions/subscription">
   <img src="https://img.shields.io/badge/🔔 Watch This Repo-Get Every Update-blue?style=for-the-badge" alt="Watch Repo" />

@@ -1,4 +1,4 @@
-# 🌀 OpenAI - AI Engineer Interview Guide
+# 🌀 OpenAI - AI Engineer Interview Questions
 
 > **Last reviewed: July 2026.** Based only on public information - official pages, engineering blogs, and publicly shared candidate reports. Processes change and vary by team; treat this as a map, not a contract. No confidential or leaked material.
 
