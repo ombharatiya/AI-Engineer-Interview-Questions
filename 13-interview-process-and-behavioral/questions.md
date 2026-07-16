@@ -1,6 +1,6 @@
 # Interview Process & Behavioral - Interview Questions
 
-22 questions: 6 basic, 8 intermediate, 8 advanced. Answers here are guidance - what the interviewer is probing, how to structure a strong answer (STAR-ish: Situation → Task → Action → Result, with numbers), a brief example sketch, and the pitfalls that sink candidates.
+35 questions: 10 basic, 13 intermediate, 12 advanced. Answers here are guidance - what the interviewer is probing, how to structure a strong answer (STAR-ish: Situation → Task → Action → Result, with numbers), a brief example sketch, and the pitfalls that sink candidates.
 
 ## Basic
 
@@ -100,9 +100,84 @@
 
 </details>
 
+### 7. I ask you about something at the edge of your resume - say the internals of an optimizer you've never implemented. You don't know. What do you actually say?
+
+<details><summary><b>Answer</b></summary>
+
+I say I don't know, then I show the shape of what I do know and how I'd close the gap. Something like: "I haven't implemented Adam from scratch. I know it keeps running estimates of the first and second moments of the gradient and scales the step per parameter, and I know the practical consequences: it's forgiving on learning rate, and weight decay interacts with it badly enough that AdamW exists. Past that I'd be guessing." Three sentences, and they do three things: draw a clear boundary, prove the boundary is real rather than total ignorance, and hand you a follow-up.
+
+What kills candidates is the middle path - hedging, generating plausible filler, watching your face to see whether it landed. Domain interviewers probe until you break by design, so the break is the point of the exercise, not an accident. A calibrated "I don't know" is a positive signal, because the job is full of moments where guessing costs money.
+
+Two failure modes on the other side. Don't over-apologise or spiral; one clean sentence, then move on. And never say "I don't know" about something on your own resume. If my bullet claims I owned the retrieval layer, "I'm not sure how the reranker was configured" is a much worse answer than not knowing Adam, because it reads as claiming someone else's work. I make sure I can go three questions deep on every bullet I wrote.
+
+When I have partial ground, I say what closing the gap would take: "I'd read the paper and reproduce it on a small run, probably an afternoon." That's not deflection if it's specific and time-boxed. Also fine: ask for a hint and reason out loud from first principles. Being wrong out loud and then correcting yourself when nudged tests better than silence, because it shows me updating rather than performing.
+
+**Follow-ups:** What's on your resume right now that you'd be least comfortable being drilled on? Have you ever caught a candidate bluffing while interviewing them, and what gave it away?
+
+</details>
+
+### 8. We send you a take-home: build a RAG service over this corpus, we say roughly six hours. What do you do before writing any code?
+
+<details><summary><b>Answer</b></summary>
+
+I send an email, then I timebox. The email asks three things: what does done mean to you (working prototype or production-shaped), is there a written rubric, and can I use a hosted API and coding assistants. Asking is not a demerit. It's the first observable signal you get from me, and it mirrors how I'd start a real ticket.
+
+Then I timebox to the stated hours plus about 25%, split roughly 50% core path, 25% evals and error analysis, 25% README and cleanup. The one thing I won't do is spend six hours on features and zero on evaluation. A small ingestion-plus-retrieval-plus-answer path with 15 hand-written test cases and a pass/fail script beats a sprawling multi-agent thing with no way to tell whether it works. Graders spend ~15 minutes; a crash in minute one means nothing else I did counts. Working and boring wins.
+
+Every scope cut goes in the README explicitly: "sync calls only, no streaming; fixed-size chunking with overlap because the corpus is uniform prose; with another week I'd add a reranker, but I'd measure recall@k first." Naming the shortcut reads senior. Hiding it reads junior, because you'll find it anyway.
+
+On negotiating: if the ask is realistically 20 hours unpaid, I say so and counter. "I can't commit 20 hours, but here's a repo of mine that demonstrates the same skills and I'll walk through it live, or I'm happy to do a paid trial." Reasonable companies take that. The ones that don't have told me something useful. I'd also decline a take-home that looks suspiciously like their actual roadmap, or one issued before any human has spoken to me.
+
+And I write it assuming a defence round, because there almost always is one. Use whatever tools you like, but if you can't justify a design choice in a 45 to 90 minute walkthrough, you didn't make it.
+
+**Follow-ups:** What would you cut first if you hit hour four and only had the ingestion path working? How would you decide whether a take-home is a reasonable ask or free consulting?
+
+</details>
+
+### 9. You've been a backend engineer for six years. Why AI engineering now, and what actually transfers?
+
+<details><summary><b>Answer</b></summary>
+
+Most of this job is still software engineering, which is exactly why I'm credible for it. Practitioners commonly put it at roughly 80% ordinary engineering - APIs, queues, retries, latency budgets, data plumbing - and ~20% model-specific work. I'm not switching careers, I'm adding a layer to one I already have.
+
+What transfers concretely: async Python and concurrency, because LLM calls are slow network calls, and batching, streaming and backpressure decide your p95. Error handling against unreliable dependencies, because a model returning malformed JSON is just a flaky upstream with better PR. Observability, cost accounting, schema design, and the instinct to ask what happens when this thing fails at 3am.
+
+What doesn't transfer, and I'd rather name it than pretend: comfort with non-determinism. Backend engineering trains you on same input, same output, assert equals. LLM systems break that contract, and you cannot unit test your way out. You need eval sets, sampled scoring, and statistical thinking about regressions. That was the real adjustment for me. I made it by building an extraction pipeline where I wrote the eval harness before the feature, and it changed how I think about "done."
+
+On motivation, honestly: the reliability problem moved. What I liked about distributed systems was turning unreliable components into a product people trust. That's precisely the AI engineering problem, one layer up.
+
+I'm also careful about what I don't claim. I haven't pretrained anything. I've run LoRA on a small open model specifically to learn where fine-tuning does and doesn't beat prompting on a narrow task, and on mine it lost to a well-prompted frontier model on quality per dollar. That was the useful result. If this role needs someone who can debug a multi-node training run, I'm not that person yet, and you should hire the person who is.
+
+The version of this answer that fails is "AI is the future and I'm excited to learn." Everyone says it. Bring the artifact instead.
+
+**Follow-ups:** What's the first thing that surprised you when you moved from deterministic services to LLM-backed ones? Which parts of classical ML, if any, have you found you actually needed?
+
+</details>
+
+### 10. What questions do you have for us?
+
+<details><summary><b>Answer</b></summary>
+
+I ask things that are diagnostic for me and happen to reveal what I care about. The one I always lead with: "How do you know a prompt or model change is safe to ship? Walk me through the last one." The walkthrough matters far more than the policy. A real story with an eval set, a threshold and a named person who made the call means a functioning team. "We test it and eyeball the output" means I'd spend my first year firefighting vibes-driven regressions, and I want to know that before I sign, not after.
+
+Then, in rough priority:
+
+- Data access: "What data can the team actually use for evals and training, and how long does access take?" Months-long approval quietly kills AI teams and nobody advertises it in the JD.
+- Compute and API budget: "Do experiments queue behind production? Who says no to a spend, and how often?"
+- Path to production: "Who can change a prompt, and what gates it?" A team where prompts ship unreviewed and a team where they ride a release train are different jobs with the same title.
+- On-call: "Are AI features paged? Who debugs a quality regression, and how would they get paged for one at all?" Most orgs have no answer, which is itself the answer.
+- Model strategy: "What happened during your last model migration or deprecation?" Tells me how coupled you are to one vendor and what debt I'd inherit.
+- For a startup: runway, who the design partners are, and what the last pivot was.
+
+Two rules I hold myself to. Don't ask what a careful read of the JD and the engineering blog answers - that reads as lazy. And don't ask only about perks; both "no questions" and "only comp questions" get logged in the debrief as low ownership. If I'm close to an offer I'll also ask what would make you not hire me, and then actually listen instead of rebutting.
+
+**Follow-ups:** Which of those answers would be a dealbreaker for you? What's the best question a candidate has ever asked you?
+
+</details>
+
 ## Intermediate
 
-### 7. You shipped an LLM feature - how did you evaluate it? Walk me through the actual eval setup.
+### 11. You shipped an LLM feature - how did you evaluate it? Walk me through the actual eval setup.
 
 <details><summary><b>Answer</b></summary>
 
@@ -118,7 +193,7 @@
 
 </details>
 
-### 8. Tell me about a time an AI feature failed in production. What happened and what did you change?
+### 12. Tell me about a time an AI feature failed in production. What happened and what did you change?
 
 <details><summary><b>Answer</b></summary>
 
@@ -134,7 +209,7 @@
 
 </details>
 
-### 9. How do you decide between building in-house, buying a vendor product, and calling a model API?
+### 13. How do you decide between building in-house, buying a vendor product, and calling a model API?
 
 <details><summary><b>Answer</b></summary>
 
@@ -150,7 +225,7 @@
 
 </details>
 
-### 10. How do you debug non-deterministic bugs in LLM systems?
+### 14. How do you debug non-deterministic bugs in LLM systems?
 
 <details><summary><b>Answer</b></summary>
 
@@ -166,7 +241,7 @@
 
 </details>
 
-### 11. Tell me about a time you significantly cut inference costs. What was the approach and the tradeoff?
+### 15. Tell me about a time you significantly cut inference costs. What was the approach and the tradeoff?
 
 <details><summary><b>Answer</b></summary>
 
@@ -182,7 +257,7 @@
 
 </details>
 
-### 12. Tell me about a time a prompt change broke production.
+### 16. Tell me about a time a prompt change broke production.
 
 <details><summary><b>Answer</b></summary>
 
@@ -198,7 +273,7 @@
 
 </details>
 
-### 13. Tell me about a time your eval metrics and real user feedback disagreed. Which did you trust?
+### 17. Tell me about a time your eval metrics and real user feedback disagreed. Which did you trust?
 
 <details><summary><b>Answer</b></summary>
 
@@ -214,7 +289,7 @@
 
 </details>
 
-### 14. How do you decide when an AI prototype is ready for production?
+### 18. How do you decide when an AI prototype is ready for production?
 
 <details><summary><b>Answer</b></summary>
 
@@ -230,9 +305,97 @@
 
 </details>
 
+### 19. We're going to walk through your take-home. Start by telling me the biggest weakness in what you submitted.
+
+<details><summary><b>Answer</b></summary>
+
+The real one, not a humble-brag. For the RAG service I sent: the weakness is chunking. I used fixed ~800-token windows with overlap, and my own eval set shows it fails on the tables in the corpus - the boundary splits a row from its header, and the model then answers confidently from half a table. That's 6 of my 40 cases and every one fails the same way. It's in the README under known failures rather than quietly hoping you wouldn't run those rows.
+
+Then what I'd do about it, ranked. Route table-shaped pages to a different extractor and keep prose chunking for everything else: about half a day, closes most of the gap. Second, a reranker over a wider candidate set. But I'd measure recall@k before spending on that, because it's entirely possible my retriever never returns the right chunk at all, in which case reranking is polish on a broken step.
+
+I open here deliberately, because the defence round scores judgment, not code. You've already read the code. What the diff can't tell you is whether I know where the bodies are buried. A candidate who says "honestly, nothing major" has just told you they did no error analysis, which is worse than any specific flaw they could have named.
+
+I'd also separate the deliberate cuts from the ignorance, so they don't get scored as the same thing: sync calls, no streaming, no cache, single process. All defensible at the stated scale, all wrong for production, all listed in the README with the reason.
+
+And the part I'm actually pleased with: the eval harness. Forty hand-written cases, a pass/fail script that runs in under a minute, and a failure clustering that took me longer than the retrieval code did. That's where I chose to spend the budget, and given the same six hours I'd spend it the same way.
+
+**Follow-ups:** If I gave you one more day, would you fix the chunking or widen the eval set? Why? Which of your 40 cases would you drop as not actually testing anything?
+
+</details>
+
+### 20. In this round you can use a coding agent, and we'll be watching how you use it. How do you approach that?
+
+<details><summary><b>Answer</b></summary>
+
+The way I'd use it at work: I direct it, I verify it, and I say out loud which parts I'm choosing not to delegate. The round isn't scoring typing speed, it's scoring whether I stay in command of code I didn't write.
+
+In a two-hour build, I spend the first ten minutes without the agent, writing down the data model, the interfaces, and what working means, ideally as two or three concrete test cases. Those are the decisions, and they're mine. Then I hand the agent the work with one correct answer: the client wrapper, CLI parsing, the schema models, the Dockerfile. I read every line back. What I write myself is anything where a plausible-looking wrong answer is expensive - the retry and error path around the model call, parsing of untrusted output, anything touching concurrency.
+
+The failure mode in a timed round is accepting a 200-line file you never read, then losing thirty minutes to a bug you can't locate because you have no model of the code. Agents are extremely good at code that looks right. So I keep the loop tight: small diffs, run after each one, never let it get more than one step ahead of my understanding. If I can't explain a file, I delete it and do it myself, which is faster than it sounds.
+
+I narrate the moments I reject its output, because that's the actual signal. "It's pulling in a framework for a three-function problem, I'll write this by hand" tells you more about me than the finished demo does.
+
+Two practical things. I ask the recruiter beforehand which rules apply, since companies differ sharply on this and some formats now explicitly encourage agent use. And I cut scope out loud rather than silently missing the deadline: "I'm skipping auth and the UI, they're not what this problem is about" is a scoping decision I want on the record. Running out of time on a half-built login page isn't.
+
+**Follow-ups:** Tell me about a time an agent's output looked right and wasn't. How did you catch it? Where do you draw the line on what you'd never delegate to an agent in production code?
+
+</details>
+
+### 21. Tell me about an AI project that failed. Not one with a redemption arc - one that got killed.
+
+<details><summary><b>Answer</b></summary>
+
+I'll give you the real one, and I'd want you to judge the decision quality rather than the outcome. The structure that matters: what we believed, what turned out to be true, when we could have known, and what finding out cost.
+
+We built an LLM feature to auto-triage inbound support tickets into ~30 categories and route them. It demoed beautifully and it was killed at about four months. The reason wasn't the model. It was that the taxonomy was fiction. Agents had been picking categories semi-randomly for years, so the historical labels we validated against were noise wearing a schema. Our eval reported high agreement with those historical labels, which felt like success. When we finally ran a small relabelling exercise, having two people independently label a couple of hundred tickets, they agreed with each other markedly less often than our model agreed with history. We had built a model that faithfully reproduced an inconsistent human process, and our metric was rewarding it for that.
+
+What I own: I proposed the eval set, and I used the cheap labels because they existed and the deadline was real. The relabelling exercise was two days of work. It would have killed the project in week two instead of month four. "Where did these labels come from, and do humans agree with each other on them?" is now the first question I ask on any project with supervised-shaped ground truth, before any modelling at all.
+
+What I'd avoid in the retelling: blaming the PM, blaming the data team, or claiming it secretly succeeded. Interviewers can hear a story that's been sanded smooth. I'd also avoid "we learned so much" as the punchline. The learning has to be one specific thing I now do differently, and ideally I can point at a later project where I did it.
+
+The one thing I'd defend: killing it was correct and I argued for it. Sunk cost was roughly four engineer-months. A router that misroutes confidently would have cost far more, and it would have cost it forever.
+
+**Follow-ups:** How would you have measured inter-annotator agreement before committing to the project? When is a noisy label set still good enough to build on?
+
+</details>
+
+### 22. You own an LLM feature in production. What does on-call actually look like for it, and tell me about a page you took.
+
+<details><summary><b>Answer</b></summary>
+
+The honest starting point: most AI features aren't properly on-call, and that's the interesting part of the question. Classic paging catches the feature being down. It does not catch the feature being wrong, which is the failure that actually matters. An LLM feature can degrade for hours with every SLO green: 200s, p95 fine, error rate flat, answers quietly worse.
+
+So I run alerting in two tiers. Tier one is ordinary plumbing and it pages a human at 2am: availability, latency, error rate, provider 429s and 5xx, spend per hour against a budget ceiling. Tier two is proxy signals for quality, and it pages a business-hours rota rather than waking anyone, because the true-positive rate doesn't justify it: refusal rate, share of structured outputs failing schema validation, retrieval returning zero chunks, thumbs-down rate, fallback-to-human rate, output length distribution shifting. They're cheap to compute on live traffic and they lead the user complaints by hours or days.
+
+The page I'd tell you about: our extraction path started failing schema validation on a rising share of calls overnight. Nothing was down. The retry loop absorbed it, so it showed up as rising latency and cost, not errors. The first thing I did was not open the prompt. I asked what changed, across three axes: provider-side model updates, our own deploys, and input mix. It was input mix. A new customer had started sending a document layout we'd never seen. The fix was a routing rule and two new eval cases, not a prompt tweak - and if I'd started at the prompt I'd have spent the night making it worse for everyone else.
+
+The thing I want any AI on-call to have is enough logging to reproduce: a full version snapshot on every request, covering model version, prompt version, retrieval index build, and tool schema version. "It got worse" is unactionable unless you can diff what moved. Without that, you're guessing, and guessing at 2am is how prompt-tweak incidents get manufactured.
+
+**Follow-ups:** Which quality proxy metric has given you the best signal-to-noise, and which one did you turn off? How would you page on a regression that only affects 2% of traffic?
+
+</details>
+
+### 23. Mid-round I tell you your answer is wrong: I think you should fine-tune here, not use retrieval. You disagree with me. What do you do?
+
+<details><summary><b>Answer</b></summary>
+
+I take the objection seriously first, because there's a real chance you know something about the problem I don't, and because this is often a deliberate test of whether I fold under mild authority. Both folding and digging in lose.
+
+The sequence I run: restate your position in terms you'd accept, locate the actual point of disagreement, then ask what would settle it. "So the argument is that the knowledge is stable and the real failure is that the model doesn't know the output format, and fine-tuning teaches format more reliably than in-context examples. If that's the situation, I think you're right. My assumption was that the corpus changes weekly, which is why I reached for retrieval. Which is it?" Nine times out of ten the disagreement dissolves into an unstated assumption, and surfacing it is the skill actually being scored.
+
+If it survives that, I say where I'd bend, where I wouldn't, and what experiment decides it. "I'd still start with retrieval, because I can ship it this week and I get citations for free. But I'd accept I'm wrong if a 200-case eval shows format errors dominate while retrieval quality is fine. That's a day of work to find out." Disagreements over AI tradeoffs are almost always empirical, and the senior move is converting an argument into a cheap measurement rather than winning it rhetorically. I'd rather be measured than persuasive.
+
+If you're simply right, I say so immediately and specifically: "Yes, I missed that the corpus is static. That changes my answer, and here's what it changes it to." Updating on evidence is a positive signal, not a concession. Interviewers are looking for it.
+
+What's fatal is agreeing while visibly not agreeing, then quietly continuing to design the thing I originally wanted. That reads as someone who will nod in design review and then do whatever they'd planned, which is a genuinely expensive person to hire.
+
+**Follow-ups:** Tell me about a real disagreement where you were the one who turned out to be wrong. How do you handle it when the person disagreeing is your skip-level rather than a peer?
+
+</details>
+
 ## Advanced
 
-### 15. Tell me about a time you pushed back on shipping something you believed was unreliable.
+### 24. Tell me about a time you pushed back on shipping something you believed was unreliable.
 
 <details><summary><b>Answer</b></summary>
 
@@ -248,7 +411,7 @@
 
 </details>
 
-### 16. You're asked to ship an AI feature you have safety or ethical concerns about. Walk me through what you'd do - or a time it happened.
+### 25. You're asked to ship an AI feature you have safety or ethical concerns about. Walk me through what you'd do - or a time it happened.
 
 <details><summary><b>Answer</b></summary>
 
@@ -264,7 +427,7 @@
 
 </details>
 
-### 17. Tell me about a technical disagreement over model choice - how was it resolved?
+### 26. Tell me about a technical disagreement over model choice - how was it resolved?
 
 <details><summary><b>Answer</b></summary>
 
@@ -280,7 +443,7 @@
 
 </details>
 
-### 18. Deadline pressure: do you spend the next two weeks on eval infrastructure or the feature itself? How have you actually made this call?
+### 27. Deadline pressure: do you spend the next two weeks on eval infrastructure or the feature itself? How have you actually made this call?
 
 <details><summary><b>Answer</b></summary>
 
@@ -296,7 +459,7 @@
 
 </details>
 
-### 19. A stakeholder wants to send sensitive customer data (PII) to a third-party model API. They say the business need justifies it. What do you do?
+### 28. A stakeholder wants to send sensitive customer data (PII) to a third-party model API. They say the business need justifies it. What do you do?
 
 <details><summary><b>Answer</b></summary>
 
@@ -312,7 +475,7 @@
 
 </details>
 
-### 20. Tell me about mentoring or upskilling teammates on AI. How did you approach it and what changed?
+### 29. Tell me about mentoring or upskilling teammates on AI. How did you approach it and what changed?
 
 <details><summary><b>Answer</b></summary>
 
@@ -328,7 +491,7 @@
 
 </details>
 
-### 21. Your provider deprecates the model your product depends on, with 90 days' notice. Walk me through what you'd do - or a migration you actually ran.
+### 30. Your provider deprecates the model your product depends on, with 90 days' notice. Walk me through what you'd do - or a migration you actually ran.
 
 <details><summary><b>Answer</b></summary>
 
@@ -344,7 +507,7 @@
 
 </details>
 
-### 22. Leadership saw a demo and now expects magic. Tell me about managing expectations for what an AI system can actually do.
+### 31. Leadership saw a demo and now expects magic. Tell me about managing expectations for what an AI system can actually do.
 
 <details><summary><b>Answer</b></summary>
 
@@ -357,5 +520,97 @@
 **Pitfalls:** mocking leadership's naivety - their excitement is an asset to steer, not a defect; pure deflation with no path forward (the "actually it's all hype" engineer loses the influence to steer anything); over-promising to preserve the excitement and detonating later; managing expectations once instead of installing a practice.
 
 **Follow-ups:** How do you demo honestly without killing organisational momentum? What do you do when a competitor's (possibly staged) demo resets expectations you'd carefully calibrated?
+
+</details>
+
+### 32. Your assistant's answer quality regressed and nobody noticed for three weeks. You're writing the postmortem. Walk me through the document.
+
+<details><summary><b>Answer</b></summary>
+
+The document has to explain the three weeks, not just the regression. Detection latency is the headline finding. Any AI postmortem that leads with root cause and treats "we noticed late" as a footnote has missed the actual incident, because the cause is a one-off and the blindness is structural.
+
+The structure I'd use:
+
+**Timeline with versions, not just events.** What matters is what changed and when, across model version, prompt version, retrieval index build, tool schema, guardrail config, and input mix. Most quality regressions I've seen weren't a single deploy: they were slow drift, a provider-side model update, or an index rebuild that silently dropped a document type. If we don't log a version snapshot per request, the timeline is speculation, and that's finding number one before anything else.
+
+**Impact in user and money terms.** Not "faithfulness dropped." Roughly how many users got a worse answer, how many escalated to a human, what the retries cost. If we can't quantify it, say so plainly and make quantifying it an action item rather than inventing a number.
+
+**Root cause and, separately, why detection failed.** Two investigations, two sets of action items. The classic shape: the offline eval stayed green because it runs on a frozen curated set, and the regression lived in traffic that set doesn't represent. Real users send edge cases and adversarial phrasing; your golden set sends what you thought of six months ago.
+
+**A reproducible test case.** Every AI incident should exit with a scripted input that fails on the bad version, passes on the good one, and joins the eval set permanently. An incident that produces no regression test will recur.
+
+**Action items weighted toward detection.** One or two fixes for the cause, then the real work: a live proxy metric, a sampled scoring job on production traffic, a shadow canary comparing old and new. Fixing the specific cause without fixing the three weeks is theatre.
+
+Blameless, but not mushy: the finding is that we shipped a system whose quality was unobservable. Someone chose that under deadline, and it was probably me.
+
+**Follow-ups:** How would you sample production traffic for scoring without a labelling budget that scales with traffic? What would make you page on this rather than catch it in a weekly review?
+
+</details>
+
+### 33. Tell me about a time you argued to kill an AI feature that was already live.
+
+<details><summary><b>Answer</b></summary>
+
+A summarisation feature on a document product, live about a year. Roughly 3% of monthly actives ever touched it, well under 1% used it twice. I built the case to sunset it and shipped the removal.
+
+How I built the argument, because "I don't like it" kills nothing:
+
+**Usage, segmented honestly.** The headline number looked survivable until you split first use from repeat use. Something people try once and never return to is a demo, not a product, and aggregate MAU touches hide that completely.
+
+**Total cost, not inference cost.** Inference was the small line. The real cost was the eval set we maintained, the on-call surface, the two engineers repeatedly pulled into "the AI made this up" complaints, and the fact that it was the last thing pinning us to a model we wanted to retire. That migration was worth more than the feature.
+
+**Risk asymmetry.** It was our highest-variance surface, and the downside of a wrong summary on a contract is not symmetric with the upside of a right one.
+
+**What we'd do instead.** Never propose a deletion without the alternative. We moved the effort into structured extraction, which had verifiable ground truth, a testable accuracy number, and users who came back.
+
+The politics mattered more than the analysis. An exec had championed it, so I didn't open with "it's bad." I asked for a decision rule in advance: "If repeat usage is still under X at quarter end, do we agree to sunset?" Agreeing the threshold before the data lands is the whole trick. Afterwards, everyone relitigates the threshold instead of the decision.
+
+The sunset itself: announce, keep it behind a flag for a cycle, and watch for the loud minority who genuinely depended on it. There were four accounts. We contacted them directly. Two didn't care; two got a better answer from the extraction path.
+
+Killing your own work is a seniority signal. Most AI portfolios I've inherited needed pruning more than they needed features, and nobody gets promoted for the pruning, which is exactly why it doesn't happen.
+
+**Follow-ups:** What if the usage had been low but the four accounts were your largest customers? How do you decide between sunsetting a feature and rebuilding it?
+
+</details>
+
+### 34. An AI feature you're shipping needs sign-off from legal, security, and data governance. How do you run that without it eating the quarter?
+
+<details><summary><b>Answer</b></summary>
+
+Go to them in week one with a specific proposal, not in week ten with a finished feature and a deadline. The failure mode is treating review as a terminal gate, which is when a two-week fix becomes a re-architecture, and it's why engineers believe legal blocks AI work. Legal doesn't block AI work. It blocks ambiguity, and it's fast on specifics.
+
+I bring one page to the first meeting: exactly what data leaves our boundary, to whom, under what contract, retained how long, whether it trains their model, what happens if the answer is no, and what the feature does when the model is wrong. Every one of those gets asked in week ten regardless. Answering unprompted turns a six-week review into a conversation.
+
+What each function actually cares about, in my experience:
+
+**Legal:** data residency, the provider's processing terms and retention/training defaults, whether the output constitutes advice in a regulated domain, and IP and indemnity on generated content. The zero-retention or no-training-on-our-data posture is usually the crux, and it's usually a contract term rather than an engineering problem, which means starting it early costs nothing and starting it late costs the quarter.
+
+**Security:** treat both the model's inputs and its outputs as untrusted. Prompt injection via retrieved documents on the way in; on the way out, whether model output ever reaches a shell, a query, or another user's context, and what the tool layer is permitted to do. Bring a threat model, not reassurance.
+
+**Data governance:** lineage and access control. If retrieval can surface a document the requesting user can't open, you've built an exfiltration tool with a good UI. Per-user filtering enforced in the index, not requested in the prompt.
+
+Then make one of them a named design partner rather than a reviewer. A security engineer who shaped the design in week one defends it in week ten instead of discovering it. I keep a written record of what was approved and why, because people change roles and the feature outlives the meeting.
+
+Where I push back: if a control makes the feature useless, I say so plainly and let the business decide, rather than shipping a crippled version and blaming compliance for it.
+
+**Follow-ups:** How would you enforce per-user access control at retrieval time without rebuilding the index per user? What's the strongest case for shipping without a control that legal asked for?
+
+</details>
+
+### 35. You join as a staff engineer. The team ships prompt changes on vibes, has no evals, and as far as they can tell is shipping fine. What do you do in your first 90 days?
+
+<details><summary><b>Answer</b></summary>
+
+I don't open by telling them evals matter. They've heard it, and a team shipping fine on vibes holds a rational prior that evals are ceremony. I'd change the prior with a demonstration, chosen to be cheap and hard to argue with.
+
+**First ~2 weeks:** ship something small through their normal flow so I have standing, and read the logs. Not the code, the traffic. I sample a few hundred real requests and hand-label them myself against whatever quality means for this product. This is the highest-leverage thing a new senior person can do and almost nobody does it. It costs two days and produces the one artifact that moves people: a number, on their product, that they didn't have and can't dismiss.
+
+**Weeks ~3 to 6:** turn that labelling into ~50 cases and a pass/fail script that runs in under five minutes. Not a platform, not a vendor evaluation, one file in the repo. Then wait for the next prompt change and run it. The moment that converts a team is when the script catches a regression that was about to ship, on a change everyone believed was safe. That has happened every time I've done this, because prompt edits reliably fix the case the author was staring at and break two they weren't.
+
+**Weeks ~6 to 12:** make the right thing cheap rather than mandatory. Wire it into CI so it runs without anyone remembering. Make adding a case one line. Add a case for every incident and every customer complaint, so the eval set grows as a byproduct of work people already do. A set that requires a ritual dies within a quarter.
+
+What I wouldn't do: propose an eval platform, demand a merge gate before there's trust, or frame any of it as process maturity. And I'd stay honest that 50 cases is not a real eval. It's the smallest thing that makes the argument. Where it goes next is the team's call, once they've felt it work.
+
+**Follow-ups:** What if the demonstration fails and the script never catches anything? Do you conclude they were right? How do you handle the engineer who wrote the prompt the script just flagged?
 
 </details>

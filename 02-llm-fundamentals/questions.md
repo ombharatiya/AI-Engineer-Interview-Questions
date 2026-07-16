@@ -1,6 +1,6 @@
 # LLM & Transformer Fundamentals - Interview Questions
 
-41 questions: 13 basic, 16 intermediate, 12 advanced.
+60 questions: 17 basic, 24 intermediate, 19 advanced.
 
 ## Basic
 
@@ -247,9 +247,97 @@ The cost is memory: per token you store 2 (K and V) × n_layers × n_kv_heads ×
 
 </details>
 
+### 14. What does the feed-forward network in a transformer block actually do, and why is SwiGLU the default now?
+
+<details><summary><b>Answer</b></summary>
+
+Attention moves information between positions; the FFN transforms information at each position independently. It is also where most of the parameters live, roughly two thirds of a dense transformer's weights.
+
+The classic version is two linear layers with a nonlinearity between them, expanding to about 4x d_model and projecting back:
+
+```python
+def ffn(x, W1, W2):
+    return gelu(x @ W1) @ W2   # d_model -> 4*d_model -> d_model
+```
+
+SwiGLU replaces the single up-projection with a gated pair:
+
+```python
+def swiglu_ffn(x, W_gate, W_up, W_down):
+    return (silu(x @ W_gate) * (x @ W_up)) @ W_down
+```
+
+That is three matrices instead of two, so to hold the parameter count fixed you shrink the hidden dimension from ~4x d_model to ~8/3 x d_model. Llama-family models do exactly this, and it is why you see odd intermediate sizes like 11008 rather than a clean multiple of 4.
+
+Why it won: it consistently gives lower loss at matched parameters and FLOPs. The gate makes the nonlinearity data-dependent and multiplicative, so a unit can be switched off based on the input rather than passed through a fixed pointwise curve. The GLU-variants work that popularised it is refreshingly honest that the justification is empirical rather than theoretical. GeGLU (GELU instead of SiLU as the gate activation) performs about the same; the choice is mostly convention.
+
+A useful mental model from interpretability: treat W_gate/W_up rows as pattern detectors and W_down columns as the content those patterns write back into the residual stream, so the FFN behaves like a key-value memory.
+
+The misconception worth killing is that the FFN is a boring MLP tacked onto the interesting part. It holds the bulk of the parameters, dominates FLOPs at short and moderate context, and it is exactly the component Mixture-of-Experts replaces, because that is where the capacity is.
+
+**Follow-ups:** Where does the FFN stop dominating FLOPs and attention take over? Why does MoE swap out the FFN rather than attention?
+
+</details>
+
+### 15. What is weight tying, and why do some models tie the embedding and output matrices while others do not?
+
+<details><summary><b>Answer</b></summary>
+
+Weight tying means the input embedding matrix and the output LM head are the same matrix, used transposed at the output. Both map between token identity and residual-stream space, so the argument is that one matrix should serve.
+
+The saving is vocab x d_model parameters. With a 128k vocab and d_model 4096 that is ~524M parameters, which is a serious fraction of an 8B model and a rounding error in a 400B one. That size asymmetry basically explains the split in practice: small models tend to tie (Gemma ties, and with a ~256k vocab the saving is enormous relative to the body), while large models increasingly untie because the parameters are cheap and untying measurably improves loss.
+
+Why untying helps is the interesting part. The two matrices want different geometries. The embedding wants tokens that appear in similar contexts to sit close together. The unembedding wants tokens that are interchangeable as predictions to sit close together. Those are related but not identical, and forcing one matrix to satisfy both constrains it. There is also a rank argument: the logit matrix is bounded by d_model, the softmax bottleneck, and tying does not help there.
+
+Two details worth knowing. First, gradients behave differently: the embedding side receives sparse updates for tokens actually present in the batch, while the head receives dense updates from the full-vocab softmax, and with tying they land on the same matrix, which changes its effective learning rate relative to the rest of the model. Second, scale mismatch is real, which is why several tied models multiply embedding outputs by sqrt(d_model).
+
+The original arguments came from Press and Wolf and from Inan et al. around 2016 and 2017, in an era of small models where the embedding table genuinely was most of the model. The tradeoff has shifted since, which is the point.
+
+**Follow-ups:** How does the vocabulary size decision interact with the tying decision? What happens to a tied model if you want to extend the vocabulary post-hoc?
+
+</details>
+
+### 16. Explain speculative decoding. Why doesn't it change the model's output distribution?
+
+<details><summary><b>Answer</b></summary>
+
+A small draft model autoregressively proposes k tokens. The large target model then scores all k+1 positions in a single forward pass. An acceptance rule walks the proposals left to right, accepting each with probability min(1, p_target(x)/p_draft(x)); on the first rejection you resample that token from a corrected residual distribution and discard the rest. It is a rejection-sampling scheme, and the proof is that the resulting samples are distributed exactly as if you had sampled from the target model directly. This is the crucial point: it is lossless, not an approximation. If someone tells you speculative decoding trades quality for speed, they have it confused with a smaller model.
+
+Why it is faster comes down to arithmetic intensity. Decode is memory-bandwidth-bound: to produce one token you stream every weight from HBM and do almost no arithmetic with them. Scoring 5 positions costs nearly the same wall clock as scoring 1, because the weight-loading cost dominates and is amortised. You are spending idle FLOPs to buy back time. Typical wins are ~1.5-3x, governed by the acceptance rate and how cheap the draft is.
+
+What a strong answer adds:
+
+- It stops helping when the batch is large. At high batch you are already compute-bound and there are no spare FLOPs to spend, so the speculative overhead can make things worse. It is a low-latency, low-batch technique.
+- Acceptance rate is everything, and it depends on distribution match, not draft quality in the abstract. The best drafts are distilled from the specific target model, so the KL between them is small. A generically good 1B model drafting for an unrelated 70B can accept badly.
+- Variants avoid the second model entirely: Medusa and EAGLE add draft heads on the target's own trunk, n-gram or prompt-lookup drafting works well for copy-heavy work like RAG and code edits, and DeepSeek-V3 reuses its multi-token-prediction module as the draft.
+
+**Follow-ups:** How would you measure whether speculative decoding is actually helping in a live serving deployment? What acceptance rate do you need for it to break even?
+
+</details>
+
+### 17. What is in-context learning, and how do you decide between it and fine-tuning?
+
+<details><summary><b>Answer</b></summary>
+
+In-context learning is a model performing a task specified entirely in the prompt, via instructions or examples, with no weight update. It emerged from pretraining rather than being designed in, and it is the reason the API-call era exists at all.
+
+Why it works: pretraining on enormously diverse data makes "infer what task this prefix implies and continue consistently" the loss-minimising behaviour, because the corpus is full of implicit task demonstrations. Mechanistically the best-understood ingredient is induction heads: a two-head circuit that finds an earlier occurrence of the current token and copies what followed it. Their formation coincides with a sharp jump in in-context ability during training, which is one of the cleaner mechanistic stories we have.
+
+The decision framework:
+
+Use in-context learning when the task is describable, changes often, has low volume, or you are still iterating. It costs nothing to set up and you can change it in a text editor. The ceiling is your context budget and per-call token cost.
+
+Use fine-tuning when the task is stable and high volume so amortised token cost dominates, when you need lower latency or a smaller model, when you have thousands of good examples, or when the behaviour resists description in a prompt (tone, a house style, a specialised output format).
+
+One thing worth flagging because interviewers like it: with modern instruction-tuned models, examples mostly are not teaching a new task. Min et al. showed that on classification, replacing demonstration labels with random wrong ones barely hurts. What the demonstrations convey is the label space, the input distribution and the output format, not the mapping. So the practical implication is that example selection and diversity matter far more than example count, and 30 near-identical examples are mostly wasted context.
+
+**Follow-ups:** If wrong labels barely hurt, what does that imply about how you should choose few-shot examples? When have you seen in-context learning genuinely fail where fine-tuning succeeded?
+
+</details>
+
 ## Intermediate
 
-### 14. Pre-norm vs post-norm - what's the difference and why did everyone move to pre-norm? And why RMSNorm?
+### 18. Pre-norm vs post-norm - what's the difference and why did everyone move to pre-norm? And why RMSNorm?
 
 <details><summary><b>Answer</b></summary>
 
@@ -265,7 +353,7 @@ The honest nuance: post-norm, *when you can train it*, sometimes achieves slight
 
 </details>
 
-### 15. Walk me through the BPE training algorithm step by step.
+### 19. Walk me through the BPE training algorithm step by step.
 
 <details><summary><b>Answer</b></summary>
 
@@ -294,7 +382,7 @@ Practical details that signal real understanding: real tokenizers apply a **pre-
 
 </details>
 
-### 16. Compare BPE, WordPiece, SentencePiece, and byte-level BPE.
+### 20. Compare BPE, WordPiece, SentencePiece, and byte-level BPE.
 
 <details><summary><b>Answer</b></summary>
 
@@ -316,7 +404,7 @@ Practical engineering relevance: tokenizer choice determines token counts (cost,
 
 </details>
 
-### 17. What are the tradeoffs in choosing vocabulary size?
+### 21. What are the tradeoffs in choosing vocabulary size?
 
 <details><summary><b>Answer</b></summary>
 
@@ -338,7 +426,7 @@ Rule of thumb: vocab size should scale with model size and with the breadth of l
 
 </details>
 
-### 18. Beyond letter counting, what failure modes does tokenization cause? Think arithmetic, multilingual text, and code.
+### 22. Beyond letter counting, what failure modes does tokenization cause? Think arithmetic, multilingual text, and code.
 
 <details><summary><b>Answer</b></summary>
 
@@ -354,7 +442,7 @@ Rule of thumb: vocab size should scale with model size and with the breadth of l
 
 </details>
 
-### 19. Attention is O(n²) in sequence length. Where does that actually bite in practice - prefill vs decode?
+### 23. Attention is O(n²) in sequence length. Where does that actually bite in practice - prefill vs decode?
 
 <details><summary><b>Answer</b></summary>
 
@@ -370,7 +458,7 @@ Consequences that follow: (1) long-context pricing - some providers price long-c
 
 </details>
 
-### 20. Explain FlashAttention's core idea. What does it optimise, and what doesn't it change?
+### 24. Explain FlashAttention's core idea. What does it optimise, and what doesn't it change?
 
 <details><summary><b>Answer</b></summary>
 
@@ -390,7 +478,7 @@ What it does **not** change: the FLOP count is still O(n²) - prefill remains qu
 
 </details>
 
-### 21. How do sinusoidal positional encodings work, and how do they compare to learned positional embeddings?
+### 25. How do sinusoidal positional encodings work, and how do they compare to learned positional embeddings?
 
 <details><summary><b>Answer</b></summary>
 
@@ -406,7 +494,7 @@ Both share a deeper weakness: they encode **absolute** position, while language 
 
 </details>
 
-### 22. Explain RoPE. What's the rotation intuition and why did it become the default?
+### 26. Explain RoPE. What's the rotation intuition and why did it become the default?
 
 <details><summary><b>Answer</b></summary>
 
@@ -427,7 +515,7 @@ Limitation: vanilla RoPE still degrades sharply past trained length - unseen ang
 
 </details>
 
-### 23. How does ALiBi encode position, and what's its claim to fame?
+### 27. How does ALiBi encode position, and what's its claim to fame?
 
 <details><summary><b>Answer</b></summary>
 
@@ -443,7 +531,7 @@ Conceptually it remains an important data point: relative position can be expres
 
 </details>
 
-### 24. A model was pretrained at 8k context. You need 128k. What are your options? Explain position interpolation and YaRN.
+### 28. A model was pretrained at 8k context. You need 128k. What are your options? Explain position interpolation and YaRN.
 
 <details><summary><b>Answer</b></summary>
 
@@ -461,7 +549,7 @@ Also mention: production long-context models typically combine such scaling with
 
 </details>
 
-### 25. What are MQA and GQA, and why do they exist?
+### 29. What are MQA and GQA, and why do they exist?
 
 <details><summary><b>Answer</b></summary>
 
@@ -479,7 +567,7 @@ The natural follow-on is **MLA** (multi-head latent attention, DeepSeek): compre
 
 </details>
 
-### 26. Derive the KV cache memory formula and compute it for a concrete model.
+### 30. Derive the KV cache memory formula and compute it for a concrete model.
 
 <details><summary><b>Answer</b></summary>
 
@@ -507,7 +595,7 @@ Sanity-check habit: memorise the formula, not model numbers - interviewers vary 
 
 </details>
 
-### 27. Explain min-p sampling and repetition/frequency penalties. When do standard sampling settings fail?
+### 31. Explain min-p sampling and repetition/frequency penalties. When do standard sampling settings fail?
 
 <details><summary><b>Answer</b></summary>
 
@@ -527,7 +615,7 @@ Sanity-check habit: memorise the formula, not model numbers - interviewers vary 
 
 </details>
 
-### 28. What are logprobs, and what are they useful for in production systems?
+### 32. What are logprobs, and what are they useful for in production systems?
 
 <details><summary><b>Answer</b></summary>
 
@@ -548,7 +636,7 @@ Caveats a strong candidate raises: RLHF-tuned models are notoriously **miscalibr
 
 </details>
 
-### 29. Describe the modern LLM training pipeline: pretraining → mid-training → SFT → RL.
+### 33. Describe the modern LLM training pipeline: pretraining → mid-training → SFT → RL.
 
 <details><summary><b>Answer</b></summary>
 
@@ -566,9 +654,175 @@ Framing that lands well: pretraining ≈ building the engine; mid-training ≈ u
 
 </details>
 
+### 34. What is an attention sink, why does it exist, and what breaks if you evict it from the KV cache?
+
+<details><summary><b>Answer</b></summary>
+
+An attention sink is a position, almost always the very first token, that soaks up a large share of attention mass across most heads and layers regardless of its content. It is not a bug and it is not about the token being important.
+
+It exists because softmax must sum to 1. A head that has nothing relevant to fetch at this position still has to put its full weight somewhere. It learns to dump it on a token every position can see (position 0, under causal masking) whose value vector contributes close to nothing. So the sink is how a model expresses "attend to nothing" inside a mechanism with no null option.
+
+The practical consequence is StreamingLLM's finding. If you run naive sliding-window KV eviction and the window rolls past token 0, perplexity does not degrade gracefully, it explodes. The mass that was harmlessly parked on the sink gets redistributed onto real tokens, distorting every attention distribution in the model. The fix is almost embarrassingly cheap: pin the first ~4 tokens' KV permanently alongside the rolling window, and stability is restored out to millions of streamed tokens.
+
+Be precise about what that does not do. It does not extend effective context. Tokens evicted from the middle are gone. It is for endless streaming, a chat session that never terminates, not for long-context recall.
+
+Architectural responses: train with a dedicated learnable sink token so the behaviour is explicit rather than emergent; or give the softmax an escape valve, either an off-by-one formulation with an extra zero logit in the denominator or a learned per-head bias, so heads do not need to hijack a real token to no-op.
+
+The connection interviewers love: sink positions carry enormous activation outliers, since the model pushes huge values through specific residual dimensions to win that competition. That is a large part of why naive activation quantization falls over, and it ties this straight into serving.
+
+**Follow-ups:** How does a learned softmax bias change the quantization story? Would you expect attention sinks in an encoder-only model?
+
+</details>
+
+### 35. Explain sliding-window attention and hybrid local/global stacks. What do you gain and what do you give up?
+
+<details><summary><b>Answer</b></summary>
+
+Sliding-window attention restricts each token to the last w tokens instead of the whole prefix. Time goes from O(n^2) to O(n*w), and more importantly the KV cache for those layers is capped at w entries rather than growing with n. Mistral 7B popularised it with a 4096 window; Gemma 2 and 3 interleave it with full-attention layers.
+
+The point candidates usually miss: a stack of windowed layers is not as myopic as it sounds, because the receptive field compounds with depth exactly like a CNN. With window w and L layers, information can in principle travel ~L*w positions. But propagation through many hops is lossy and diffuse, and any single-hop exact retrieval, quoting a string sitting further than w back, simply cannot happen in a local layer.
+
+Hence the modern pattern: hybrid stacks. Interleave mostly local layers with occasional full-attention layers, for example Gemma 3's 5:1 local-to-global ratio with 1024-token windows. The global layers do exact long-range retrieval; local layers do the cheap bulk of the work. Published ablations show minimal perplexity cost, and the KV savings at 128k are large because only 1 layer in 6 has a cache that scales with n.
+
+What you give up and what to watch:
+
+- Effective retrieval context is governed by the global layers, not by the advertised window. The ratio is a real quality knob, not free.
+- The remaining full-attention layers become the memory bottleneck, which is why teams stack further tricks on exactly those layers: cross-layer KV sharing, MLA, cache quantization.
+- Prefix caching and cache reuse get fiddlier when layers have heterogeneous cache semantics.
+- Mask bugs in local layers are silent at short context and only surface at long context, so your test suite needs long cases or you will ship it.
+
+Compared to a learned sparse pattern, sliding windows hard-code the assumption that relevance is local. That is a good prior for prose and a poor one for code with distant definitions, which is part of why the learned-sparsity direction (an indexer that scores and selects prior positions) is being explored.
+
+**Follow-ups:** How would you choose the local-to-global ratio for a code model versus a chat model? What does sliding-window attention do to prefix caching in a multi-turn agent?
+
+</details>
+
+### 36. What is Multi-head Latent Attention, and how is it actually different from GQA?
+
+<details><summary><b>Answer</b></summary>
+
+GQA shrinks the KV cache structurally: fewer KV heads, shared across groups of query heads. You are throwing away head diversity in K and V and hoping it does not matter much.
+
+MLA takes a different cut. Project the hidden state down to a small latent vector, cache only that latent, and reconstruct per-head K and V with learned up-projections at attention time. Conceptually every head keeps its own K and V; you just store a compressed representation. It came from DeepSeek-V2 and carried into V3.
+
+Why it is not just "GQA with extra steps": the up-projection matrices are static, so they can be algebraically absorbed into the query and output projections. At inference you never materialise full per-head K, you compute scores against the latent directly. That makes it a genuine memory win rather than trading memory for recompute. DeepSeek reported roughly a 93% KV cache reduction versus their MHA model at V2, with quality matching or beating GQA in their ablations, which is the unusual part: normally cache compression costs you something.
+
+The complication is RoPE, and this is the detail that separates people who have read the paper from people who have read a summary. RoPE applies a position-dependent rotation, and you cannot absorb a position-dependent rotation into a static up-projection, so the absorption trick breaks. DeepSeek's answer is decoupled RoPE: split the head dimension into a compressed no-RoPE part and a small separate RoPE-carrying part that is cached uncompressed and shared across heads.
+
+When would I pick it? Only when KV memory at long context is genuinely my binding constraint and I control the serving stack. MLA is materially harder to implement and to shard under tensor parallelism, kernel support is thinner, and the reported quality advantage shows up mainly at large scale. Below roughly 100B most teams still choose GQA, and that is a defensible engineering call: GQA is simple, supported everywhere, and good enough. Complexity you cannot serve is negative value.
+
+**Follow-ups:** How does MLA interact with tensor parallelism compared to GQA? Would you expect MLA or KV cache quantization to be the better first move on an existing GQA model?
+
+</details>
+
+### 37. Why is quantizing activations harder than quantizing weights, and how does that shape architecture choices?
+
+<details><summary><b>Answer</b></summary>
+
+Weights are static, roughly Gaussian per channel, and well behaved. You compute scales offline, per channel, once, and move on. Activations are dynamic and dominated by outliers: a small number of feature dimensions carry values orders of magnitude larger than everything else, consistently in the same channels, and the problem worsens with model scale. Since a quantization scale is set by the max, one outlier crushes every other value in that tensor toward zero.
+
+Where the outliers come from is architecture-linked, which is the connection worth making: attention sinks. Heads that want to no-op push extreme values through specific residual dimensions, and norm gains amplify particular channels. The quantization problem and the softmax-has-no-null-option problem are the same problem.
+
+Responses, roughly in order of sophistication:
+
+- Isolate them. LLM.int8() keeps outlier dimensions in fp16 and quantizes the rest. Correct, but it breaks the fast path, so you often lose the speed you came for.
+- Move the difficulty. SmoothQuant migrates scale from activations into weights with a per-channel equalisation, because weights tolerate it. AWQ uses activation statistics to identify salient weight channels and protects those.
+- Change the format. FP8 (E4M3) has far wider dynamic range than INT8 at identical bit width, which is exactly what outliers need, and modern accelerators have native FP8. This is why serving stacks in 2026 largely went FP8 rather than fighting INT8.
+- Design for it. QK-norm, a learned softmax bias so heads have a real no-op option, and training natively in low precision (DeepSeek-V3 reported FP8 pretraining) all attack the cause rather than the symptom.
+
+KV cache quantization is a separate axis and usually the cheapest long-context win, since at 128k the cache dwarfs the weights. Asymmetry worth knowing: K is more outlier-prone than V, partly because RoPE rotations spread energy unevenly, so stacks commonly quantize V more aggressively than K, or use per-channel scales for K and per-token for V.
+
+**Follow-ups:** You quantize weights to 4-bit and see no benchmark drop. What would make you distrust that result? Why does quantization hurt long generations more than short ones?
+
+</details>
+
+### 38. A vendor advertises 1M context with 100% needle-in-a-haystack. What has that actually proven, and how would you evaluate long context properly?
+
+<details><summary><b>Answer</b></summary>
+
+It proves the model can retrieve one lexically distinctive span from an otherwise unrelated haystack. That is close to the easiest long-context task that exists. The needle is out-of-distribution against the filler, so attention finds it by contrast, not by comprehension. Saturating NIAH is necessary but very weak evidence. It is a smoke test, and treating it as a capability claim is the mistake.
+
+What it does not test:
+
+- Multiple needles, and needles that must be combined across separated positions (multi-hop).
+- Aggregation over the whole context: count, sort, or summarise every mention. Retrieval attention cannot shortcut this, and accuracy falls off a cliff much earlier here than on NIAH.
+- Distractors. Real corpora are full of near-duplicate and contradictory passages. A single unique needle in unrelated filler is nothing like your actual documents.
+- Negatives. Can the model say the fact is not present? A model trained to always find something will invent a needle, and NIAH never measures that.
+- Reasoning over retrieved content rather than quoting it.
+
+What I would actually build: an eval on our own documents at our real lengths, with multi-fact and multi-hop queries, hard distractors mined from the corpus, a meaningful share of unanswerable questions to get a false-positive rate, at least one full-context aggregation task, and a sweep across depth and length so I get a degradation curve rather than one number. The output I want is effective context: the length at which accuracy crosses our bar. Public suites worth borrowing structure from are RULER, which generates variable-difficulty synthetic tasks and consistently puts effective context well below advertised context, realistic-task suites in the LongBench family, and BABILong for multi-hop.
+
+Then the economics. Prefill is quadratic and KV memory is linear in length. If effective context is 32k, paying to stuff 1M tokens is buying latency and cost to get a worse answer than good retrieval would give. Long context does not retire RAG; it changes the chunk size.
+
+**Follow-ups:** How would you construct hard distractors automatically from a customer's corpus? What does an unanswerable-question false-positive rate tell you that accuracy does not?
+
+</details>
+
+### 39. What is multi-token prediction as a training objective, and what does it buy you?
+
+<details><summary><b>Answer</b></summary>
+
+Instead of a single head predicting token t+1, multi-token prediction adds heads or modules that also predict t+2, t+3 and so on from the same trunk, trained with auxiliary losses. There are two payoffs and they are quite different in character.
+
+First, better representations. Forcing the hidden state at position t to encode information about several future tokens pushes the model to plan slightly ahead instead of optimising a purely local greedy signal. Gloeckle et al. (2024) found the gains grow with model scale and are largest on code and generative benchmarks, and notably that it can hurt small models. That scale dependence is why it is not universal.
+
+Second, and more concretely valuable, a free draft model. The extra heads are a speculative-decoding draft that shares the trunk, costs almost nothing, and is by construction distribution-matched to the target, which is the thing that usually limits acceptance rate. DeepSeek-V3 trains an MTP module and reuses it at inference exactly this way, reporting a high acceptance rate for the next predicted token. This is the Medusa and EAGLE idea folded into pretraining rather than bolted on after the fact.
+
+Design details that matter: DeepSeek's version is sequential, each module conditioning on the previous module's prediction, rather than the independent parallel heads of the original formulation. That keeps the causal chain intact and improves acceptance, at the cost of some parallelism. The heads can also simply be dropped at inference, so if you only want the representation benefit the cost is training-time only.
+
+Tradeoffs: extra parameters and memory during training, another loss-weighting hyperparameter to tune, and a benefit that is scale-dependent enough that you need your own ablation rather than a citation. And I would be honest that the "it learns to plan" story is contested; some of the improvement may just be a denser training signal acting as regularisation. The speculative-decoding payoff, unlike the planning claim, is unambiguous and easy to measure.
+
+**Follow-ups:** Why does an MTP draft head achieve higher acceptance than a separately trained 1B draft model? How would you weight the auxiliary losses across the t+2, t+3 heads?
+
+</details>
+
+### 40. Mamba and state-space models were supposed to replace transformers. What actually happened, and why?
+
+<details><summary><b>Answer</b></summary>
+
+They did not replace transformers, they got absorbed into hybrids. The reason is the cleanest illustration of the central tradeoff in sequence modelling, which is why the question is asked.
+
+Mechanism: an SSM or linear-attention layer carries a fixed-size recurrent state. Per-token inference is O(1) in time and memory regardless of position, with no KV cache growing with n. Mamba's specific contribution (S6) was making the state transition input-dependent, which earlier SSMs lacked, while keeping a parallel scan so training still parallelises across the sequence.
+
+The catch is information-theoretic and no amount of engineering fixes it. A fixed-size state cannot losslessly retain an arbitrarily long prefix. A transformer's KV cache is a lossless, growing record, which is precisely why it can quote an exact string from 100k tokens back. An SSM must decide at write time what to keep, before it knows what will be asked. So SSMs are competitive on language-modelling perplexity and aggregation, and measurably weaker on exact recall, copying, and in-context retrieval. Multi-query associative recall probes showed this early and clearly. That weakness is fatal for the thing people most want long context for.
+
+Hence hybrids, which is where the field actually landed: keep a small fraction of full-attention layers, roughly 1 in 4 to 1 in 8 in shipped models like Jamba, Zamba, Nemotron-H, Qwen3-Next and Kimi Linear, for exact retrieval, and make everything else linear or SSM. You get near-flat memory growth in context length and much better long-context throughput at close to transformer quality. The structure mirrors hybrid local/global attention, and for the same reason: a few exact layers plus many cheap ones.
+
+Practical caveats in 2026: kernel and serving support is thinner than for attention; prefix caching semantics differ, because you are caching a recurrent state that is not sliceable or reusable the way a KV cache is, which matters a lot for agent workloads; and there is no public, training-data-matched head-to-head comparison, so architecture choice remains partly conviction plus your own ablations.
+
+**Follow-ups:** Why does prefix caching get harder with a recurrent state than with a KV cache? For an agent doing long tool-use trajectories, would you take a hybrid or a pure transformer?
+
+</details>
+
+### 41. Reasoning models expose a thinking budget or reasoning effort setting. How do you tune it, and what goes wrong?
+
+<details><summary><b>Answer</b></summary>
+
+Treat it as an explicit accuracy-versus-cost-and-latency knob, and calibrate it per task with an eval rather than by intuition. The shape is a saturating curve: accuracy climbs steeply over the first stretch of thinking tokens, flattens, and on easy tasks can actually decline.
+
+First, know which control you have, because they behave differently:
+
+- A hard token cap enforced at decode. The model gets cut off and forced to answer, which can truncate mid-derivation and produce something worse than no thinking at all.
+- A trained control token or effort level the model was RL'd to respect, which is a soft budget it plans around and degrades gracefully.
+- A prompt hint like "think briefly", which models follow unreliably.
+
+What I do:
+
+- Build a task-level eval, sweep the budget, plot accuracy and p95 latency together, and pick the knee. Different tasks have wildly different knees. Extraction and classification usually want zero.
+- Route rather than pick one setting. A cheap classifier sends the hard slice to high effort and everything else to low or off. Most production traffic does not need thinking, and paying for it uniformly is the single most common way teams overspend here.
+- Watch for overthinking, which is a real and measurable failure: on easy problems, long chains talk the model out of a correct initial answer. Watch also for the model burning its whole budget on an underspecified problem instead of asking a question.
+- Respect the cost model. Thinking tokens bill as output tokens, output tokens are the expensive ones, and they are generated serially, so budget maps almost linearly onto latency. A 10x budget is roughly a 10x latency hit on that call.
+- Do not plan around reusing them. Thinking is regenerated per call, is not cached across turns, and providers commonly strip or summarise the traces, so building logic that inspects reasoning content is building on sand.
+
+The answer that fails this question is "set it high for quality". That is not a tradeoff, that is a bill.
+
+**Follow-ups:** How would you build the router that decides which requests get high effort? What would you monitor in production to detect that your chosen budget has drifted out of calibration?
+
+</details>
+
 ## Advanced
 
-### 30. What is "lost in the middle," and why doesn't a long context window equal reliable retrieval?
+### 42. What is "lost in the middle," and why doesn't a long context window equal reliable retrieval?
 
 <details><summary><b>Answer</b></summary>
 
@@ -588,7 +842,7 @@ Nuance for 2026: frontier models have substantially improved mid-context recall 
 
 </details>
 
-### 31. Compare Kaplan and Chinchilla scaling laws. What did Chinchilla change?
+### 43. Compare Kaplan and Chinchilla scaling laws. What did Chinchilla change?
 
 <details><summary><b>Answer</b></summary>
 
@@ -606,7 +860,7 @@ Sharp caveats that distinguish a strong answer: Chinchilla-optimal minimises los
 
 </details>
 
-### 32. Why do modern models train far past Chinchilla-optimal?
+### 44. Why do modern models train far past Chinchilla-optimal?
 
 <details><summary><b>Answer</b></summary>
 
@@ -624,7 +878,7 @@ Crisp summary line: Chinchilla tells you the cheapest way to *reach* a loss; inf
 
 </details>
 
-### 33. What are "emergent abilities," and what is the mirage critique? Where does that debate land practically?
+### 45. What are "emergent abilities," and what is the mirage critique? Where does that debate land practically?
 
 <details><summary><b>Answer</b></summary>
 
@@ -642,7 +896,7 @@ Crisp summary line: Chinchilla tells you the cheapest way to *reach* a loss; inf
 
 </details>
 
-### 34. Explain Mixture-of-Experts: the router, top-k experts, total vs active parameters. Why does it win?
+### 46. Explain Mixture-of-Experts: the router, top-k experts, total vs active parameters. Why does it win?
 
 <details><summary><b>Answer</b></summary>
 
@@ -658,7 +912,7 @@ The costs (previewing the follow-up question): routing is a discrete, load-balan
 
 </details>
 
-### 35. What goes wrong when training MoE models, and what's the inference memory caveat?
+### 47. What goes wrong when training MoE models, and what's the inference memory caveat?
 
 <details><summary><b>Answer</b></summary>
 
@@ -675,7 +929,7 @@ The costs (previewing the follow-up question): routing is a discrete, load-balan
 
 </details>
 
-### 36. What are the root causes of hallucination, and what actually mitigates it?
+### 48. What are the root causes of hallucination, and what actually mitigates it?
 
 <details><summary><b>Answer</b></summary>
 
@@ -699,7 +953,7 @@ Honest framing: mitigations reduce rate and blast radius; nothing eliminates it 
 
 </details>
 
-### 37. What are reasoning models, and how does test-time compute change the picture? When would you use one versus a standard model?
+### 49. What are reasoning models, and how does test-time compute change the picture? When would you use one versus a standard model?
 
 <details><summary><b>Answer</b></summary>
 
@@ -717,7 +971,7 @@ The 2026 production pattern is routing and budgeting: hybrid models expose think
 
 </details>
 
-### 38. What is distillation, and how is it used in the LLM ecosystem?
+### 50. What is distillation, and how is it used in the LLM ecosystem?
 
 <details><summary><b>Answer</b></summary>
 
@@ -736,7 +990,7 @@ Limits and caveats: the student inherits the teacher's errors, biases, and style
 
 </details>
 
-### 39. Beam search is standard in machine translation. Why is it rarely used for open-ended LLM generation?
+### 51. Beam search is standard in machine translation. Why is it rarely used for open-ended LLM generation?
 
 <details><summary><b>Answer</b></summary>
 
@@ -754,7 +1008,7 @@ Where beam-shaped ideas persist: constrained decoding (forcing outputs into a gr
 
 </details>
 
-### 40. Where do the parameters and FLOPs actually live in a transformer? Walk me through the budget.
+### 52. Where do the parameters and FLOPs actually live in a transformer? Walk me through the budget.
 
 <details><summary><b>Answer</b></summary>
 
@@ -774,7 +1028,7 @@ Why this budget matters practically: (1) it explains why **MoE targets the MLP**
 
 </details>
 
-### 41. Open-weights vs closed-weights models: how do you think about the tradeoff as an engineer in 2026?
+### 53. Open-weights vs closed-weights models: how do you think about the tradeoff as an engineer in 2026?
 
 <details><summary><b>Answer</b></summary>
 
@@ -791,5 +1045,156 @@ Frame it as an engineering decision with several axes, not an ideology question.
 **The 2026 default architecture** is pragmatic hybridity: frontier closed API for the hardest paths, cheap models (often open, often distilled) for high-volume paths, a router/gateway abstraction so models are swappable, and your own evals as the arbiter - because the honest answer to "which is better" is "against your workload, measured, this quarter."
 
 **Follow-ups:** Sketch the break-even math for self-hosting a 70B-class model versus API pricing. What contractual/data-governance questions matter when sending regulated data to a closed API? How do you design a system so the model layer stays swappable?
+
+</details>
+
+### 54. Walk me through training a reasoning model with RLVR. Why GRPO instead of PPO, and what breaks in practice?
+
+<details><summary><b>Answer</b></summary>
+
+RLVR is RL where reward comes from a programmatic verifier rather than a learned reward model: does the answer match, do the tests pass, does the proof check. That removes RLHF's central weakness, a learned reward model being an approximation the policy can hack, and gives you a signal that is cheap, unlimited and mostly unhackable.
+
+The loop: sample G completions per prompt from the current policy, verify each, compute advantages, take a policy-gradient step with a KL penalty toward a reference model.
+
+GRPO over PPO: PPO needs a critic to estimate advantages, which is a second network of comparable size, trained jointly, and it is notoriously hard to fit under long-horizon sparse reward, where a single scalar arrives after thousands of tokens. GRPO deletes the critic and uses the group as its own baseline: advantage = (r_i - mean(r_group)) / std(r_group). It is a variance-reduction trick, not a new objective. You remove an entire model from memory and the most fragile component of the pipeline, and you pay for it with G rollouts per prompt. DeepSeek used it for R1 and it became the default.
+
+What actually breaks:
+
+- Length hacking. Longer chains correlate with reward, so the policy inflates length without accuracy. Dr. GRPO and follow-ups identified specific bias terms in the normalization, including the std division, that push this.
+- Entropy collapse. The policy sharpens, sampling diversity dies, all G rollouts become identical, advantages go to zero, learning stalls. Countered with entropy and KL terms, asymmetric clipping, temperature.
+- Degenerate groups. All-correct or all-wrong groups give zero advantage and burn compute for nothing. You need curriculum and filtering to keep prompts near the capability frontier, and that data engineering is most of the real work.
+- Verifier gaming: passing tests without solving the problem, exploiting the checker, finding answer leakage.
+- The elicitation question. Pass@k analyses suggest RLVR sharpens what the base model can already sometimes do more than it adds new capability. Practically: base quality caps your ceiling, and no RL budget rescues a weak base.
+- Transfer beyond verifiable domains is the live open question.
+
+**Follow-ups:** How would you construct the prompt curriculum to avoid degenerate groups? If RLVR mostly elicits, what does that imply about where to spend your next dollar?
+
+</details>
+
+### 55. There's a line of work claiming in-context learning is implicit gradient descent. What's the claim, what's the evidence, and does it change what you do?
+
+<details><summary><b>Answer</b></summary>
+
+The claim: a forward pass over demonstrations can implement an optimisation algorithm over an implicit internal model, so "learning" from examples is literal learning, just inside activations instead of weights.
+
+The evidence is genuinely strong but narrow. It is constructive: von Oswald et al. and Akyurek et al. hand-built transformer weights whose attention layers implement one step of gradient descent per layer for linear regression, then showed transformers trained from scratch on such tasks converge to solutions matching GD or ridge-regression predictors layer by layer. Dai et al. drew a dual-form correspondence between attention and gradient-descent updates. On small, synthetic, well-specified function classes, trained transformers demonstrably behave like known learning algorithms.
+
+What it does not support is the extrapolation people make from it: that a frontier LLM doing few-shot classification is running gradient descent internally. The mechanistic evidence in real LLMs points elsewhere. Induction heads (prefix-match then copy) explain a lot of the copying behaviour. Task vectors explain more of the rest: work from Hendel et al. and Todd et al. shows demonstrations get compressed into a single activation direction that names a task the model already knows, and you can extract that vector and inject it with no demonstrations present and recover much of the performance. Min et al.'s wrong-label finding is very hard to reconcile with genuine in-context fitting of a mapping, and easy to reconcile with task selection.
+
+So my honest read: two different phenomena share a name. Small models on synthetic regression really do learn in context. Large models on natural tasks mostly retrieve and specify a capability they already have.
+
+Why it matters practically, which is the part interviewers are fishing for. If demonstrations select rather than teach, then example count has fast-diminishing returns and example diversity and representativeness dominate. Spend context on a precise instruction plus a few well-chosen, format-correct, edge-case-covering examples, not fifty near-duplicates. And if the mapping is genuinely novel, not present anywhere in pretraining, expect ICL to be weak and reach for fine-tuning early rather than escalating prompt engineering.
+
+**Follow-ups:** How would you test whether a specific task is being selected versus genuinely learned in context? Does the task-vector view suggest anything about how to compress long system prompts?
+
+</details>
+
+### 56. What is grokking, and does it have any bearing on how you actually train models?
+
+<details><summary><b>Answer</b></summary>
+
+Grokking (Power et al., 2022) is delayed generalisation. On small algorithmic tasks like modular arithmetic, a network fits the training set perfectly early, sits at chance test accuracy for orders of magnitude more steps, then abruptly generalises. It is arresting because it violates the intuition that train and test curves move together and that prolonged overfitting is terminal.
+
+The mechanism is now reasonably well understood. Two solutions compete: a memorising one, quick to reach and structureless, and a generalising one, a Fourier-like circuit for modular addition, slower to form but far more weight-efficient. Weight decay penalises the memorising solution harder, so given enough steps regularisation walks the network from memorisation to the circuit. Nanda et al.'s progress-measures work is the important part: they traced the circuit forming continuously during the plateau. Nothing sudden happened inside the model. The discontinuity was in the metric. Grokking largely vanishes without weight decay, or with enough data.
+
+Bearing on real training: mostly negative, and saying so plainly is the point. You will not observe grokking while pretraining an LLM. It requires a tiny, fully-specified task and heavy overparameterisation relative to data, which is the exact opposite of the trillion-token regime, where you make roughly one pass and never memorise the training set to begin with.
+
+Where it does inform practice:
+
+- A flat metric can conceal real internal progress. Do not kill a fine-tune or an ablation on an accuracy plateau; look at loss or a continuous proxy.
+- It is the same lesson as the emergent-abilities mirage argument, arrived at from a different direction: discrete metrics manufacture discontinuities that are not in the model.
+- It is evidence that weight decay does something structural, selecting among solutions, not merely numerical damping.
+- The memorise-versus-generalise tension is real in the regime you do hit: small fine-tunes on a few thousand examples, where regularisation and early stopping genuinely decide which solution you land on.
+
+If someone tells you they are waiting for their 70B to grok, they have misread the setting.
+
+**Follow-ups:** What continuous proxy metric would you watch during a fine-tune that looks plateaued? How does the mirage critique of emergent abilities connect to this?
+
+</details>
+
+### 57. When does model merging work, and what's actually going on underneath?
+
+<details><summary><b>Answer</b></summary>
+
+Merging combines several fine-tunes of the same base model into one weight set with no training. The organising idea is task vectors (Ilharco et al.): tau = theta_finetuned - theta_base is a direction in weight space encoding a capability. Add them for multi-task behaviour, scale them to dial strength, negate one to unlearn. Methods range from plain averaging (model soups, for checkpoints of one run), to TIES (resolve sign conflicts and trim small deltas before averaging), DARE (randomly drop and rescale deltas, exploiting how redundant they are), and SLERP for two models.
+
+Why it works at all: fine-tuning from a shared pretrained initialization stays inside one loss basin, so the fine-tunes are linearly mode-connected and the straight path between them does not cross high loss. That precondition is the whole thing, and it is also exactly the failure condition.
+
+When it fails:
+
+- Different base models or different pretraining runs. Not the same basin, and permutation symmetry means neuron i in A has no relationship to neuron i in B, so averaging yields noise. Git Re-Basin attempts permutation alignment; it is not production practice.
+- Fine-tunes that drifted far: long continued pretraining, large RL runs.
+- Interference. Two task vectors touching the same parameters with opposite signs cancel. This is what TIES and DARE address, and it is why merging three models often works and merging ten often does not.
+
+Where it is genuinely used: checkpoint averaging within a run for a nearly free quality bump, consolidating several SFT specialists into one deployable model, and heavily in the open-weights community, where it visibly shapes leaderboards.
+
+My honest framing: merging is an empirical search, not a technique. You merge, you eval, you tune coefficients, you often discard. It is not a substitute for a proper multi-task SFT mix when you have the data and the compute, because that gives a better and more predictable model. But it costs GPU-minutes instead of a training run, which makes it an excellent thing to try first and a bad thing to depend on. Also worth saying: if your eval is a leaderboard, merging is very good at gaming leaderboards specifically.
+
+**Follow-ups:** Why does merging inflate leaderboard scores more than real capability? How would you decide merge coefficients without a huge eval budget?
+
+</details>
+
+### 58. A stakeholder wants to "just edit the fact into the model's weights" instead of maintaining a RAG pipeline. Talk me through it.
+
+<details><summary><b>Answer</b></summary>
+
+Knowledge editing is real research and I would not build a product on it. Let me explain both halves, because the reason matters more than the verdict.
+
+How it works: the locate-then-edit line (ROME, then MEMIT) treats mid-layer FFNs as a linear key-value memory. Causal tracing localises where a factual association gets retrieved, then you solve a constrained least-squares update to the FFN down-projection so the key for "the Eiffel Tower is located in" maps to a new value, while minimising drift on other keys. MEMIT scales this to thousands of edits spread across layers. It is elegant and the causal-tracing evidence is real.
+
+Why it does not survive production:
+
+- Ripple effects. You change the literal fact, not its consequences. Ask what country the Eiffel Tower is in, or what language is spoken where it stands, and the old answer comes back. RippleEdits and MQuAKE exist to measure exactly this, and editing methods do poorly. The model now holds mutually inconsistent beliefs, which is worse than the original error.
+- Sequential editing degrades the model. Accumulate thousands and general capability measurably erodes, eventually catastrophically.
+- Locality failures: unrelated facts move, and you find out from a user.
+- The evaluation is self-deceiving. Report efficacy on the exact edit prompt and it looks like 100%. Paraphrase it and it falls apart. Anyone showing you a demo is showing you the exact prompt.
+- Operationally it is untenable: no audit trail, no rollback short of restoring a checkpoint, re-editing required after any fine-tune, no way to tell a user or a regulator why the model said something.
+
+What I would do instead, and how I would sell it: facts that need editing are facts that change, and that is the entire argument for retrieval. RAG or tool calls give provenance, instant updates without touching weights, per-tenant isolation, and a deletion story that survives a compliance review. If what they actually want is stylistic or behavioural rather than factual, that is a fine-tune. Editing stays where it belongs: research, and narrow offline uses like scrubbing one memorised string.
+
+The stakeholder's instinct is not stupid, though. It comes from a mental model of the weights as a database. Correcting that model is most of the conversation.
+
+**Follow-ups:** Where would you draw the line at which fine-tuning beats retrieval for factual content? What would change your mind about knowledge editing?
+
+</details>
+
+### 59. What's the case for tokenizer-free models, and why hasn't the tokenizer died yet?
+
+<details><summary><b>Answer</b></summary>
+
+The case is that every tokenizer pathology traces to one root cause: a fixed, frozen, corpus-specific vocabulary chosen before training and never revisited. Character-level blindness, arithmetic that depends on how digits happen to chunk, several-fold token inflation for low-resource scripts (a real cost and quality tax paid by non-English users), glitch tokens from under-trained tail entries, brittleness to typos and unusual whitespace, and the fact that you cannot change the vocabulary post-pretraining without rebuilding the embedding matrix. It is the last hand-designed, non-learned component in the stack, and history says those lose.
+
+The obstacle is compute. Bytes give roughly 4x more positions per document than BPE tokens. With quadratic prefill and a fixed per-position FLOP cost, naive byte modelling is around an order of magnitude more expensive for the same text, and the model burns depth relearning spelling.
+
+The interesting designs sidestep this with hierarchy rather than brute force:
+
+- MegaByte: fixed-size patches, a large global model over patches plus a small local model within them.
+- Charformer and CANINE-style learned downsampling.
+- Byte Latent Transformer (Meta, 2024), where the key idea is entropy-based dynamic patching. A small byte-level model predicts next-byte entropy and patch boundaries are placed where entropy spikes. Predictable runs get long, cheap patches; surprising regions get short patches and more compute. Compute allocation becomes content-adaptive, which a static vocabulary can never be. They report matching Llama-3-class performance under training-FLOP-controlled comparison at scale, with better robustness on character-level and noisy-input tasks.
+- H-Net pushes toward end-to-end learned hierarchical chunking with no separate entropy model.
+
+Why the tokenizer is still here in 2026: nothing has yet shown a decisive win at frontier scale, and the burden of proof is a frontier-scale run, which nobody gambles casually. Meanwhile the entire ecosystem assumes tokens: kernels, prefix caching, evals, context accounting, and pricing are all denominated in them. BPE is nearly free at inference and its failures are annoying rather than fatal. The dynamic-compute argument is the strongest one, and it is why I would not bet against this changing, just not this year.
+
+**Follow-ups:** How would pricing and context accounting work for a model with no fixed token unit? Does dynamic patching interact well or badly with prefix caching?
+
+</details>
+
+### 60. Your team extended a model from 32k to 256k with YaRN plus a short fine-tune. Long-context evals improved, but users say it got worse on ordinary short prompts and it's noticeably more verbose. Debug it.
+
+<details><summary><b>Answer</b></summary>
+
+This is expected, not mysterious. Context extension is not free at short lengths, and this symptom pattern usually has two independent causes stacked. I would separate them before changing anything.
+
+Isolate first. Run the original short-context eval suite against three configurations: base model, extended model, and extended model with RoPE scaling disabled at inference. That third one is the diagnostic that splits the two hypotheses.
+
+Cause 1, the scaling itself. Static RoPE scaling applies at every length, including a 200-token prompt. You have compressed rotation angles the model was pretrained on, so short-range positional resolution degrades even when nothing long-range is happening. Fixes: apply scaling only above the original trained length, which is what NTK-by-parts and YaRN's ramp are designed for, or use a length-conditional scale factor if your stack supports it. Also verify the attention-temperature term is set as the method prescribes rather than left at a default, because it is commonly dropped in reimplementations. And check that rope_theta and the scaling factor match exactly between training and serving. A silent mismatch there is one of the most common bugs in this whole area and it looks exactly like this.
+
+Cause 2, and my prior favourite, the fine-tuning data. Long-context SFT corpora are overwhelmingly long documents with long answers. If you fine-tuned only on those, you taught the model that answers are long and you catastrophically forgot short-form instruction following. The verbosity complaint is the tell, since RoPE scaling has no reason to make outputs longer. Fix: replay. Mix a substantial share of the original short-context SFT distribution into the extension fine-tune. Its absence is the single most likely cause here.
+
+Then the boring checks that embarrass people: did the chat template or tokenizer change, is the eval using a different sampling config, is the new serving path quantizing the KV cache when the old one did not.
+
+And I would reopen the requirement. If RULER-style evals put effective context at 64k, we paid a short-prompt quality tax for a number on a slide. I would want the effective-context measurement before defending 256k.
+
+**Follow-ups:** How much short-context replay data would you mix in, and how would you pick that ratio? If disabling RoPE scaling restores short-prompt quality, what's your next move?
 
 </details>
