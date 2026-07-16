@@ -1,6 +1,6 @@
 # Safety, Security & Responsible AI - Interview Questions
 
-26 questions: 8 basic, 10 intermediate, 8 advanced.
+45 questions: 13 basic, 18 intermediate, 14 advanced.
 
 ## Basic
 
@@ -165,9 +165,117 @@ A crisp interview framing: draw the data-flow diagram - user → app → model �
 
 </details>
 
+### 9. What is excessive agency in the OWASP LLM Top 10, and what are its three sub-types?
+
+<details><summary><b>Answer</b></summary>
+
+Excessive agency (LLM06) is the risk that an agent is able to do more damage than its task ever requires. It is not an attack, it is the amplifier: injection is the trigger, excessive agency is the blast radius. OWASP splits it into three sub-types.
+
+**Excessive functionality.** The agent has tools it does not need for the job. Classic example: you wanted a document reader, so you handed it a filesystem tool with read and write and delete, or you exposed a whole MCP server's 40 tools when the workflow uses 3. Fix: expose narrow, purpose-built tools, not general capability.
+
+**Excessive permissions.** The tool exists legitimately, but the credential behind it is over-scoped. The support agent needs to read one customer's tickets and holds an admin API key that can read every tenant's. Fix: least-privilege, short-lived, per-session credentials, and a read-only default. This is the most common one in real reviews because permissions are inherited from whatever service account someone had lying around.
+
+**Excessive autonomy.** The agent can complete a high-impact, irreversible action with no confirmation: send the email, issue the refund, merge the PR, drop the table. Fix: human approval gates on irreversibility, plus spend and action limits.
+
+The reason interviewers like this question is that it separates people who reach for a better prompt from people who reach for architecture. You cannot reliably stop a model from being persuaded to misuse a tool, so the durable control is to make sure the tool cannot do the damaging thing at all. A useful drill: for every tool, ask what the worst possible argument is, and assume an attacker will supply it. If the answer is unacceptable, the fix belongs in the tool's scope, not in the system prompt.
+
+**Follow-ups:** Which of the three sub-types do you see most often in real code reviews, and why? If a product genuinely needs an agent to send email autonomously, how do you reduce agency without removing the feature?
+
+</details>
+
+### 10. Explain the confused deputy problem, and why an LLM agent is close to a worst case for it.
+
+<details><summary><b>Answer</b></summary>
+
+A confused deputy is a privileged program tricked by a less-privileged party into misusing its authority on that party's behalf. The classic 1988 example is a compiler with write access to a billing file: a user cannot write that file, but can ask the compiler to write its output there, and the compiler happily uses its own authority to do it. The deputy is not compromised, it is confused about whose request it is serving.
+
+An LLM agent is nearly the perfect confused deputy. It holds the user's authority (their OAuth tokens, their database session, their mailbox), it accepts instructions in natural language, and its context window has no privilege separation: the user's request, a retrieved web page, and a tool result are all just tokens. So any attacker who can get text into that context is issuing requests that the agent will execute with the user's authority. The attacker never needs credentials. They borrow yours.
+
+The distinction from plain prompt injection is worth making in an interview. Injection describes the mechanism (text steers the model). Confused deputy describes the authority failure (the model's actions carry privileges the text's author does not have). Framing it as a confused deputy is more useful, because it points straight at the fix: the problem is not the text, it is that authority is ambient.
+
+The defences follow classic capability-security thinking. Do not let the model decide what it is authorised to do; enforce authorisation at the tool boundary, server-side, against the identity of the human principal for this request. Scope tokens per session and per task rather than handing over a standing service account. Carry provenance so the system knows which parts of the context are untrusted. And gate sinks (send, pay, delete) on the effect, computed outside the model.
+
+The same pattern shows up in OAuth flows for MCP clients, where a shared client identity plus a pre-consented redirect lets an attacker inherit a user's grant.
+
+**Follow-ups:** How does the confused deputy framing change your design compared to just calling it prompt injection? What would ambient authority look like in a concrete agent you have built, and how would you remove it?
+
+</details>
+
+### 11. What is the difference between a kill switch and a circuit breaker for an agent, and why do you need both?
+
+<details><summary><b>Answer</b></summary>
+
+A kill switch is manual and global: a human notices something wrong and stops the agent. A circuit breaker is automatic and local: a threshold trips and the agent stops itself, in milliseconds, without waiting for a human. Teams almost always build the kill switch and skip the circuit breaker, and then discover that agents fail on a timescale humans cannot react to. An agent in a tool loop can burn a four-figure API bill or send 400 emails before anyone opens the dashboard.
+
+Circuit breakers need concrete, boring thresholds:
+
+```python
+class AgentBreaker:
+    def __init__(self, max_steps=25, max_cost_usd=2.00, fail_window=3):
+        self.max_steps, self.max_cost, self.fail_window = max_steps, max_cost_usd, fail_window
+        self.steps, self.cost, self.recent_fails, self.seen = 0, 0.0, 0, {}
+
+    def check(self, tool, args, cost, ok):
+        self.steps += 1
+        self.cost += cost
+        self.recent_fails = 0 if ok else self.recent_fails + 1
+        key = (tool, repr(args))
+        self.seen[key] = self.seen.get(key, 0) + 1
+        if self.steps > self.max_steps: raise Trip("step cap")
+        if self.cost > self.max_cost: raise Trip("budget cap")
+        if self.recent_fails >= self.fail_window: raise Trip("repeated failures")
+        if self.seen[key] > 2: raise Trip("loop guard")
+```
+
+The loop guard (same tool, same arguments, more than twice) catches the single most common runaway pattern and costs nothing.
+
+Three things people get wrong about the kill switch. It must be out of band: if the stop command is routed through the agent's own loop, it does not work when the loop is wedged. It must revoke credentials, not just terminate a process, because in-flight requests and queued jobs continue. And it needs a tested granularity ladder: per-session, per-tool flag, per-tenant pause, then global. A single big red button that takes the whole product down never gets pressed, which means it may as well not exist.
+
+**Follow-ups:** What would you alert on to catch a runaway agent before the breaker trips? How do you make sure the kill switch actually works when you need it, given it is never exercised in normal operation?
+
+</details>
+
+### 12. What is a denial-of-wallet attack, and how do you defend against it?
+
+<details><summary><b>Answer</b></summary>
+
+Denial of wallet is the economic form of denial of service: the attacker does not take your system down, they make it expensive. It sits under OWASP LLM10, unbounded consumption. The core problem is cost asymmetry. A short, cheap prompt from an attacker can trigger a long, expensive generation from you, and with reasoning models the ratio got much worse: a handful of tokens in can produce a large reasoning trace plus an answer, all billed to you. An agent makes it worse again, because one request fans out into many model calls plus retrieval plus tool calls.
+
+The vectors worth naming: oversized inputs stuffed into a long context window; prompts engineered to maximise output length or reasoning effort; recursive or looping agent tasks; RAG fan-out where one query retrieves and summarises dozens of chunks; aggressive retry logic on your side amplifying the attacker's single request; and free-tier or unauthenticated endpoints, which are the usual entry point. Note that the most common cause in practice is not an attacker at all, it is your own agent stuck in a loop, or a customer's runaway script. The controls are the same, which is a nice thing to point out.
+
+Defences, cheapest first: authenticate before you spend anything expensive; per-user and per-key quotas on requests and on tokens, not just requests, because tokens are what you pay for; a hard token budget and step cap per session; caps on input length and on max output tokens; timeouts; a cheap classifier or small model to triage before invoking an expensive one; caching for repeated work. Then the safety net: hard spend limits configured at the provider, plus anomaly alerts on cost per user, cost per session and tokens per request at p99, so you learn about it in minutes rather than on the invoice.
+
+The framing that lands in an interview: for a normal API, rate limiting is about availability. For an LLM API, rate limiting is a financial control, and the budget alert is a security alert.
+
+**Follow-ups:** How would you set the quota if legitimate power users are 50x heavier than the median user? Where does per-tenant cost attribution have to live so that you can even detect this?
+
+</details>
+
+### 13. What is memory poisoning in an agent, and why is it worse than a one-shot prompt injection?
+
+<details><summary><b>Answer</b></summary>
+
+Memory poisoning is prompt injection that persists. Instead of trying to make the agent act immediately, the attacker plants instruction-like content that the agent writes into its long-term memory: a summarised note, a user preference, an entry in a conversation vector store, a scratchpad file, a shared team knowledge base. Later, on some unrelated request, retrieval pulls that memory back into context and the agent acts on it.
+
+It is worse than transient injection for three reasons.
+
+**Temporal decoupling.** Injection and execution are separated by days or weeks. Detection at write time is hard because the payload can be phrased as an innocuous-looking preference ("the user prefers financial summaries to be emailed to this address"). Detection at read time is hard because by then it looks like a legitimate learned fact.
+
+**Session isolation stops helping.** Everyone's mental model is that a new session is a clean slate. With persistent memory it is not: the memory is precisely the thing that survives the reset, and it survives clearing the chat history.
+
+**It has provenance laundering built in.** Content that entered as an untrusted web page comes back as "your own memory", which agents and their designers tend to treat as trusted. In multi-agent systems it spreads: a poisoned shared memory infects every agent that reads the blackboard.
+
+The defences follow from that. Never write raw untrusted content to memory: extract typed facts rather than storing prose. Tag every memory entry with provenance (source, timestamp, trust level) and keep it through retrieval, so the model reads the tag alongside the content. Validate writes, ideally with a separate check, because writes are far rarer than reads and can afford the latency. Weight retrieval by trust and decay old, low-trust entries. And on read, treat memory as untrusted input, not as instructions, because that is exactly what it is.
+
+Published memory-injection research shows high success rates against production agent architectures, which is a good reason not to treat this as theoretical.
+
+**Follow-ups:** How would you audit an existing memory store to find out if it has already been poisoned? Should an agent be allowed to write to its own long-term memory at all, and what changes if the memory is shared across a team?
+
+</details>
+
 ## Intermediate
 
-### 9. Design a defence-in-depth strategy for a customer-facing agent that reads user data and can take actions.
+### 14. Design a defence-in-depth strategy for a customer-facing agent that reads user data and can take actions.
 
 <details><summary><b>Answer</b></summary>
 
@@ -191,7 +299,7 @@ The interview signal is prioritisation: if forced to pick, **least privilege + h
 
 </details>
 
-### 10. Walk through the main jailbreak techniques conceptually. Why does safety training fail against them?
+### 15. Walk through the main jailbreak techniques conceptually. Why does safety training fail against them?
 
 <details><summary><b>Answer</b></summary>
 
@@ -210,7 +318,7 @@ Why these persist: refusals are a thin, learned layer over a capable base model;
 
 </details>
 
-### 11. Design the guardrail layer for an LLM product. How do you manage the latency and false-positive costs?
+### 16. Design the guardrail layer for an LLM product. How do you manage the latency and false-positive costs?
 
 <details><summary><b>Answer</b></summary>
 
@@ -228,7 +336,7 @@ A guardrail layer is input and output classification wrapped around the model. D
 
 </details>
 
-### 12. How do you handle PII in an LLM pipeline end to end?
+### 17. How do you handle PII in an LLM pipeline end to end?
 
 <details><summary><b>Answer</b></summary>
 
@@ -252,7 +360,7 @@ The framing interviewers want: privacy is a data-flow property, so put a control
 
 </details>
 
-### 13. What is training data memorisation and extraction, and why does it matter for a deployed product?
+### 18. What is training data memorisation and extraction, and why does it matter for a deployed product?
 
 <details><summary><b>Answer</b></summary>
 
@@ -271,7 +379,7 @@ Mitigations, roughly in order of leverage: **deduplicate** training data (duplic
 
 </details>
 
-### 14. What security risks does connecting third-party tools (e.g., MCP servers) introduce, and how do you mitigate them?
+### 19. What security risks does connecting third-party tools (e.g., MCP servers) introduce, and how do you mitigate them?
 
 <details><summary><b>Answer</b></summary>
 
@@ -290,7 +398,7 @@ Mitigations: **review tool descriptions** as security-relevant input; **pin vers
 
 </details>
 
-### 15. Explain the model supply-chain risks: pickle vs safetensors, weights provenance, dependencies.
+### 20. Explain the model supply-chain risks: pickle vs safetensors, weights provenance, dependencies.
 
 <details><summary><b>Answer</b></summary>
 
@@ -308,7 +416,7 @@ The theme is that AI supply chain is classic supply-chain security plus two new 
 
 </details>
 
-### 16. What do RLHF, DPO, and Constitutional AI/RLAIF actually do for safety, and why can't a system prompt replace them?
+### 21. What do RLHF, DPO, and Constitutional AI/RLAIF actually do for safety, and why can't a system prompt replace them?
 
 <details><summary><b>Answer</b></summary>
 
@@ -324,7 +432,7 @@ Why a system prompt can't substitute: a system prompt only **conditions** the al
 
 </details>
 
-### 17. What is over-refusal, and how do you manage the helpfulness-vs-safety tension?
+### 22. What is over-refusal, and how do you manage the helpfulness-vs-safety tension?
 
 <details><summary><b>Answer</b></summary>
 
@@ -346,7 +454,7 @@ The senior signal is refusing to treat safety as monotonic: more refusal is not 
 
 </details>
 
-### 18. How do you treat hallucination as a safety and product risk rather than just a quality issue?
+### 23. How do you treat hallucination as a safety and product risk rather than just a quality issue?
 
 <details><summary><b>Answer</b></summary>
 
@@ -366,9 +474,192 @@ The interview point: hallucination can't be driven to zero, so responsible desig
 
 </details>
 
+### 24. How can an attacker poison training data or plant a backdoor in a model, and how would you catch it?
+
+<details><summary><b>Answer</b></summary>
+
+Poisoning (LLM04) means corrupting data so the model learns something the attacker chose. There are three realistic entry points, and they differ a lot in practicality.
+
+**Pretraining corpora.** Web-scale scraping is cheap to poison because the web is not fixed: buy expired domains that appear in a known crawl list, edit collaboratively-edited sources shortly before a snapshot is taken, or seed content that you know will be scraped. Research has shown that poisoning a small fraction of a web-scale dataset is achievable for a modest budget. Most application teams do not control this, but it is why weights provenance matters.
+
+**Fine-tuning and preference data.** This is the practical one. A vendor supplies labelled data, or you crowdsource preferences, and a small number of crafted examples goes a long way. Alignment-relevant poisoning is especially cheap because the fine-tuning sets are small.
+
+**The RAG index.** The version almost every team actually faces, and it needs no training at all: if user-generated content, supplier catalogues or scraped pages feed your corpus, the attacker just writes a document.
+
+A backdoor is the nastiest shape: a trigger phrase maps to attacker-chosen behaviour, and clean-input accuracy is untouched. That is what makes it hard, and it is the point to make in an interview: **you cannot benchmark a backdoor out**. Your eval suite passes, because the trigger is not in it, and the trigger space is effectively unsearchable.
+
+So detection shifts from testing to provenance and process. Pin dataset snapshots by hash and record a data bill of materials. Curate and rank sources rather than scraping broadly. Deduplicate, since memorisation and poisoning both track duplication. For preference data, look for label anomalies and per-annotator outliers. For third-party weights, prefer known provenance, verify hashes and signatures, and use safetensors so loading is not itself code execution.
+
+For the RAG index, which is where your leverage really is: separate namespaces by trust level, attach provenance to every chunk, require authenticated writes, and treat a retrieved chunk as untrusted text no matter how it got in.
+
+**Follow-ups:** If you inherit an open-weights model from a hub, what would actually convince you it has no backdoor? How does poisoning the RAG index differ, operationally, from poisoning fine-tuning data?
+
+</details>
+
+### 25. What are the security weaknesses specific to vector stores and embeddings, and how do you mitigate them?
+
+<details><summary><b>Answer</b></summary>
+
+Three distinct risks hide under OWASP LLM08, and candidates usually only know one.
+
+**Embeddings are not anonymisation.** The most common misconception I see is teams treating a vector store as safe because "it is just numbers". It is not: inversion research (vec2text-style decoders trained against an embedding model) shows that text can be reconstructed from embeddings with high fidelity, and attribute-inference is easier still. So an embedding of a medical record is a medical record. The mitigation is unglamorous: classify the vector store at the same sensitivity level as the source text, encrypt at rest, restrict access, apply the same retention and deletion policy, and remember it in your data-map for GDPR purposes. If you would not dump the raw documents in an unauthenticated Pinecone-style index, do not dump the embeddings either.
+
+**Index poisoning.** Anyone who can write to the corpus can write to the model's context. The craft is that the attacker does not need generic reach: they write a chunk engineered to be the top retrieval hit for a specific target query, then put instructions in it. If your corpus ingests user-generated content, support tickets, supplier feeds or scraped pages, you already have this. Mitigations: authenticated writes, provenance metadata on every chunk, separate namespaces per trust level so untrusted content cannot outrank curated content in the same search, and review or quarantine for new sources.
+
+**Retrieval-time authorisation failures.** The bug I would look for first in any RAG codebase: ACLs applied at ingest time instead of query time. Permissions change, documents get re-shared, and an index built from "what Bob could see in March" leaks in July. Filter at query time, in the datastore, using the requesting principal's identity, with the tenant or ACL predicate as a mandatory part of the query rather than something the application layer remembers to add.
+
+```python
+# authorisation belongs in the query, not in a post-filter
+hits = index.search(vec, k=8, filter={"tenant_id": ctx.tenant_id, "acl": {"$in": ctx.groups}})
+```
+
+Post-filtering after retrieval is a bug: you have already paid for the wrong hits, and k is now wrong too.
+
+**Follow-ups:** Why is post-filtering after retrieval a correctness problem and not just a performance one? How would you handle a document whose permissions change after it has been embedded and indexed?
+
+</details>
+
+### 26. How do you design tool permissions for an agent, and how do you stop human approval gates from becoming rubber-stamping?
+
+<details><summary><b>Answer</b></summary>
+
+Start from the principle that tools are a product surface, not an API passthrough. The most common mistake is exposing an existing REST API or a whole MCP-style server to the model and calling it done. Design narrow tools instead: not `execute_sql(query)` but `get_orders_for_customer(customer_id)`; not `http_request(url)` but `fetch_from_allowlisted_docs(path)`. Every degree of freedom you give the model is a degree of freedom you give the attacker.
+
+The rules I would apply:
+
+- Read-only by default; writes are a deliberate, separately-reviewed decision.
+- Validate arguments server-side, at the tool boundary, with a real schema and real bounds: path roots, URL allowlists, amount ceilings, tenant predicates. Never rely on the prompt telling the model the rules.
+- Authorise against the human principal for this request, not against a standing service account.
+- Enforce policy in deterministic code outside the model. A refund tool that hard-caps at 50 USD cannot be talked into 5000.
+
+Then approvals. The failure mode is real and worth naming: if you prompt the user 50 times a session, approval becomes muscle memory and the gate is theatre. Fixes:
+
+**Gate on irreversibility and blast radius, not on "is it a tool call".** Reading is free. Sending, paying, deleting and publishing are not.
+
+**Show the effect, not the intent.** Do not render the model's own description of what it is about to do; render the server-computed effect: this exact recipient, this exact body, this exact amount, this diff. The model's summary is attacker-influenceable, which makes it the worst possible thing to base consent on.
+
+**Tier it.** Auto-approve under a threshold, prompt in a band, hard-deny above it with no approve button. A category with no safe version should not be approvable at all.
+
+**Batch and rate-limit approvals** so each one carries information, and log the approver, the effect hash and the latency. Approvals granted in under two seconds are a metric: that is your rubber-stamping rate, and you should alert on it.
+
+**Follow-ups:** How would you decide the auto-approve threshold for a refund agent? What do you show a user approving something they cannot realistically evaluate, like a generated SQL migration?
+
+</details>
+
+### 27. How should an agent authenticate to downstream systems? Compare a shared service account with acting on behalf of the user.
+
+<details><summary><b>Answer</b></summary>
+
+This is the question that decides whether your audit log means anything. Three options, in increasing order of quality.
+
+**Shared service account.** The agent holds one credential covering everything any user might need. It is the default because it is the easiest thing to build, and it is the worst outcome: the agent's effective permission is the union of every user's access, so one successful injection reaches all of it. Authorisation collapses into the prompt, which is not a boundary. And the audit log says "ai-agent-svc did it", so after an incident you cannot determine which user's session caused which action. That last part is what turns a two-hour investigation into a two-week one.
+
+**On-behalf-of / delegated user token.** The agent exchanges the user's session for a downstream token scoped to that user. Now the datastore's existing ACLs do the work, injection is bounded by what that one user could already do, and audit attribution is real. This is the right default, and it has the nice property that you inherit years of authorisation work rather than reinventing it in the agent layer.
+
+**Delegated token plus a distinct agent identity.** The best answer, because authentication and attribution are different questions. The agent gets its own first-class identity (so you can revoke the agent without disabling the human, and so logs show both principals), and it acts under a downscoped, short-lived token derived from the user's session. Downscoped is the operative word: the user may have write access to 40 repos, but this task needs read on one.
+
+The implementation details that matter: token exchange happens server-side and the model never sees a credential, because anything in the context window is exfiltrable; lifetimes in minutes, not hours, and scoped per session and per tool; a revocation path that works without a deploy; and audit records carrying both the human principal and the agent identity.
+
+The question I would ask any design: if this agent is fully compromised right now, exactly which rows can it touch? A shared service account cannot answer that.
+
+**Follow-ups:** How do you handle a legitimate background agent that runs when no user is present, so there is no user token to delegate? What breaks in this model when the agent needs to call a third-party MCP server that does its own OAuth?
+
+</details>
+
+### 28. A user invokes their right to erasure and their data is in your fine-tuning set. Explain to a non-technical stakeholder why you cannot just delete it, and what you would actually do.
+
+<details><summary><b>Answer</b></summary>
+
+The explanation I would give: the training data is not stored in the model. Weights are a lossy compression of the whole corpus, learned by nudging billions of parameters slightly for every example. There is no row to delete and no index from a person to the parameters they influenced. Deleting the source record removes it from the dataset, but the influence is already baked in, smeared across the weights, entangled with everything else. It is closer to unbaking a cake than to deleting a file.
+
+The options, honestly ranked:
+
+**Retrain without the data.** Correct and verifiable, and the cost is why nobody does it on request. Viable only if you batch erasures into a scheduled retrain cycle, which is a legitimate answer if the cycle is short.
+
+**Approximate unlearning.** Gradient-ascent on the target examples, influence-function methods and similar. The problems are that verification is genuinely hard (absence of memorisation is not provable by failing to extract it) and that it tends to degrade nearby capability. I would not promise a regulator that it worked.
+
+**Architect for it in advance.** SISA-style sharded training means a deletion only forces retraining of one shard. Real, but you pay for it up front and it constrains how you train.
+
+**Output filtering.** Block the model from emitting the data. This treats the symptom, and you should say so plainly rather than dress it up as erasure.
+
+The senior answer is the one before all of these: **do not put personal data in the training set**. Keep it in retrieval, where deletion is a DELETE plus a re-index, and erasure becomes a five-minute operation with a verifiable result. That single architectural choice, made on day one, is the difference between a routine data-subject request and a compliance incident. It is also why "can we fine-tune on customer records?" deserves a hard look rather than a shrug.
+
+One caution: regulatory positions on model weights are still developing and vary by authority, so scope your commitments to what you can evidence, and involve legal rather than deciding this in an engineering channel.
+
+**Follow-ups:** How would you verify that an unlearning method worked, and why is that harder than it sounds? Where else does the user's data survive after you delete the row, given caches, traces, eval sets and backups?
+
+</details>
+
+### 29. Walk me through how you would threat-model a new agent before it ships.
+
+<details><summary><b>Answer</b></summary>
+
+I would run it as five passes, deliberately ordered so the cheap filter comes first.
+
+**1. Inventory the boundary.** Write down four lists: what data it can read, what actions it can take, what content sources enter its context, and who can talk to it. Most teams cannot produce these in a meeting, and the exercise alone finds problems. Include the indirect sources: retrieval corpora, tool results, MCP tool descriptions, memory.
+
+**2. Apply the lethal trifecta test.** Private data, untrusted content, exfiltration channel. If all three are present, stop and redesign, because no amount of downstream control fixes it. This takes 60 seconds and is the highest-value filter you have. Do it before anything formal.
+
+**3. Enumerate systematically.** STRIDE per trust boundary gives classic discipline: spoofing, tampering, repudiation, information disclosure, denial of service, elevation of privilege. It maps onto agents surprisingly well (repudiation is exactly your shared-service-account audit gap, elevation of privilege is exactly confused deputy). But STRIDE has no vocabulary for the AI-specific tactics, so I pair it with MITRE ATLAS, which is the ATT&CK-style knowledge base for attacks on AI systems and covers poisoning, evasion, model extraction and LLM-specific TTPs. STRIDE finds the boundary failures, ATLAS finds the AI ones.
+
+**4. Rank by blast radius times likelihood, and write the narratives.** Not a list of categories, a list of stories: "attacker emails support, the agent reads the ticket, and the CRM contents leave via a markdown image". A narrative is testable and it survives contact with a product manager. A category is not and does not.
+
+**5. Map to controls and to tests.** Each top risk gets a control (scope reduction, approval gate, egress allowlist, schema constraint) and, crucially, a red-team test plus a regression eval, so the finding does not silently regress on the next model swap.
+
+Deliverable: a data-flow diagram with trust boundaries drawn, a ranked risk list, a control map, and named launch blockers. And a re-review trigger, because the model version, the prompt and the tool list all change after launch, and the threat model is stale the moment any of them do.
+
+**Follow-ups:** What does STRIDE miss for an AI system that ATLAS catches, and vice versa? How do you keep a threat model alive rather than a launch artifact nobody opens again?
+
+</details>
+
+### 30. Beyond text in a chat box, what channels can indirect prompt injection arrive through, and how do you sanitise them?
+
+<details><summary><b>Answer</b></summary>
+
+The channel list is longer than most people expect, and the gaps are where the bypasses live. Anywhere the model reads content a human skims or never sees at all:
+
+- **PDFs**: white-on-white text, zero-point fonts, text under an image layer, off-page content, form-field defaults, XMP metadata.
+- **Images**: text a vision model reads that a human does not attend to, low-contrast overlays, text in a screenshot the user pasted, EXIF comments.
+- **HTML**: `display:none`, off-screen positioning, alt text, `aria-label`, HTML comments, `title` attributes.
+- **Office docs**: tracked changes, comments, speaker notes, hidden rows and far-off cells in spreadsheets, document properties.
+- **Everything else agents touch**: calendar invite descriptions, email headers and quoted trails, code comments and docstrings, commit messages, issue templates, JSON fields nobody renders, and filenames.
+
+The key insight for the defence, and the thing most teams get wrong: **your injection classifier must see exactly what the model sees.** If you scan the raw PDF bytes but the model consumes text extracted by a different library, or you scan rendered HTML while the model gets the DOM, you have built a bypass. So: extract first with the same pipeline the model uses, then scan the extraction.
+
+The rest of the stack:
+
+- **Normalise and flatten.** Strip metadata, drop invisible layers, collapse Unicode confusables and zero-width characters, cap document size.
+- **Render-then-OCR as a comparison.** Rasterise the document, OCR the image, and diff against the extracted text. A large mismatch means content is hidden from human view but visible to the model, which is close to a definition of an injection attempt. It is expensive, so reserve it for high-risk paths, but it is the highest-signal check available.
+- **Provenance and trust tags on every chunk**, kept through retrieval.
+- **Structure over inspection.** The durable defence is the quarantined-model pattern: untrusted content goes to a model with no tools that returns typed values, and the privileged side never reads the prose. Filters are a probability play; structure is not.
+
+For images specifically, note there is no reliable extract-and-scan step, which is a good argument for not letting a tool-enabled model read arbitrary user-supplied images.
+
+**Follow-ups:** The render-then-OCR diff is expensive. Where would you actually apply it, and what is your fallback elsewhere? How does this change for an image, where you cannot separate the text out to scan it?
+
+</details>
+
+### 31. Hosted model API or self-hosted open weights: how do you make the security and privacy call?
+
+<details><summary><b>Answer</b></summary>
+
+Decide on data gravity, regulatory constraints and utilisation, not on an instinct that cloud is risky. In my experience the honest framing is that self-hosting moves risk, it does not remove it.
+
+**Hosted API.** Business and API tiers from the major providers do not train on your data by default, you inherit a serious security team, you get moderation endpoints and instruction-hierarchy training for free, and model upgrades are somebody else's problem. Against that: your prompts cross your trust boundary; there is typically a retention window on the order of ~30 days for abuse monitoring unless you negotiate zero data retention, which is usually available but is a contract, not a checkbox; you need a DPA, and a BAA for health data; the provider is a subprocessor you must disclose; and models get deprecated on the provider's schedule, not yours.
+
+**Managed private deployment** (Bedrock, Azure OpenAI, Vertex, or an enterprise agreement). This is the answer most regulated teams land on and the one candidates forget to mention. Inference runs inside your cloud tenancy under your existing DPA and network controls, so the data-residency and procurement conversation is already solved, and you keep most of the operational simplicity.
+
+**Self-hosted open weights.** Data never leaves, you can air-gap, you control versions and can pin a model for years, and there is no per-token bill. The costs are real: you own patching and the serving stack's attack surface; you own weights provenance and the whole supply chain (verify hashes, prefer safetensors, pin revisions); you build the guardrail and moderation layer yourself, because none of it is included; and you own the safety evals for a model whose alignment training you did not do. On economics, self-hosting only beats API pricing at sustained high utilisation, because idle GPUs bill anyway.
+
+The point I would make last: for either option the most common real-world leak is not the provider, it is your own observability stack. Tracing tools store full prompts and completions by default, and that database is usually less protected than anything the model provider runs.
+
+**Follow-ups:** What would you need to see in a vendor's ZDR terms before you would put regulated data through them? At what utilisation does self-hosting start winning on cost, and how does that change the security argument?
+
+</details>
+
 ## Advanced
 
-### 19. Design a secure architecture for an agent that reads untrusted web/email content AND has access to a user's private data. How do you defeat prompt injection by construction?
+### 32. Design a secure architecture for an agent that reads untrusted web/email content AND has access to a user's private data. How do you defeat prompt injection by construction?
 
 <details><summary><b>Answer</b></summary>
 
@@ -388,7 +679,7 @@ The trade-off is honest: this sacrifices flexibility - the plan is fixed before 
 
 </details>
 
-### 20. Design a red-teaming programme for an LLM product: manual vs automated, pre-launch vs continuous, and how findings feed back.
+### 33. Design a red-teaming programme for an LLM product: manual vs automated, pre-launch vs continuous, and how findings feed back.
 
 <details><summary><b>Answer</b></summary>
 
@@ -408,7 +699,7 @@ Red teaming is adversarial testing to find harms before attackers/users do. A cr
 
 </details>
 
-### 21. What safety evals and benchmarks should you know, and what are their limitations?
+### 34. What safety evals and benchmarks should you know, and what are their limitations?
 
 <details><summary><b>Answer</b></summary>
 
@@ -435,7 +726,7 @@ The mature stance: use public benchmarks as a floor and for regression, build **
 
 </details>
 
-### 22. Walk through the responsible-AI process artifacts and regulations an engineer should know: model/system cards, EU AI Act, NIST AI RMF, audit logging.
+### 35. Walk through the responsible-AI process artifacts and regulations an engineer should know: model/system cards, EU AI Act, NIST AI RMF, audit logging.
 
 <details><summary><b>Answer</b></summary>
 
@@ -458,7 +749,7 @@ Plus separate obligations for **general-purpose AI models** (transparency, copyr
 
 </details>
 
-### 23. A model-extraction / data-exfiltration attack via markdown images: explain it end to end and how you'd defend.
+### 36. A model-extraction / data-exfiltration attack via markdown images: explain it end to end and how you'd defend.
 
 <details><summary><b>Answer</b></summary>
 
@@ -484,7 +775,7 @@ The teaching point: the vulnerability is architectural (an unattended exfil chan
 
 </details>
 
-### 24. How do you achieve per-tenant isolation and data privacy in a multi-tenant RAG/agent SaaS?
+### 37. How do you achieve per-tenant isolation and data privacy in a multi-tenant RAG/agent SaaS?
 
 <details><summary><b>Answer</b></summary>
 
@@ -506,7 +797,7 @@ The interview signal: naming the *cache* and the *missing-filter* failure modes 
 
 </details>
 
-### 25. You're doing a security review of a coding agent that executes model-generated code. What's your threat model and controls?
+### 38. You're doing a security review of a coding agent that executes model-generated code. What's your threat model and controls?
 
 <details><summary><b>Answer</b></summary>
 
@@ -530,7 +821,7 @@ The senior framing: sandboxing contains blast radius, egress-blocking + no-ambie
 
 </details>
 
-### 26. Where is the line between the model provider's safety responsibility and the application developer's? Whose job is each control?
+### 39. Where is the line between the model provider's safety responsibility and the application developer's? Whose job is each control?
 
 <details><summary><b>Answer</b></summary>
 
@@ -555,5 +846,125 @@ The clean split: the **provider** owns the *model's* trained behaviour; **you** 
 The shared/grey zone: safety benchmarks (both run them), the system prompt (you write it, but it's weak steering, not a control), and jailbreaks whose *impact* depends on your app (a jailbroken chatbot with no tools is low-impact; the same jailbreak in an agent with prod access is a breach). The unifying rule: the provider makes the model *tend* to be safe; you make the system *fail* safe. Never outsource an application-security property to the provider's training.
 
 **Follow-ups:** Give one control that's unambiguously the provider's and one that's unambiguously yours. Why can't the provider fix prompt injection for you? If the provider's model gets jailbroken, whose incident is it - and does the answer depend on your architecture?
+
+</details>
+
+### 40. A customer reports that another tenant's data appeared in their agent's response. Walk me through the next 72 hours.
+
+<details><summary><b>Answer</b></summary>
+
+Contain narrowly, scope precisely, then disclose. Scoping is the hard part and it is decided by logging you did months ago.
+
+**First hour.** Believe the report. Preserve evidence before it rotates: the trace, request IDs, retrieved document IDs, prompt hash, model version, cache state. Reproduce in a replica, not in production, because reproducing in prod destroys the state you need. Contain by disabling the narrowest thing that stops the bleeding: feature-flag the retrieval path off or degrade to no-context answers, rather than taking the product down. Open an incident with legal in the room from the start, because the clock may already be running.
+
+**Scoping.** This is where you find out whether your logs were designed for this. You need, per request: tenant ID, retrieved doc IDs, cache key, and principal. With those you replay the log window and answer both directions: which requests returned foreign data, and whose data was exposed to whom. Without them you cannot bound the incident, and an unbounded incident is disclosed as worst-case. That is the postmortem finding, and it is worth stating even before you know the root cause.
+
+**Root causes, ranked by how often they are the answer.** Cache key missing the tenant ID, and semantic caches are the classic because near-miss matching crosses tenants by design. ACL filter applied at ingest instead of query. A shared embedding namespace with a post-filter that a code path skipped. A background job or eval harness running under a superuser service account. A prompt-template bug concatenating the wrong context. Note that none of these are model failures, which is the useful observation: the model faithfully summarised a document it should never have been handed. Authorisation had leaked into the application layer instead of living in the datastore.
+
+**Fix and verify.** Fix, then write the test that would have caught it: an automated cross-tenant probe in CI, plus a permanent canary tenant whose data must never appear anywhere.
+
+**Disclosure.** Under GDPR, personal-data breaches are notifiable to the supervisory authority within 72 hours where the risk threshold is met, and affected tenants have contractual notification terms. Do not say "no data was leaked" before scoping completes; say what you know, when you will know more, and hold to it.
+
+**Follow-ups:** Suppose you find your logs do not record tenant ID per retrieval. What do you tell the customer, and how do you bound the incident? Why are semantic caches particularly dangerous here compared to exact-match caches?
+
+</details>
+
+### 41. Design end-to-end observability and containment for a fleet of production agents.
+
+<details><summary><b>Answer</b></summary>
+
+The design goal is that any incident is answerable by replay, and any runaway is stoppable in seconds at the right granularity.
+
+**What to record, per step, not per request.** Session and trace ID; the human principal and the agent identity separately; model name and exact version (never a floating alias); prompt template ID plus a hash of the rendered prompt; retrieved document IDs and their provenance tags; tool name, full arguments, and a hash of the result; the approval record with approver and latency; guardrail verdicts; tokens and cost; wall-clock latency. Structure it as a graph, not a log line, because the question you will ask later is "what did it do and why", and that is a path through a tree.
+
+**Replay is the point.** With the above you can re-run a session against recorded tool responses. That is what turns an incident from archaeology into an experiment, and it doubles as your regression corpus: every real failure becomes a test.
+
+**Detection signals that actually fire.** Novel tool sequences against a learned baseline. First-seen argument patterns, especially a new egress domain or a new file path root. Step count or cost above session p99. Repeated identical tool calls, which is the loop signature. Guardrail hit-rate spikes, which usually mean either an attack campaign or a bad deploy. Retrieval from unusual namespaces. Approval latency under ~2 seconds, which measures rubber-stamping. Cost per tenant deviating from its own history rather than a global threshold.
+
+**Containment ladder**, each rung independently exercisable: per-session circuit breaker (automatic, thresholded), per-tool disable flag, per-tenant pause, global kill switch. Every rung must be out of band from the agent's own control loop, must revoke credentials rather than only killing processes, and must be tested on a schedule, because a control that is never exercised is a control that does not work.
+
+**The tension to name explicitly.** Full-fidelity agent traces are the largest PII honeypot your team will ever build: complete prompts, retrieved customer documents, tool arguments containing identifiers. The resolution is a redaction pipeline on the hot path with restricted, audited, short-retention access to raw traces, and a longer retention on the redacted tier. If you cannot say who can read raw traces and for how long, your observability system is now your biggest privacy risk.
+
+**Follow-ups:** How do you build a behavioural baseline for a fleet where legitimate agent behaviour changes every time someone edits a prompt? Which of these signals would you page a human for at 3am, and which are dashboard-only?
+
+</details>
+
+### 42. What security problems appear in a multi-agent system that do not exist with a single agent?
+
+<details><summary><b>Answer</b></summary>
+
+Multi-agent architectures mostly multiply the trifecta rather than contain it. Four failure modes are genuinely new.
+
+**Injection laundering.** Agent A browses the web, reads a poisoned page, summarises it and passes the summary to planner B. B treats the message as trusted because it came from an internal agent. Trust is silently regained at every hop. This is the big one, and it defeats the naive intuition that a research sub-agent is a containment measure. It is only containment if the trust label survives the hop.
+
+**Privilege aggregation.** Each agent is individually least-privileged, which everyone points at proudly, but if any agent can call any other, the effective permission of the entry point is the union of the whole fleet's tools. Least privilege per node means nothing without a constrained call graph. If you cannot answer "what is the union of tools reachable from this entry point", you do not have a design, you have a topology.
+
+**Cascading error and false consensus.** Agents confirm each other's hallucinations, and multi-agent review raises confidence without raising accuracy. A critic agent reading the same poisoned context as the actor is not an independent check.
+
+**Unbounded delegation.** Agents spawning agents is a denial-of-wallet generator, and the loop is harder to spot because no single agent is looping.
+
+**The design.** Taint tracking, not trust by origin: a message derived from untrusted content carries the taint through every hop, and policy forbids tainted data from reaching a sink. This is the dual-LLM idea generalised to a fleet, and it is the one thing that actually works. Concretely: a directed allowlist for who may call whom, checked outside the model; the privileged planner never reads untrusted content, only typed values; each agent holds its own identity and credentials rather than a shared service account, so the audit log resolves; depth and budget limits per root task; and every real sink (email, HTTP egress, payments, writes) sitting behind a single policy chokepoint that can see taint, rather than scattered across agents where each one enforces its own slightly different rules.
+
+The honest summary: adding agents does not add security. It adds trust boundaries you now have to enforce, and most frameworks give you zero help with that.
+
+**Follow-ups:** How would you actually implement taint propagation across agent messages in a framework that has no concept of it? Does a critic or judge agent reading the same context provide any real safety benefit, or is it theatre?
+
+</details>
+
+### 43. You suspect someone is distilling your model through your public API. How would you detect it and what can you actually do?
+
+<details><summary><b>Answer</b></summary>
+
+First, separate two threats that get conflated. **Weight extraction**: recovering actual parameters. Published work has shown that parts of production models, notably the final embedding projection layer and hidden dimension, can be recovered through API access, and richer outputs like full logprobs make this dramatically cheaper. **Behavioural cloning**: harvesting input/output pairs and fine-tuning a smaller open model on them. The second is what actually happens commercially, it needs no cleverness, and it is cheap relative to training the teacher. That asymmetry is the whole problem.
+
+**Detection signals.** The tell is that a harvester queries like a dataset, not like a user. Look for: high volume with low repetition; near-uniform topic coverage rather than the power-law a real product produces; no conversational follow-ups, so single-turn only; templated or synthetic-looking prompt structure; temperature 0 with long deterministic outputs; heavy logprob usage; a steady round-the-clock rate with no diurnal pattern; and many accounts sharing an ASN, device fingerprint or payment instrument. Any one is weak. The combination is strong, and it is a straightforward anomaly-detection problem on the query stream. Cluster accounts by query-distribution shape rather than scoring requests individually.
+
+**Defences, layered.** Rate and token quotas per account, plus friction on new accounts. Restrict output surface: do not expose full logprobs or large top-k, since that is the single biggest extraction lever, though it costs real customers a real feature and you should say so. Watermarking, with the caveat that it is fragile under paraphrase and fine-tuning. KYC for high-throughput tiers. Canary prompts: idiosyncratic inputs with distinctive responses that a cloned model will reproduce, giving you a fingerprint testable against a suspect model later, which is what makes the legal case. And the terms of service, which is not a cop-out: distillation clauses are the mechanism that actually gets used.
+
+**The honest conclusion**, and the thing a senior candidate says out loud: you cannot prevent behavioural cloning against a public API without destroying the product, because the product is the outputs. You raise the cost, you make it detectable, and you make it legally actionable. This is a business and legal problem with a technical assist, not a problem you engineer away.
+
+**Follow-ups:** Restricting logprobs breaks legitimate use cases like classification and eval scoring. How do you decide that tradeoff? If you fingerprint a suspect model via canaries, what would you need for that to hold up as evidence?
+
+</details>
+
+### 44. Your production assistant has started quoting wrong prices to customers. Is it an attack or a bug, and how do you find out?
+
+<details><summary><b>Answer</b></summary>
+
+Assume a bug first, because base rates say so, but investigate without destroying attack evidence. Contain now, attribute later.
+
+**First, bound it.** How many sessions, since when, which customers. Then find the change boundary, because "the AI went wrong" is almost always a change: a deploy, a prompt-template edit, a RAG index rebuild, an upstream pricing API change, a config flag, or a model version that moved under you. That last one is the sleeper: if anyone pinned a floating alias instead of an exact version, the model changed without a deploy and your change log shows nothing.
+
+**Then a triage tree.**
+
+- *All users, sharp onset?* Deploy, index rebuild or model change. *Specific users only?* Input-dependent, so either an attack or a data slice, and diff those inputs.
+- *Reproduce at temperature 0 with the recorded context.* If the retrieved context contains the wrong price, it is a data problem: stale index, a currency or locale field, a re-ingested old price list, a test fixture in the corpus. This is the most common answer.
+- *Context correct but output wrong?* Prompt regression or model change. Diff the version pin and the rendered prompt hash.
+- *Context contains instruction-like text?* Now it is indirect injection. Ask who can write to that corpus: user-generated content, supplier catalogue, a scraped page.
+- *Cluster the bad sessions and diff their inputs against good ones.* An attack usually has a signature, a shared substring or a shared source document.
+
+**What makes this a 20-minute investigation instead of a week:** retrieved doc IDs, rendered-prompt hash and exact model version logged per request. If they are missing, that is the postmortem finding regardless of the root cause.
+
+**The real fix, and the answer that separates seniors.** Do not contain this by prompting harder. Wrong prices can be commercially binding, and there is precedent for companies being held to statements their chatbot made. A price is owned by a system of record, so the model should never generate that number: look it up deterministically and render it outside the model, with the model handling the language around it. Any figure with legal or financial weight should come from code, not from tokens. That is a design principle, not an incident response.
+
+**Follow-ups:** Where else in this product would you apply the never let the model generate the number rule? If it turns out to be injection via a supplier catalogue feed, what changes structurally?
+
+</details>
+
+### 45. You are asked to ship an LLM-assisted CV screening feature. How do you approach fairness, and what do you tell the product team?
+
+<details><summary><b>Answer</b></summary>
+
+The first thing I would say is that CV screening is an Annex III high-risk use under the EU AI Act, so this is not a best-effort fairness exercise, it carries obligations: risk management, data governance, technical documentation, automatic logging, human oversight, accuracy and robustness, and conformity assessment. The application date for Annex III high-risk obligations has been subject to proposed postponement (the Commission's Digital Omnibus package), so treat the timeline as still moving and confirm it with legal, but design for the obligations now because retrofitting them is far more expensive. In the US the hooks are Title VII and EEOC guidance, the four-fifths rule as a rough adverse-impact screen, and NYC Local Law 144's bias-audit requirement.
+
+**Measurement, and its central awkwardness.** You need protected attributes to measure disparity and you often may not collect them. The usual resolution is a separately-governed evaluation dataset with restricted access, or imputation with documented caveats. Metrics: selection-rate parity (adverse impact ratio), equalised odds, calibration within groups. Name the impossibility result: except in degenerate cases these cannot be satisfied simultaneously (Kleinberg et al., Chouldechova). So you choose the one matching the harm you care about, and you write down why. A candidate who claims they will make the system fair on all metrics has not read the literature.
+
+**LLM-specific failure modes that classic fairness tooling misses.** The model reads the whole CV: names, universities, addresses, gendered language, career gaps, non-native phrasing, photos. The highest-value test is cheap: counterfactual perturbation. Take the same CV, swap the name or pronouns or the school, hold everything else fixed, and measure the score delta. Run it as a regression eval on every model and prompt change.
+
+**Mitigations.** Redact identity-correlated fields before the model. Make the output structured evidence against explicit job criteria with citations into the CV text, not an opaque score. Keep the model as a summariser or ranker with a human deciding.
+
+**And the part product teams do not want to hear:** measure whether the human actually overrides. If override rates are near zero, you do not have human oversight, you have automation bias with a compliance label on it. The honest recommendation may be to narrow the scope: assist with summarisation, do not rank, and never auto-reject. Pushing back on scope is part of the job here.
+
+**Follow-ups:** How would you evidence human oversight to an auditor when reviewers approve nearly everything? If counterfactual name-swapping shows a consistent delta, is redaction sufficient, or does that just hide the proxy?
 
 </details>

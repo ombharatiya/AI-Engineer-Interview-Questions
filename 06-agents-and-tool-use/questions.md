@@ -1,6 +1,6 @@
 # Agents, Tool Use & MCP - Interview Questions
 
-37 questions: 10 basic, 15 intermediate, 12 advanced.
+54 questions: 14 basic, 23 intermediate, 17 advanced.
 
 ## Basic
 
@@ -227,9 +227,100 @@ A good tool is one a model reliably picks correctly and calls correctly under am
 
 </details>
 
+### 11. Why do we need MCP at all? Why not just hand the model an OpenAPI spec and let it call REST endpoints?
+
+<details><summary><b>Answer</b></summary>
+
+You can do that, and for a single fixed integration you probably should. MCP earns its keep when the host is not built by the same team as the integration, and when discovery has to happen at runtime rather than build time.
+
+The concrete differences:
+
+**Discovery is dynamic.** REST gives you a static document you bake into your prompt at build time. An MCP client connects, calls `tools/list`, and finds out what exists right now. A server can add a tool and every host picks it up without a redeploy, and it can emit a list-changed notification so hosts refetch.
+
+**It is bidirectional.** REST is request/response, client to server. MCP runs JSON-RPC 2.0 over a persistent connection, so the server can call back into the host: request an LLM completion (sampling), or ask the user a question mid-call (elicitation). An OpenAPI endpoint cannot do that.
+
+**It standardises more than actions.** REST endpoints are all verbs. MCP separates model-controlled actions (tools) from app-controlled context (resources) from user-invoked templates (prompts). That distinction is what lets a host build a sensible UI over a server it has never seen.
+
+**It is N+M, not N x M.** The real argument. Write one MCP server for your ticketing system and every MCP host (IDE, desktop app, your own agent) uses it. Write an OpenAPI wrapper and each host still needs its own adapter, auth handling, and schema-to-tool translation.
+
+The honest counterpoint worth offering: MCP is a packaging and distribution standard, not magic. Under the hood most MCP servers are thin wrappers over REST calls, and an OpenAPI spec is not a good tool definition anyway, since endpoints map to implementation details rather than intents, and a 200-endpoint spec will blow your context budget either way. If you control both ends and have one client, MCP is overhead. The moment you have three hosts, or want third parties integrating with you, it pays.
+
+**Follow-ups:** Your company already has 200 internal REST services. Would you write 200 MCP servers? How would you decide the granularity of servers to endpoints?
+
+</details>
+
+### 12. You're designing an MCP server. How do you decide whether something should be a tool, a resource, or a prompt?
+
+<details><summary><b>Answer</b></summary>
+
+The rule is about who controls the invocation, not about what the code does.
+
+- **Tool** = model-controlled. The model decides to call it during reasoning, based on the description you wrote. Use for anything with a side effect, and for reads where the model must choose the arguments (a search query, a record ID it inferred).
+- **Resource** = application-controlled. The host decides when to fetch it and place it in context. Read-only by definition, identified by URI. Use for data the app already knows is relevant: the open file, the selected database schema, a config document.
+- **Prompt** = user-controlled. A parameterised template the user explicitly invokes, usually surfaced as a slash command or menu item. Use for workflows a human should trigger deliberately, like "review this PR against our style guide".
+
+Two shortcuts resolve most cases. If it creates, modifies, or deletes anything, it is a tool, never a resource. If the model needs to decide whether to look at it, it is a tool; if the app already knows it is relevant, it is a resource.
+
+The practical complication worth raising unprompted: host support for resources and prompts is uneven. Plenty of hosts implement tools and stop. A server that exposes its data purely as resources can look empty in a client that ignores them. The common workaround is to expose data both ways: a resource for hosts that support it, plus a `read_document(uri)` tool as fallback. That is duplication, but it is the difference between your server working everywhere and working in one client.
+
+A related failure mode interviewers probe: resources are fetched by the host at some point and then sit in context. If the underlying data changes, the agent acts on stale content unless the server sends a resource-updated notification and the host honours it. That is usually the answer to "why does my agent keep using the old version of the file".
+
+**Follow-ups:** Your server exposes a 500 MB log file as a resource. What goes wrong, and how do you restructure it? When would you use resource templates rather than fixed URIs?
+
+</details>
+
+### 13. When should you use a reasoning model inside an agent loop, and when is it a waste of money?
+
+<details><summary><b>Answer</b></summary>
+
+Reasoning models earn their cost where the hard part is deciding what to do, and waste it where the decision is already made.
+
+Use one when the task needs multi-step planning before the first tool call; when there is genuine branching where a wrong early choice poisons the whole trajectory; when the model must debug something (read an error, form a hypothesis, test it); or at the step that commits to an irreversible action, where you want the most careful judgment available.
+
+Skip it when the step is extraction, classification, routing, formatting, or summarising a tool result. Those are the bulk of calls in most agent loops, and a small fast model does them at a fraction of the cost and latency. Skip it too when tool choice is effectively forced, because you are paying for deliberation about a decision with one option.
+
+What follows is **tiered orchestration**: a reasoning model plans and makes branch decisions, cheap models execute mechanical steps, and you escalate back up on failure. In a research agent, the orchestrator reasons about which leads to chase; the subagents that fetch and summarise pages do not need to reason at all.
+
+Two things candidates get wrong. First, assuming reasoning tokens are free because they are hidden. They are billed, they consume context, and on long trajectories they accumulate faster than visible output. Second, forgetting the latency tax: a reasoning model can spend real wall-clock time thinking before emitting its first tool call, and across 15 iterations that compounds into something an interactive user will not sit through.
+
+Since most providers now expose a reasoning-effort knob, the sharper framing is not "which model" but "how much thinking do I buy at this specific step". Tune it per step, not per agent. And measure it: if success rate is flat with effort turned down, you were buying nothing.
+
+**Follow-ups:** How would you measure whether the reasoning model is actually earning its cost at a given step? What happens to your prompt cache when a reasoning model's thinking blocks enter the message history?
+
+</details>
+
+### 14. Your agent charged a customer's card twice. The trace shows one tool call. What happened, and how do you prevent it?
+
+<details><summary><b>Answer</b></summary>
+
+One tool call in the trace and two charges means the execution was retried even though the model only asked once. The classic path: your HTTP client called the payment API, the request succeeded server-side, the response timed out or the connection dropped, your retry logic saw a failure and fired again. The payment provider saw two valid requests.
+
+The fix is **idempotency keys**. You pass a stable key per logical operation, and the downstream API returns the original result instead of performing the action twice.
+
+```python
+def execute(call, run_id):
+    # Key derived from the model's call id, not generated per attempt,
+    # so every retry of this operation carries the same key.
+    key = f"{run_id}:{call.id}"
+    return payments.charge(
+        amount=call.arguments["amount"],
+        idempotency_key=key,
+    )
+```
+
+The critical detail is where the key comes from. Generate a fresh UUID inside the retry loop and you have achieved nothing, because every attempt looks like a new operation. Derive it from something stable: the tool call ID the model emitted, scoped by run ID.
+
+There is a second, sneakier version that interviewers often push toward. The agent crashes after executing the tool but before appending the tool result to the message history. You resume from a checkpoint, the model sees an unanswered tool call, and it calls again. Same double charge, no retry logic involved. The same key defends against it, plus writing the tool result durably before you acknowledge the step as complete.
+
+The general principle: an agent is a distributed system with at-least-once delivery, and the model is an unreliable client that may repeat itself. Every tool with a side effect needs to be idempotent, natively or through a key. Reads are free to retry; writes are not. If a downstream API offers no idempotency support, wrap it yourself: record the key and result in your own store and check before calling.
+
+**Follow-ups:** The model itself decides to call charge twice because it forgot it already did. Does an idempotency key save you? How do you handle a tool that is not idempotent and cannot be made so?
+
+</details>
+
 ## Intermediate
 
-### 11. How should tool errors be surfaced to the model?
+### 15. How should tool errors be surfaced to the model?
 
 <details><summary><b>Answer</b></summary>
 
@@ -250,7 +341,7 @@ The meta-point: error messages are prompts. Teams tune system prompts obsessivel
 
 </details>
 
-### 12. Consolidated vs granular tools - how do you decide?
+### 16. Consolidated vs granular tools - how do you decide?
 
 <details><summary><b>Answer</b></summary>
 
@@ -268,7 +359,7 @@ A 2026-relevant middle path worth naming: **code execution as the consolidation 
 
 </details>
 
-### 13. How do you make tool outputs token-efficient, and why does it matter so much for agents?
+### 17. How do you make tool outputs token-efficient, and why does it matter so much for agents?
 
 <details><summary><b>Answer</b></summary>
 
@@ -289,7 +380,7 @@ Anti-pattern to name: teams optimise prompts for weeks while their `search` tool
 
 </details>
 
-### 14. Your agent's context window fills up mid-task. What are your options?
+### 18. Your agent's context window fills up mid-task. What are your options?
 
 <details><summary><b>Answer</b></summary>
 
@@ -309,7 +400,7 @@ Also mention retrieval: don't preload everything "just in case" - load reference
 
 </details>
 
-### 15. Distinguish working memory from persistent memory in agent design.
+### 19. Distinguish working memory from persistent memory in agent design.
 
 <details><summary><b>Answer</b></summary>
 
@@ -333,7 +424,7 @@ Persist distilled conclusions, not transcripts - raw history is bulky, and retri
 
 </details>
 
-### 16. Compare plan-then-execute with reactive (ReAct-style) execution. When does each win?
+### 20. Compare plan-then-execute with reactive (ReAct-style) execution. When does each win?
 
 <details><summary><b>Answer</b></summary>
 
@@ -357,7 +448,7 @@ The failure mode to name for plan-then-execute: plan-worship - the agent forces 
 
 </details>
 
-### 17. When do reflection / self-critique loops actually help, and what do they cost?
+### 21. When do reflection / self-critique loops actually help, and what do they cost?
 
 <details><summary><b>Answer</b></summary>
 
@@ -380,7 +471,7 @@ Design detail that matters: feed the critique *and the original attempt* into th
 
 </details>
 
-### 18. Explain the orchestrator-worker / subagent pattern. What's the real benefit?
+### 22. Explain the orchestrator-worker / subagent pattern. What's the real benefit?
 
 <details><summary><b>Answer</b></summary>
 
@@ -396,7 +487,7 @@ Costs to name: **information loss at the boundary** - the worker's summary might
 
 </details>
 
-### 19. When does multi-agent beat single-agent, and when does it make things worse?
+### 23. When does multi-agent beat single-agent, and when does it make things worse?
 
 <details><summary><b>Answer</b></summary>
 
@@ -416,7 +507,7 @@ The senior take: multi-agent is not the mature form of single-agent - it's a spe
 
 </details>
 
-### 20. What are handoffs in multi-agent systems, and how do they differ from orchestration?
+### 24. What are handoffs in multi-agent systems, and how do they differ from orchestration?
 
 <details><summary><b>Answer</b></summary>
 
@@ -436,7 +527,7 @@ When to prefer orchestration instead: when the task decomposes into subtasks wit
 
 </details>
 
-### 21. Compare MCP's transports. When would you choose each?
+### 25. Compare MCP's transports. When would you choose each?
 
 <details><summary><b>Answer</b></summary>
 
@@ -452,7 +543,7 @@ Decision rule: local personal tooling → stdio; anything crossing a machine or 
 
 </details>
 
-### 22. What are the security risks of connecting a third-party MCP server, and how do you mitigate them?
+### 26. What are the security risks of connecting a third-party MCP server, and how do you mitigate them?
 
 <details><summary><b>Answer</b></summary>
 
@@ -472,7 +563,7 @@ Connecting a third-party MCP server does two dangerous things at once: it inject
 
 </details>
 
-### 23. How do you evaluate an agent? Compare trajectory evals and final-outcome evals.
+### 27. How do you evaluate an agent? Compare trajectory evals and final-outcome evals.
 
 <details><summary><b>Answer</b></summary>
 
@@ -488,7 +579,7 @@ A sane maturity path: (1) 20-50 realistic tasks with programmatic outcome checks
 
 </details>
 
-### 24. Explain pass@k vs pass^k. Why does the distinction matter for production agents?
+### 28. Explain pass@k vs pass^k. Why does the distinction matter for production agents?
 
 <details><summary><b>Answer</b></summary>
 
@@ -504,7 +595,7 @@ Practical note: measure it by running each eval task k times (τ-bench used k up
 
 </details>
 
-### 25. What guardrails does a production agent loop need?
+### 29. What guardrails does a production agent loop need?
 
 <details><summary><b>Answer</b></summary>
 
@@ -533,9 +624,207 @@ Sequencing matters in the answer: executor-enforced controls first, prompt-based
 
 </details>
 
+### 30. You've connected six MCP servers. There are now 130 tool definitions and ~45k tokens of schema in context before the user says a word. What do you do?
+
+<details><summary><b>Answer</b></summary>
+
+Two separate problems here, and conflating them is the common mistake. One is cost, which caching mostly solves. The other is accuracy, which caching does nothing for, and that is the one that actually hurts.
+
+**Cost first, because it is easy.** Tool definitions sit at the front of the prompt and do not change within a session. That is a perfect stable prefix, so with prompt caching you pay full price once and a large discount on every subsequent loop iteration. Across a 15-iteration trajectory the amortised cost of those 45k tokens is far lower than the headline number suggests. Do not panic-optimise before checking your cache hit rate.
+
+**Accuracy is the real issue.** With 130 tools, many overlap. `search_docs`, `find_file`, `grep_repo`, and `query_kb` all plausibly answer "find the deployment guide". The model picks wrong, or picks a write tool when a read tool would do. Selection error grows with the number of near-synonymous options, and 45k tokens of schema pushes the actual task further from where the model is attending.
+
+What I would do, in order:
+
+1. **Curate per agent, not per server.** Whitelist tools. Most servers ship a kitchen sink and you need six of their forty.
+2. **Namespace ruthlessly.** `github_create_issue` vs `jira_create_issue`. Un-namespaced collisions across servers are a large share of wrong-tool errors.
+3. **Progressive disclosure.** Expose a small always-on set plus a `search_tools(query)` or per-domain loader that pulls in a group on demand. This turns tool selection into retrieval, which scales better than stuffing.
+4. **Split into subagents.** Give the GitHub subagent only GitHub tools. Context isolation fixes tool bloat as a side effect.
+
+The measurement that settles the argument: run your eval set with all 130 and with a curated 15. If accuracy is flat, keep them and cache them. It usually is not flat.
+
+**Follow-ups:** How would you build search_tools without adding a round trip to every task? A server sends a list-changed notification mid-session. What happens to your prompt cache?
+
+</details>
+
+### 31. Your agent needs to remember things across sessions. Would you use a vector store or rolling summarisation? Defend the choice.
+
+<details><summary><b>Answer</b></summary>
+
+For most production agents, neither as the primary mechanism. I start with **structured state plus files**, and add retrieval only where the data genuinely does not fit a schema.
+
+The honest comparison:
+
+**Summarisation** compresses everything and loses detail unpredictably. It is lossy in one direction: once a fact is dropped it is gone forever, and rolling summaries compound their own errors because summary N+1 summarises summary N. Good for conversational continuity ("what have we been discussing"), bad for facts you must recall exactly, like an order ID mentioned forty turns ago.
+
+**Vector memory** keeps everything and retrieves top-k. It fails differently: retrieval misses. If the user says "the flight thing" and the memory says "booking reference for LHR to JFK", embedding similarity may not bridge that. Worse, it retrieves plausible rather than relevant memories, so a question about this week's NYC trip pulls last year's NYC trip and the agent confidently acts on stale facts. Summarisation cannot surface a fact it dropped; vector memory surfaces the wrong fact, which is more dangerous because it looks like success.
+
+What I would build:
+
+- **Structured facts in a database.** Preferences, entity IDs, settled decisions. Exact lookup, no embedding, no retrieval miss. This covers more than people expect.
+- **Files as memory.** The agent writes notes and reads them back by path. Survives compaction, is inspectable and diffable, and the agent controls what it keeps.
+- **Vector recall only for unstructured history**, where the query really is fuzzy.
+- **Summarisation for the conversational tail**, keeping recent turns verbatim.
+
+Describing this as tiered (always-in-context core, searchable recall, archival store) is fine vocabulary, but the real interview signal is knowing that **memory writes are the hard part**. Deciding what is worth remembering, and invalidating facts that are no longer true, is harder than retrieval, and no vector store does it for you. A memory layer that only ever appends becomes a pile of contradictions within weeks.
+
+**Follow-ups:** How do you handle a memory that becomes false, like a user changing their address? How would you evaluate whether your memory layer is helping at all?
+
+</details>
+
+### 32. Your agent's prompt cache hit rate is 20% when you expected 90%. Walk me through the debugging.
+
+<details><summary><b>Answer</b></summary>
+
+Prompt caching works on **stable prefixes**. Any byte that changes at position N invalidates everything from N onward. In an agent loop the prefix should be system prompt, then tool definitions, then a strictly append-only message history. Anything mutating earlier content destroys the cache for the rest of the trajectory. So I go looking for what is mutating.
+
+The usual culprits, roughly by frequency:
+
+1. **A timestamp or session ID in the system prompt.** "Current time: 14:32:07" at the top means a guaranteed miss on every call. Move volatile values to the end of context or into a tool result.
+2. **Non-deterministic tool definition ordering.** Serialising tools from a dict or set can reorder them between calls. Identical in meaning, different in bytes. Sort them.
+3. **Compaction.** The big structural one. The moment you summarise turns 1 to 20 and replace them, you have rewritten the prefix and everything after is a miss. Compaction is still worth it, but budget for a cache reset at each boundary, which argues for compacting rarely and in large chunks rather than trimming a little every turn.
+4. **Clearing stale tool results in place.** Same problem, sneakier, because it feels like a small edit. Editing turn 3's tool result invalidates turns 4 onward.
+5. **Cache TTL expiry.** Caches live on the order of minutes on most providers. An agent that waits twenty minutes on a human approval comes back to a cold cache. If you have long human-in-the-loop pauses, that gap is your miss.
+6. **Provider mechanics.** Some providers cache automatically on prefix match; others require explicit cache breakpoints and enforce a minimum cacheable length. Below the minimum, or with breakpoints in the wrong place, you get nothing.
+
+The fix that covers most of it: treat context as an append-only log, put everything volatile at the tail, and make serialization deterministic. Then verify with the cached-token counts the API returns per call rather than trusting the design.
+
+**Follow-ups:** You must inject the current time because the agent reasons about deadlines. Where does it go? How would you measure cost per successful task rather than cache hit rate?
+
+</details>
+
+### 33. How do you test an agent in CI? Not evals - CI, on every pull request, in under five minutes.
+
+<details><summary><b>Answer</b></summary>
+
+Evals and tests are different jobs, and conflating them is why teams end up with neither. Evals measure quality on a distribution: slow, expensive, noisy. CI tests catch regressions deterministically and must be fast. You need both, in different pipelines.
+
+My layering:
+
+**Layer 1: everything that is not the model.** Tool implementations are ordinary functions. Unit test them with no LLM anywhere near: schema validation, argument coercion, error formatting, pagination, truncation. This is most of your agent's surface area and it costs zero tokens.
+
+**Layer 2: the loop with a scripted model.** Replace the LLM with a stub returning a fixed sequence of tool calls. Now you deterministically test the machinery: does max-iterations fire, does the budget guard trip, does a tool exception become a tool result rather than a crash, does a duplicate call get caught, does the approval gate block the write.
+
+```python
+def test_budget_stops_loop():
+    model = ScriptedModel([
+        tool_call("search", {"q": "x"}),
+        tool_call("search", {"q": "y"}),
+    ])
+    result = run_agent("...", model=model, max_cost_usd=0.01)
+    assert result.stopped_reason == "budget_exceeded"
+```
+
+**Layer 3: recorded trajectories (cassettes).** Capture real LLM and tool responses once, replay on every PR. Catches prompt-template breakage, serialization changes, parsing bugs, at zero cost. Known weakness: cassettes go stale and stop reflecting real model behaviour, so they verify plumbing, not prompt quality. Re-record on a schedule.
+
+**Layer 4: a small live smoke set.** Ten to twenty tasks against the real model, on merge to main rather than every PR, with loose assertions on final state rather than exact strings.
+
+The full eval suite (trajectory judging, pass^k over a real task set) runs nightly or pre-release, because it takes minutes to hours and its variance makes a per-PR gate flaky enough that people start ignoring it. The rule I would state: **CI gates on determinism, evals gate on releases.**
+
+**Follow-ups:** Your cassettes drift from real model behaviour and CI passes while prod breaks. How do you detect that? How do you write assertions for an agent whose output is legitimately different every run?
+
+</details>
+
+### 34. You're splitting a research agent into an orchestrator and subagents. Design the interface: what exactly crosses the boundary in each direction?
+
+<details><summary><b>Answer</b></summary>
+
+The interface is the whole design, because the point of subagents is **context isolation**. Pass the full conversation down and the full trajectory back and you have built multi-agent overhead with none of the benefit, at a higher price.
+
+**Downward, the orchestrator sends a task specification, not a conversation.** Concretely: the objective stated standalone, success criteria, output format and rough size budget, constraints or facts already established, and a resource budget. What it must not send is the raw message history. A subagent that receives 40k tokens of prior conversation has no isolation left.
+
+The non-obvious failure is underspecification. "Research the competitor" produces four subagents doing overlapping work and none covering the actual gap. The orchestrator holds context the subagent does not, and must serialise the relevant parts into the spec explicitly. Vague delegation is the single largest source of wasted tokens in multi-agent systems.
+
+**Upward, the subagent returns a compressed artifact.** A findings summary sized to a budget, source references so the orchestrator can drill down without re-running the work, a confidence or completeness signal, and an explicit status: done, partial, blocked, budget exhausted. The trade is that the subagent burns ~100k tokens searching and returns ~1k. If the return payload is not small, you got nothing.
+
+Things worth stating unprompted:
+
+- Subagents should be **stateless per invocation**. No shared mutable state. If two subagents need to coordinate mid-flight, the decomposition is wrong.
+- Give each subagent **only the tools it needs**. Isolation applies to tool definitions too.
+- **Write-heavy work does not decompose.** Two subagents editing one file conflict and the orchestrator cannot merge them. Parallel subagents suit read-heavy, independent leads.
+- Budget honestly: Anthropic reported their multi-agent research system used ~15x the tokens of a chat interaction. That buys real gains on parallelisable research and pure waste on anything else.
+
+Default to a single agent until it demonstrably fails on context, not on vibes.
+
+**Follow-ups:** A subagent returns a summary containing a subtle hallucination and the orchestrator cannot tell. How do you defend? When would you let a subagent spawn its own subagents?
+
+</details>
+
+### 35. Design the human approval flow for an agent that files expense reports. Where do the gates go, and how do you stop people from clicking through them?
+
+<details><summary><b>Answer</b></summary>
+
+Gates go where **blast radius** justifies them, and the axis is reversibility, not model confidence. A useful phrasing: would I let a new hire do this unsupervised on day one?
+
+For expenses:
+
+- **Auto-approve reads.** Fetch receipts, look up policy, query past reports. No gate. Gating reads is the fastest way to train people to click through everything.
+- **Auto-approve reversible writes under a threshold.** Draft the report, categorise line items, save. Undoable, low stakes.
+- **Gate irreversible or costly actions.** Submitting to finance, anything above a currency threshold, anything that pings a VP.
+- **Hard-block, never gate.** Actions that should not be in the tool set at all. Do not put `delete_all_reports` behind a confirmation dialog and call it safety.
+
+**Approval fatigue is the real failure mode**, and it is a design problem, not a user problem. Approve forty times a day and you approve reflexively; the gate becomes decorative, which is worse than no gate because it launders liability. Defences:
+
+- **Batch.** One approval for a whole report, not per line item.
+- **Show the diff, not the intent.** "Submit report" is unreviewable. "Submit $2,340 across 12 items, including $890 flagged out-of-policy" is reviewable. Surface the thing that should make them pause.
+- **Raise thresholds using observed data.** If humans approve 99.8% of sub-$50 submissions, that gate is theatre. Track approval-to-rejection ratio per gate and delete the gates that never reject.
+- **Make rejection cheap and informative.** A rejection should return as a tool result the agent can act on, not kill the run.
+
+**The engineering constraint people miss:** a human approval takes minutes to hours, so you cannot hold a process open on a blocking call. The agent must checkpoint, suspend, and resume on an external event. That means durable state keyed by run ID, an idempotent resume path, and accepting a cold prompt cache on the other side. Design the pause as a first-class state, not a `input()` call with a long timeout.
+
+**Follow-ups:** The approver is on holiday and the report is time-sensitive. What does your system do? How do you audit that an approval was meaningful rather than reflexive?
+
+</details>
+
+### 36. What are MCP's sampling and elicitation primitives for, and why does hardly anyone use them?
+
+<details><summary><b>Answer</b></summary>
+
+Both are **client** primitives: capabilities the host offers back to the server, inverting the usual direction of calls.
+
+**Sampling** lets a server ask the host to run an LLM completion on its behalf. The point is that the server author needs no API key, no model choice, no billing relationship. A server that wants to summarise a document it just fetched asks the host's model to do it. The host mediates, so it can show the user what is being requested, apply its own model policy, and refuse.
+
+**Elicitation** lets a server ask the user for input mid-request, with a schema for the expected response. A booking server that discovers it needs a seat preference can ask, rather than failing or guessing. It exists because the alternative is servers stuffing every possible parameter into a tool schema and the model hallucinating values for them.
+
+Why adoption is thin, which is the part that shows you have actually built something:
+
+- **Host support is optional and patchy.** Both are negotiated during initialisation. Most hosts implement tools and stop. A server depending on sampling simply does not work in most clients, so authors avoid it and ship a hardcoded model client instead. Chicken and egg.
+- **Sampling is a trust and cost inversion.** The host pays for tokens a third-party server requested, on a prompt the host did not write. That is uncomfortable to implement and a plausible abuse vector, so hosts are slow to enable it.
+- **Elicitation breaks the execution model.** It requires suspending a tool call, surfacing UI, and resuming. Any host treating tool execution as a synchronous function call must restructure to support it. It also arrived after the original spec, so many hosts had already shipped without it.
+
+The practical takeaway: know them, but do not build a server that requires them. Check the negotiated capabilities and degrade gracefully, falling back to a tool argument when elicitation is unavailable.
+
+**Follow-ups:** You are writing a host. Would you enable sampling for third-party servers, and what controls would you put on it? How does elicitation interact with prompt injection risk?
+
+</details>
+
+### 37. Your agent platform's bill jumped from $8k to $40k in a month. Nobody knows why. How do you find out, and how do you make sure this never happens blind again?
+
+<details><summary><b>Answer</b></summary>
+
+The honest first answer: if I did not instrument per-call attribution, I am reconstructing from provider invoices and guessing. Then I fix that permanently.
+
+**Finding it now.** Provider dashboards give totals by API key and model at best. So I slice what I have by model, by day, and by cache-hit ratio. A jump with flat request volume points at tokens per request: context growth, a cache regression, a prompt change, reasoning effort turned up. A jump with rising request count points at loop behaviour: retries, agents failing to terminate, a tool erroring and triggering re-attempts. The signature of a runaway loop is high steps-per-task with a flat success rate.
+
+**The instrumentation that should have existed.** Every LLM and tool call is a span carrying `tenant_id`, `run_id`, `agent_version`, `step_index`, `model`, input tokens split into cached and uncached, output tokens including reasoning tokens, and computed cost. Cost goes on the span at write time from a price table, because reconstructing it later from token counts and changing prices is misery.
+
+Then the aggregations that matter:
+
+- **Cost per successful task**, segmented by task type. Not cost per call. An agent costing 3x that succeeds instead of failing is cheaper.
+- **Cost per tenant.** In any multi-tenant system a few tenants generate most of the spend, and some are unprofitable at your pricing.
+- **The p99 of cost per run.** The mean hides everything. Your $40k is probably a handful of runs that spiralled.
+
+**The controls.** A per-run hard budget that terminates the loop. Per-tenant daily quotas. Alert on cost-per-task leaving a band rather than on total spend, since total spend rising with usage is fine and cost-per-task rising is a regression. Tag spans with prompt and agent version so you can attribute a cost delta to a specific deploy.
+
+The cultural point: cost is a product metric the team owns, not a finance surprise.
+
+**Follow-ups:** One tenant is 60% of your spend and 2% of revenue. What do you do technically? How do you attribute the cost of a shared prompt cache across tenants?
+
+</details>
+
 ## Advanced
 
-### 26. Walk me through the compounding-error math for agents, and what it implies for design.
+### 38. Walk me through the compounding-error math for agents, and what it implies for design.
 
 <details><summary><b>Answer</b></summary>
 
@@ -554,7 +843,7 @@ Design summary: shorten, strengthen, and above all make failures observable and 
 
 </details>
 
-### 27. How does prompt injection work against agents via tool results, and what actually mitigates it?
+### 39. How does prompt injection work against agents via tool results, and what actually mitigates it?
 
 <details><summary><b>Answer</b></summary>
 
@@ -573,7 +862,7 @@ Honest summary: unsolved in the general case; engineered around via least privil
 
 </details>
 
-### 28. What is the "lethal trifecta," and how do you design agent systems around it?
+### 40. What is the "lethal trifecta," and how do you design agent systems around it?
 
 <details><summary><b>Answer</b></summary>
 
@@ -592,7 +881,7 @@ Also name the composition trap: each MCP server or tool may be individually safe
 
 </details>
 
-### 29. How do you sandbox a code-executing agent?
+### 41. How do you sandbox a code-executing agent?
 
 <details><summary><b>Answer</b></summary>
 
@@ -611,7 +900,7 @@ Layers, from inside out:
 
 </details>
 
-### 30. Why are computer-use / browser agents so much harder to make reliable than API-based agents?
+### 42. Why are computer-use / browser agents so much harder to make reliable than API-based agents?
 
 <details><summary><b>Answer</b></summary>
 
@@ -629,7 +918,7 @@ Engineering responses: prefer APIs or DOM/accessibility-tree interfaces whenever
 
 </details>
 
-### 31. How do you build agents that survive long-horizon tasks - hours or days of execution?
+### 43. How do you build agents that survive long-horizon tasks - hours or days of execution?
 
 <details><summary><b>Answer</b></summary>
 
@@ -646,7 +935,7 @@ Assume everything fails mid-flight - process restarts, rate limits, tool outages
 
 </details>
 
-### 32. How do you engineer an agent for cost and latency without wrecking quality?
+### 44. How do you engineer an agent for cost and latency without wrecking quality?
 
 <details><summary><b>Answer</b></summary>
 
@@ -667,7 +956,7 @@ Guard the quality side with your eval suite: tiering and compaction changes are 
 
 </details>
 
-### 33. What does good observability look like for an agent system?
+### 45. What does good observability look like for an agent system?
 
 <details><summary><b>Answer</b></summary>
 
@@ -685,7 +974,7 @@ Full-fidelity traces at the unit of a *run*, with metrics aggregated above them 
 
 </details>
 
-### 34. Your agent gets stuck in loops or gives up too early. Diagnose and fix both.
+### 46. Your agent gets stuck in loops or gives up too early. Diagnose and fix both.
 
 <details><summary><b>Answer</b></summary>
 
@@ -705,7 +994,7 @@ Both directions need eval coverage: seed tasks that require persistence, and imp
 
 </details>
 
-### 35. What is tool-call hallucination, and how do you defend against it?
+### 47. What is tool-call hallucination, and how do you defend against it?
 
 <details><summary><b>Answer</b></summary>
 
@@ -724,7 +1013,7 @@ Defences, in layers:
 
 </details>
 
-### 36. What is context pollution in agents, and how do you deal with it?
+### 48. What is context pollution in agents, and how do you deal with it?
 
 <details><summary><b>Answer</b></summary>
 
@@ -746,7 +1035,7 @@ Countermeasures:
 
 </details>
 
-### 37. Should you build your agent on a framework or roll the loop yourself? Defend a position.
+### 49. Should you build your agent on a framework or roll the loop yourself? Defend a position.
 
 <details><summary><b>Answer</b></summary>
 
@@ -759,5 +1048,121 @@ The case for frameworks - which is legitimate and grows with operational maturit
 The synthesis interviewers reward: the *loop* is trivial; the *harness* (state, durability, observability, permissions) is not - so the build-vs-buy decision is about harness infrastructure, not agent logic. Whatever you choose, keep tool definitions, prompts, and evals framework-agnostic, so the framework is a replaceable execution substrate rather than the load-bearing architecture. And in an interview, be able to sketch the raw loop regardless - depending on a framework is a choice; being *unable* to work without one is a red flag.
 
 **Follow-ups:** Which single piece of framework infrastructure would you pay for first, and why? How would you structure code so you can swap frameworks later?
+
+</details>
+
+### 50. A customer reports the agent did something wrong three days ago. You have the trace. Can you reproduce it? How do you build a system where the answer is yes?
+
+<details><summary><b>Answer</b></summary>
+
+With a typical trace, no. You have what happened, not enough to make it happen again. Traces are for reading; replay is a separate capability you design for, and the gap between them is where most agent debugging dies.
+
+The barriers, and what each costs to remove:
+
+**The model is nondeterministic.** Even at temperature 0, batching and floating-point nondeterminism in serving stacks mean identical tokens are not guaranteed, and model versions change under you. So true re-execution of the model is off the table. That is fine, because you rarely want it.
+
+**The world moved on.** `get_inventory` returns different data now. Re-running against live dependencies reproduces a different scenario, not the bug.
+
+So I build **two distinct replay modes**, and the distinction is the interview signal:
+
+1. **Deterministic replay: no model call at all.** Persist a full event log, every LLM response and tool result verbatim, then re-drive your loop against the recording with model responses as fixtures. This reproduces exactly and answers "is the bug in my code": the parser, the state machine, the permission gate, the compaction logic. Fast, free, and it runs in CI as a regression test forever. It catches more real bugs than people expect, because a large share of agent failures are orchestration bugs rather than model failures.
+
+2. **Counterfactual replay: real model, recorded tool results.** Pin the tool outputs from the log and let the model respond fresh. This answers "does the new prompt or model fix this?" It is not reproduction, it is an experiment, so run it k times and read the distribution. A single pass tells you nothing about a stochastic system.
+
+**What the event log must contain** for either to work: the exact request bytes including resolved system prompt, tool definitions, and sampling params; the raw response including tool call IDs and reasoning blocks where the API returns them; every tool result verbatim; timestamps; and code and prompt versions. Append-only, keyed by run ID, treated as the source of truth from which trace UIs are derived. If you built tracing as fire-and-forget spans with payloads truncated for cost, you cannot replay, and the truncated tool result is exactly the field you will need.
+
+**Follow-ups:** Storing full payloads for every run is expensive at scale. What is your retention policy? How do you replay a run that involved a human approval and a 20-minute pause?
+
+</details>
+
+### 51. You're building a multi-tenant agent platform. Tenants bring their own MCP servers and their own data. What isolates them?
+
+<details><summary><b>Answer</b></summary>
+
+The dangerous framing is treating this as a normal multi-tenant web app with an LLM inside. It is not, because agents add three leakage channels a web app does not have: shared context, shared caches, and shared execution.
+
+**Identity and credentials.** Never a shared service account. Each tenant's tool calls execute with that tenant's credentials, so the downstream system enforces authorisation independently of your agent. The agent becomes a confused deputy that cannot be confused: even a fully prompt-injected agent cannot read tenant B's data, because the token it holds does not permit it. This is the load-bearing control and everything else is defence in depth. Concretely, bind the tenant token to the run at creation and thread it through every invocation rather than fetching it from ambient config.
+
+**Prompt cache.** Underrated and specific to this problem. Provider prompt caching keys on the prefix, so letting tenants share a cache namespace opens a timing side channel: B probes with candidate prefixes and infers from time-to-first-token whether A recently sent the same content. Worse, if you build your own response cache keyed on a prefix hash, a shared key can serve A's cached output to B outright. Partition the cache by tenant, usually via a tenant-specific prefix segment or a provider-side cache key, and accept the hit-rate cost.
+
+**Execution sandbox.** If tenants run code or connect a stdio MCP server, that server is a subprocess on your infrastructure with your privileges. It is untrusted code you are executing. Container per tenant at minimum, per run if you can afford it, no shared filesystem, egress allowlists, hard kill on budget.
+
+**Memory and vector stores.** Per-tenant collections, not one shared index with a metadata filter. A filter is one buggy query away from a cross-tenant leak, and embeddings of tenant data in a shared index are a liability even when filtered correctly.
+
+**Observability.** The one people forget. Agent traces carry reasoning chains, retrieved chunks, and tool arguments: a far richer leak surface than HTTP logs. Redact at collection, route regulated tenants to separate backends, scope trace access by tenant.
+
+**Noisy neighbours.** Per-tenant token quotas and concurrency limits, so one runaway loop degrades exactly one tenant.
+
+**Follow-ups:** A tenant's MCP server description contains an injection targeting your orchestrator. Which of these controls helps? How do you let tenants share a common tool set without sharing the cache?
+
+</details>
+
+### 52. You want to change your agent's system prompt. How do you ship it without finding out from customers that you broke something?
+
+<details><summary><b>Answer</b></summary>
+
+Treat the prompt, the tool definitions, and the model version as a single versioned artifact, because changing any one of them regresses behaviour identically. That is the core insight: teams version their code and leave the prompt in a string literal anyone can edit, then wonder why quality moves without a deploy.
+
+**The artifact.** One bundle: system prompt, tool schemas and descriptions, model ID, sampling params, budget limits. Immutable, content-hashed, tagged on every trace span. If you cannot answer "which agent version produced this trace", you cannot correlate a regression with a change, and that is the whole game.
+
+**The pipeline:**
+
+1. **Offline eval gate.** Run the candidate against your task set. Gate on **pass^k, not pass@1**, because a change that raises capability while lowering consistency is a regression users will feel. Also gate on cost per successful task and steps per task, since prompts that improve quality by rambling into more tool calls are a real and common outcome.
+2. **Shadow.** Run the candidate against a sample of live traffic with tools mocked or restricted to reads, and diff trajectories against production. Do not diff strings, diff decisions: which tools were called, in what order, was the final state equivalent. This catches distribution shift your eval set does not cover, which is most of it.
+3. **Canary by cohort.** 1%, then 10%, low-blast-radius tenants first. Route by tenant, not per request, because flipping versions mid-conversation gives you an agent that contradicts itself and traces nobody can interpret. Long-running agents finish on the version they started with: pin at run creation, resume on the pinned version.
+4. **Rollback on the right metric.** Not error rate. Agents fail silently, every span returns 200 and the task is wrong. Watch task success rate, human intervention rate, escalation rate, and the share of runs hitting max iterations. Those move before complaints do.
+
+**The honest caveat.** Eval sets rot, and the confidence interval on a 200-task eval is wide enough that small deltas are noise. So evals gate against large regressions and canaries are the real detector. And when a provider silently updates a model under you, none of this helps unless you pin model versions and treat upgrades as deliberate, tested changes.
+
+**Follow-ups:** Your eval set says the new prompt is 3% better. Is that real? How do you build an eval set that does not rot?
+
+</details>
+
+### 53. Define SLOs for a customer support agent. Every span returns 200 and latency is fine. What do you actually alert on?
+
+<details><summary><b>Answer</b></summary>
+
+That premise is the whole problem: **agents fail silently**. RED metrics (rate, errors, duration) were built for services where failure throws. An agent that confidently quotes the wrong refund amount emits a clean trace, healthy latency, zero errors. Standard APM says green. So the first move is defining failure semantically rather than by status code.
+
+**The SLI that matters is task success rate**, and the hard part is measuring it without a human reviewing every conversation. Sources, in descending reliability:
+
+- **Ground truth from downstream state.** Did the refund post? Did the ticket close and stay closed for 7 days? Best signal, delayed, which is fine for an SLO and useless for an alert.
+- **Human proxies.** Escalation rate, reopen rate, thumbs-down, customer re-contact within 24 hours. Cheap, real, lagging.
+- **LLM judge on a sample.** Continuous and immediate, but noisy. Calibrate it against human labels or you are alerting on the judge's mood.
+
+**Leading indicators you can alert on in minutes**, which is what the question is really after:
+
+- **Runs terminating on max iterations or budget.** A rise means the agent is failing to converge, always before users complain.
+- **Steps per task, p50 and p99.** A shift means behaviour changed even if success rate has not moved yet.
+- **Tool error rate per tool.** One flaky dependency degrades the whole agent, and the agent hides it by retrying.
+- **Loop signatures.** Same tool, same arguments, three times in a run. A stuck agent, trivially detectable.
+- **Human intervention rate.** The most honest number in the system.
+
+**On SLO shape:** latency objectives need care, because an agent that thinks longer and gets it right is good. Set the latency objective on successful runs only, or fast failures will flatter your percentiles. Set a **cost per successful task** objective alongside, and treat a cost blowout as an incident, because agents fail expensively in a way stateless services do not.
+
+The cultural point: alert on trends in the leading indicators, page on user-visible harm, and accept that your success SLI is sampled and lagged. Anyone claiming a clean real-time success metric is measuring something else.
+
+**Follow-ups:** Your LLM judge and your human labels disagree 15% of the time. What do you do? How do you set an error budget for something you only measure on a 2% sample?
+
+</details>
+
+### 54. Your agent handles multi-turn conversations where users change their minds. Static test cases can't cover that. Build me an evaluation environment.
+
+<details><summary><b>Answer</b></summary>
+
+Static input-output pairs cannot evaluate an interactive agent, because turn 3 depends on what the agent said at turn 2. You need a **simulated environment plus a simulated user**, which is the design tau-bench established: a domain with real tools, a stateful backend, a policy the agent must follow, and an LLM playing the user against a hidden scenario.
+
+**The four pieces:**
+
+1. **A stateful mock backend.** Not stubbed tool returns: a real database the tools mutate, seeded per run and reset between runs. This matters because it lets you grade on final state, which is objective, rather than on transcript text, which needs a judge.
+2. **A user simulator with a private goal.** Give it a persona, an objective, and information it reveals only when asked. This is what tests the behaviour you care about: the user who says "actually, make it two tickets not one" at turn 5. The simulator must be able to be vague, change its mind, and be mildly unhelpful, because real users are.
+3. **A ground-truth final state per scenario.** The database as it should look after a correct run. Grading becomes a diff: deterministic and cheap.
+4. **Trajectory checks alongside.** Did it violate policy, like issuing a refund without verifying identity? Did it take 30 steps for a 4-step task? Final state can be right for the wrong reasons.
+
+**The metric.** Run each scenario k times and report **pass^k**, all k trials succeeding, not pass@1. That is the entire reason this environment exists: users experience consistency, and an agent that passes one time in eight is useless in production. Expect pass^k to fall off sharply as k rises, and treat that decay curve as a more useful artifact than any single score.
+
+**Where this bites you, and you should say it unprompted:** the user simulator is itself an LLM with its own failure modes. It leaks information it should withhold, it is too agreeable and accepts a wrong answer, it drifts out of character. So **validate the simulator**: have humans annotate a sample of transcripts specifically for simulator errors, and do not attribute simulator failures to the agent. Skip that and you are measuring two models while reporting one number. Dual-control variants, where the simulated user also holds tools and must act, push this further and are worth knowing.
+
+**Follow-ups:** Your agent overfits to the simulator's quirks and regresses in production. How do you detect that? How many scenarios do you need before the pass^k number means anything?
 
 </details>

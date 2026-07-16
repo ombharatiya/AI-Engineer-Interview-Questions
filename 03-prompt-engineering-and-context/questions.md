@@ -1,6 +1,6 @@
 # Prompt Engineering & Context Engineering - Interview Questions
 
-24 questions: 6 basic, 11 intermediate, 7 advanced.
+45 questions: 12 basic, 20 intermediate, 13 advanced.
 
 ## Basic
 
@@ -127,9 +127,149 @@ Framing that lands well in interviews: prompt engineering is writing a good func
 
 </details>
 
+### 7. When would you ask for JSON, XML tags, or markdown as your output format?
+
+<details><summary><b>Answer</b></summary>
+
+Three formats, three consumers. JSON when a program parses the output. XML-style tags when you want a few loosely typed sections and the content is messy. Markdown when a human reads it.
+
+**JSON** is the default for machine consumption, and it should be paired with schema-constrained decoding rather than hope. Its weakness is escaping: a long code snippet or a document excerpt inside a JSON string becomes a swamp of `\n` and `\"`, and models make more mistakes the more escaping you demand. Deep nesting and unions also cost quality.
+
+**XML-style tags** are underrated. They are self-delimiting, so content containing braces, quotes, or newlines needs no escaping. Nesting is visually obvious to the model. Partial output is still salvageable, which matters when you stream or hit a length cap. They shine in two places: structuring the *input* (`<documents>`, `<examples>`, `<instructions>`) and structuring outputs where you want free-text sections, for example `<reasoning>...</reasoning><answer>...</answer>`. Anthropic's models in particular are documented as responding well to XML tags, and every frontier model handles them fine.
+
+**Markdown** is for human-facing chat surfaces. Do not ask for it when a parser is downstream, and never nest a markdown blob inside a JSON field if you can avoid it.
+
+The misconception worth flagging: asking for JSON because it looks rigorous, when nothing parses it. You pay tokens, add a failure mode, and constrain the model's phrasing for no benefit. Heavy format constraints can measurably degrade content quality on reasoning-flavoured tasks, so the rule of thumb is to pick the loosest format your consumer can actually parse. If you only need one value, ask for one value on one line and read it.
+
+A hybrid that works well in practice: XML tags at the top level with a JSON payload inside a single `<result>` tag, so the model can think in prose and still hand you something typed.
+
+**Follow-ups:** Why does regex or schema-heavy constrained decoding sometimes hurt answer quality, and how do you mitigate it? How would you make streaming output usable when the format is JSON?
+
+</details>
+
+### 8. What do temperature and top_p actually do, and how do you choose them per task?
+
+<details><summary><b>Answer</b></summary>
+
+Temperature divides the logits before the softmax. Below 1 it sharpens the distribution, above 1 it flattens it, and 0 collapses to greedy argmax. `top_p` (nucleus sampling) is a separate knob: it keeps the smallest set of tokens whose cumulative probability reaches p and renormalises. `top_k` keeps the k highest. Temperature changes the *shape* of the distribution, top_p and top_k change the *size* of the candidate pool.
+
+How I set them:
+
+- **Extraction, classification, tool calling, structured output**: temperature 0, top_p 1. You want the most likely token, and you validate the output structurally anyway.
+- **Code generation**: low, roughly 0 to 0.3. Higher buys nothing but plausible-looking bugs.
+- **Conversational or drafting**: ~0.7 with top_p ~0.9 is a reasonable starting point, then tune on your eval.
+- **Self-consistency or any sample-and-vote scheme**: you *need* temperature above 0, otherwise all k samples are identical and you have paid k times for one answer.
+- **Reasoning models**: several providers fix or ignore temperature on reasoning endpoints. The knob there is the thinking or effort budget, not sampling.
+
+Two things candidates get wrong. First, "temperature equals creativity" is a bad mental model. Temperature does not add knowledge or ideas, it just makes lower-probability tokens more likely to be picked, which on factual tasks mostly means more errors. Second, temperature 0 is not a determinism guarantee. Floating-point non-associativity, batching, and expert routing in MoE models mean identical requests can still diverge. If you need reproducibility, cache the response or pin a seed where the provider offers one, and even then treat it as best effort.
+
+Do not aggressively tune temperature and top_p at the same time. Pick one as your primary knob, usually temperature, and leave the other at its neutral value so you can attribute changes.
+
+**Follow-ups:** Why does temperature 0 not guarantee identical outputs across identical requests? If you had to raise diversity without raising error rate, what would you change instead of temperature?
+
+</details>
+
+### 9. How do you build a prompt template, and what can go wrong when you inject variables into it?
+
+<details><summary><b>Answer</b></summary>
+
+A template is a prompt with typed slots plus rendering logic. The naive version is an f-string over user input, and it fails in ways that are worth naming.
+
+**Delimiter collision.** If your template wraps retrieved text in `<document>` tags and the retrieved text contains `</document>`, the model now sees your structure break mid-content. Strip or escape your own delimiters out of slot values before rendering. This is the prompt-layer equivalent of SQL injection, and it is the one that gets missed.
+
+**Empty and missing values.** A slot that renders to nothing leaves `Documents:` followed by blank space, and the model invents documents. Handle the empty case explicitly with different copy: "No documents were retrieved. Tell the user you could not find anything." Fail loudly on missing keys rather than rendering `None`.
+
+**Unbounded values.** A slot with no length cap is how a 3k-token prompt becomes 180k. Cap every slot and decide the degradation strategy per slot.
+
+**Cache boundaries.** Interpolating a timestamp or request id near the top invalidates the whole cached prefix. Keep static text contiguous and put volatile slots as late as possible.
+
+```python
+def render(tmpl: str, **slots: str) -> str:
+    safe = {}
+    for k, v in slots.items():
+        if v is None:
+            raise ValueError(f"missing slot: {k}")
+        v = v.replace("<document>", "&lt;document&gt;")
+        v = v.replace("</document>", "&lt;/document&gt;")
+        safe[k] = v[:MAX_CHARS[k]]
+    return tmpl.format(**safe)
+```
+
+Beyond mechanics: keep templates in version control as files, not string literals scattered across handlers, so they are diffable and reviewable. Assert on the rendered prompt in tests, not just on the template, because most "the model ignored my instruction" bugs turn out to be an instruction that never made it into the rendered string.
+
+**Follow-ups:** How would you unit test a prompt template? Where would you put a per-user personalisation string so it does not destroy your prompt cache?
+
+</details>
+
+### 10. Should you treat your system prompt as a secret? What happens when it leaks?
+
+<details><summary><b>Answer</b></summary>
+
+No. Assume it leaks, and design so that the leak is boring.
+
+System prompt extraction is a well-known class of attack, and it appears in OWASP's LLM Top 10 as its own category. Motivated users get prompts out with role-play framings, translation requests, encoding tricks, or by asking the model to repeat everything above. "Do not reveal your instructions" reduces casual extraction and does approximately nothing against someone trying. It is a speed bump, not a control.
+
+So the real question is what the leak costs you. If the answer is "a competitor reads our prompt", that is survivable. Your prompt is not the moat; your data, evals, distribution, and product are. If the answer is "an attacker gets an API key, an internal URL, our pricing floor, another customer's data, or the exact list of rules to route around", you built the system wrong.
+
+Concretely, what must never live in a system prompt: credentials or tokens, PII, unpublished business logic that is a compliance issue if disclosed, and anything that functions as an authorisation decision. If the prompt says "only admins may trigger refunds", you have implemented authorisation by politely asking a probabilistic system. Enforce that in the tool layer, where the code checks the caller's actual role before the refund executes. Then a leaked prompt tells the attacker the rule exists and buys them nothing.
+
+The secondary cost is guardrail mapping: knowing your exact refusal rules makes them easier to probe around. Mitigate by not relying on prompt text as the only guardrail, and by monitoring. A cheap detector is an output filter that checks for long verbatim overlap with your system prompt and blocks or flags it, which catches the lazy extractions.
+
+The answer interviewers want: the system prompt is configuration, not a security boundary.
+
+**Follow-ups:** How would you detect system prompt extraction attempts in production? If not the prompt, where does the security boundary actually live in an agent with tools?
+
+</details>
+
+### 11. What is the difference between input guardrails and output guardrails, and why do you need both?
+
+<details><summary><b>Answer</b></summary>
+
+Input guardrails screen the request before it reaches the model. Output guardrails screen the response before it reaches the user or a downstream system. They catch disjoint failure sets, which is why you need both.
+
+**Input side**: PII detection and redaction, off-topic or out-of-scope classification, banned content, obvious injection patterns, length and rate caps. Cheap, and it saves you the model call entirely when it fires.
+
+**Output side**: schema validation, groundedness or citation checking against the provided sources, PII leakage, toxicity, policy compliance, and verbatim-system-prompt detection.
+
+Neither substitutes for the other. An input filter cannot catch a hallucination, because the hallucination does not exist yet. An output filter cannot prevent a prompt injection from having already fired a tool call halfway through the turn, which is why agents need a third layer: action gating at the tool boundary, where the irreversible operation is authorised in code.
+
+Design points worth raising:
+
+- **Layer by cost.** Regex and small classifiers first, a small model next, an LLM judge only for the ambiguous remainder. Running a frontier-model judge on every request doubles your cost and latency for a check that a 100ms classifier handles.
+- **Latency.** Input guardrails sit on the critical path. Run independent checks in parallel, not in a chain.
+- **Streaming is the hard part.** If you stream tokens to the user, an output guardrail either buffers the whole response (destroying time-to-first-token, the thing streaming existed for) or checks incrementally and must be able to retract text already shown. Most teams buffer for high-risk surfaces and stream on low-risk ones.
+- **Fail open or closed** is a product decision per check, and should be explicit. A toxicity classifier timing out on a support bot probably fails open; the same timeout on a medical surface does not.
+
+And measure them: every guardrail has a false positive rate that shows up as a broken product.
+
+**Follow-ups:** How would you keep an output guardrail from destroying your streaming latency? What false-positive rate would you accept on an off-topic classifier, and how would you measure it?
+
+</details>
+
+### 12. Your chatbot starts losing the thread after about ten turns. What are your options for managing conversation history?
+
+<details><summary><b>Answer</b></summary>
+
+First, diagnose before fixing, because "loses the thread at ten turns" is almost never the context window filling up. Ten turns of chat is a few thousand tokens against a window of hundreds of thousands. The usual causes are that you are truncating history somewhere and did not realise, that the important fact was stated at turn 3 and is now buried under low-signal chatter, or that your system prompt is being diluted.
+
+The standard strategies, roughly in order of sophistication:
+
+- **Full history.** Send everything. Correct until it is not. Cheap to build, and prefix caching makes it cheaper than people expect, since each turn extends a prefix you already paid to cache.
+- **Sliding window.** Keep the last N turns. Simple, and it loses exactly the durable facts you care about. It also invalidates your cache every turn, because dropping from the front changes the prefix.
+- **Summary buffer.** Summarise older turns into a running summary, keep recent turns verbatim. This is the workhorse. Compact in large chunks rather than every turn, so you amortise both the summarisation call and the cache invalidation.
+- **Retrieval over history.** Embed past turns, pull back the relevant ones. Useful for very long-lived threads, and it breaks temporal coherence if you are not careful.
+
+The move that actually fixes the reported symptom is different from all four: **extract durable state into a structured object and re-render it every turn**. The user's name, their constraints, decisions already made, the current task. A ~200 token `<session_state>` block at a stable position beats hoping the model re-reads turn 3 of a 40-turn transcript. It also makes the state inspectable and testable, which a transcript never is.
+
+Summarisation is lossy in an adversarial way: the detail you dropped is the one the next turn needed. So keep recent turns verbatim, and never summarise the current user request.
+
+**Follow-ups:** Where would you place the summary and the recent turns to keep prefix caching effective? What breaks when you summarise a conversation that contains tool calls and their results?
+
+</details>
+
 ## Intermediate
 
-### 7. How do you select and order few-shot examples? What are the known pitfalls?
+### 13. How do you select and order few-shot examples? What are the known pitfalls?
 
 <details><summary><b>Answer</b></summary>
 
@@ -150,7 +290,7 @@ Also know Min et al. (2022): randomising the *labels* in demonstrations often ba
 
 </details>
 
-### 8. Why does in-context learning work at all? The model's weights don't change.
+### 14. Why does in-context learning work at all? The model's weights don't change.
 
 <details><summary><b>Answer</b></summary>
 
@@ -170,7 +310,7 @@ For an engineering interview, the takeaway matters more than the theory: ICL is 
 
 </details>
 
-### 9. Explain self-consistency. When is it worth the cost?
+### 15. Explain self-consistency. When is it worth the cost?
 
 <details><summary><b>Answer</b></summary>
 
@@ -190,7 +330,7 @@ The 2026 framing: self-consistency is the simplest form of **test-time compute s
 
 </details>
 
-### 10. When would you decompose a task into multiple prompts instead of one? Explain least-to-most prompting.
+### 16. When would you decompose a task into multiple prompts instead of one? Explain least-to-most prompting.
 
 <details><summary><b>Answer</b></summary>
 
@@ -213,7 +353,7 @@ The 2026 evolution: with reasoning models and agentic tool loops, decomposition 
 
 </details>
 
-### 11. Describe the ReAct pattern. How does it relate to modern native tool calling?
+### 17. Describe the ReAct pattern. How does it relate to modern native tool calling?
 
 <details><summary><b>Answer</b></summary>
 
@@ -229,7 +369,7 @@ What survives of ReAct in 2026 engineering: the loop architecture of every agent
 
 </details>
 
-### 12. How do you design good tool/function definitions for an LLM? What makes tool calling fail?
+### 18. How do you design good tool/function definitions for an LLM? What makes tool calling fail?
 
 <details><summary><b>Answer</b></summary>
 
@@ -250,7 +390,7 @@ Also state the eval discipline: tool descriptions deserve their own tests - a se
 
 </details>
 
-### 13. How do you structure a prompt to be resistant to prompt injection from retrieved or user-supplied content?
+### 19. How do you structure a prompt to be resistant to prompt injection from retrieved or user-supplied content?
 
 <details><summary><b>Answer</b></summary>
 
@@ -277,7 +417,7 @@ A crisp closing line for interviews: delimiters are seatbelts, not armor - desig
 
 </details>
 
-### 14. You have a 200k-token context with instructions and 50 documents. Where do you put what, and why?
+### 20. You have a 200k-token context with instructions and 50 documents. Where do you put what, and why?
 
 <details><summary><b>Answer</b></summary>
 
@@ -303,7 +443,7 @@ Mention the eval: position-sensitivity is measurable - permute the gold document
 
 </details>
 
-### 15. How does prompt caching work, and how should it change the way you structure prompts?
+### 21. How does prompt caching work, and how should it change the way you structure prompts?
 
 <details><summary><b>Answer</b></summary>
 
@@ -323,7 +463,7 @@ Why it matters so much for agents: an agent loop re-sends the entire growing con
 
 </details>
 
-### 16. Walk me through your process for systematically improving a prompt that's underperforming.
+### 22. Walk me through your process for systematically improving a prompt that's underperforming.
 
 <details><summary><b>Answer</b></summary>
 
@@ -347,7 +487,7 @@ The differentiating signal in this answer is the order: eval → failure analysi
 
 </details>
 
-### 17. What changes when your product must handle prompts and content in multiple languages?
+### 23. What changes when your product must handle prompts and content in multiple languages?
 
 <details><summary><b>Answer</b></summary>
 
@@ -365,9 +505,237 @@ Practical decisions and defaults:
 
 </details>
 
+### 24. How do you version and govern prompts in production? Someone asks which prompt produced a bad output three weeks ago - can you answer?
+
+<details><summary><b>Answer</b></summary>
+
+If you cannot answer that question, you do not have a prompt system, you have prompt strings. The fix is to treat prompts as versioned artifacts with immutable ids and to log the id on every request.
+
+The key insight most candidates miss: **the prompt is not the deployable unit**. The deployable unit is the tuple of (prompt template, model id, sampling params, tool schemas, output schema). A prompt validated against one model is not validated against the next version of that model. Version them together as one artifact with one id, or you will get silent regressions when someone bumps the model and the prompt version stays put.
+
+What I log per request: `artifact_version`, the rendered prompt hash, model id, params, and the trace of retrieved doc ids and tool results. Hash rather than the full prompt if the rendered prompt contains user data you cannot retain, but keep enough to reproduce. Reproduction is the whole point.
+
+Storage: prompts owned by engineers live in git and ship with the code, which gives you review, diffs, blame, and atomic rollout with the code that depends on them. The moment non-engineers need to edit prompts, you need a registry with a UI, and then you need the governance to go with it: an approval step, an eval gate that blocks promotion on a regression, and an audit trail of who approved what with which scores.
+
+Routing: use labels, not hardcoded versions. `production` points at a version, `staging` at another. Rollback is repointing a label, which takes seconds and needs no deploy. This is the single most valuable property of a registry, and it is why teams outgrow prompts-in-env-vars.
+
+The anti-patterns to name: prompts as environment variables (no history, no diff), a dashboard where anyone can edit production text with no eval gate, and prompts duplicated across three services that drift.
+
+**Follow-ups:** Why is a prompt tested on one model not validated on a newer version of the same model? How would you gate promotion of a prompt version on evals without blocking every small copy change?
+
+</details>
+
+### 25. You want to switch model providers and your prompts break. Why, and how would you have made them portable?
+
+<details><summary><b>Answer</b></summary>
+
+They break because of prompt-model co-adaptation. Every time an engineer tweaked wording to fix an edge case, they encoded that specific model's interpretation habits into your prompt. The prompt did not capture the task, it captured the task plus a pile of undocumented workarounds for one model.
+
+What actually breaks, in rough order of frequency:
+
+- **Formatting habits.** One model returns bare JSON, another wraps it in a markdown fence, a third adds a sentence of preamble. If you are string-parsing, you are broken on day one.
+- **Verbosity and tone defaults.** Length instructions calibrated against one model land differently on another.
+- **Refusal thresholds.** Models draw safety boundaries in different places, so a benign domain that worked can start refusing.
+- **Tool calling conventions.** Different schema dialects, different parallel-call behaviour, different reliability at deciding not to call anything.
+- **Provider-specific features.** Assistant prefill exists on some APIs and not others. If your JSON reliability depends on prefilling `{`, that is not portable.
+- **Reasoning models** ignore or actively suffer from the canned chain-of-thought scaffolding you built for a non-reasoning model.
+
+How to have been portable: **the eval set is the portable asset, not the prompt.** Freeze the task intent, the output schema, and a labelled eval set including tool-call assertions, citation behaviour, and the "I do not know" cases. Then accept a thin per-model adapter layer rather than pretending one string works everywhere. Use provider-native structured output and native tool calling instead of parsing prose, because those are the parts that transfer.
+
+The practice that makes migration a rehearsal instead of a crisis is running your eval against a second provider continuously, even if you never deploy it. It keeps the design honest and tells you the day a prompt has quietly overfitted.
+
+And the cost point: portability is not free. If you are never switching, do not pay for it.
+
+**Follow-ups:** What would you do first: re-tune the old prompt for the new model, or re-derive the prompt from the task spec? How do you decide when a migration is done?
+
+</details>
+
+### 26. Design an example store for dynamic few-shot selection. What do you get, and what does it cost you?
+
+<details><summary><b>Answer</b></summary>
+
+You embed a curated set of labelled examples, retrieve the top-k most similar to each incoming input at request time, and render them into the prompt. Compared with a fixed set of five examples, the model sees demonstrations that are actually relevant to this input.
+
+```python
+def select(query: str, k: int = 5) -> list[Example]:
+    cands = index.search(embed(query), top_n=50)
+    picks = mmr(cands, k=k, lambda_=0.6)   # relevance vs diversity
+    return balance_labels(picks)           # avoid all-one-label prompts
+```
+
+Three design decisions matter. **Diversity**: plain top-k returns five near-duplicates, which teaches the model one narrow pattern; MMR or clustering fixes it. **Label balance**: models exhibit majority-label bias, so five examples that happen to share a label bias the prediction toward it regardless of the input. **Cap**: returns diminish fast, and a big example block competes for attention with the actual task.
+
+Where it earns its keep: large or subjective label taxonomies, per-tenant conventions where each customer's "correct" differs, and domains where the boundary is genuinely example-shaped.
+
+The cost people forget is **caching**. Static examples sit in your cacheable prefix. Dynamic ones vary per request, so they either sit after the static block (shortening your cached prefix to system-plus-tools only) or, worse, get placed above it and destroy the cache entirely. A good middle path is bucketing: cluster requests into a handful of coarse intents, and use a fixed example set per intent. You keep most of the relevance win and every bucket stays cacheable.
+
+The part that is a real engineering commitment: **the store is a dataset**. It drifts, it needs curation, and a single mislabelled example is a bug that silently teaches wrong behaviour to every similar request forever. Version it, review additions, and feed it from reviewed production failures.
+
+And measure it. Dynamic few-shot has to beat static few-shot, which has to beat zero-shot, on your eval. On instruction-tuned models, often it does not, and you have built infrastructure for nothing.
+
+**Follow-ups:** How would you keep a mislabelled example from silently degrading production? When would bucketed static examples beat true per-request retrieval?
+
+</details>
+
+### 27. How should tool results be formatted before they go back into the model's context?
+
+<details><summary><b>Answer</b></summary>
+
+Tool results are the largest uncontrolled source of context bloat in agents, and they are the part engineers most often leave as whatever the upstream API returned. A search tool that returns full documents can consume more of the window than the system prompt, the history, and the user's question combined.
+
+The governing rule: return what the model needs to decide the next step, not the whole payload.
+
+- **Project, do not dump.** Field allowlist, flatten nesting, drop nulls and internal ids the model will never reference. A REST response with 60 fields where the model uses 4 is 15x waste on every call.
+- **Paginate explicitly.** "Showing results 1-20 of 480. Call again with offset=20 for more." This gives the model agency instead of silently hiding data, which is what a bare truncation does.
+- **Truncate with a visible marker** that says it was truncated and how to get the rest. Silent truncation makes the model confidently reason over half a table.
+- **Make errors actionable.** `400: field 'date' must be ISO-8601, got '12/03/26'` lets the model self-correct. A raw stack trace teaches nothing, costs hundreds of tokens, and pollutes the context for every subsequent turn.
+- **Compact formatting.** Pretty-printed JSON is whitespace you are paying for. Markdown tables or minimal JSON usually win for tabular data.
+- **Be consistent.** The same tool should always return the same shape. Models learn the shape within a session, and shape changes read as new information.
+
+For genuinely large results, offload: write the payload to a file or artifact store and return a handle plus a short summary, letting the agent re-read on demand. This keeps the window clean and turns context into addressable storage.
+
+The security point that belongs here: tool results are untrusted content. A web-fetch or email-read result can contain text aimed at your model. Delimit it, mark it as data, and remember the delimiter is a mitigation, not a boundary.
+
+**Follow-ups:** How would you decide the truncation limit for a given tool? Why is a paginated result better than a truncated one for an agent, given both hide data?
+
+</details>
+
+### 28. When is prompt compression worth it, and how would you do it?
+
+<details><summary><b>Answer</b></summary>
+
+Usually it is not, and that is the first thing to say. Most teams reaching for compression have a curation problem, not a compression problem. Before compressing anything, do the boring wins: stop stuffing 50 chunks when 8 answer the question, trim tool outputs, delete few-shot examples that no longer earn their tokens, drop the dead tool definitions. That is normally a large reduction with zero quality risk.
+
+If you still need it, the techniques fall into tiers:
+
+- **Structural**: deduplicate, strip boilerplate and navigation chrome from scraped pages, field allowlists. Lossless-ish and always worth doing.
+- **Abstractive**: summarise background material with a small cheap model. This is what agent compaction already does to conversation history.
+- **Token-level**: LLMLingua-style approaches use a small model's perplexity to drop low-information tokens, producing text that looks mangled to humans but reads fine to the model. Real, and genuinely aggressive.
+- **Retrieval instead of compression**: often the right answer. Do not compress the 40 documents, retrieve the 4.
+
+When it pays: you are prefill-latency bound, you are token-cost bound on a context that is not reused (so caching cannot help), or you are running self-hosted where context length is a hard capacity constraint.
+
+When it does not: **if your long prefix is stable, prompt caching beats compression on every axis.** Cache reads run at a fraction of input price with zero quality risk. Compression trades quality for cost; caching does not. Candidates who reach for compression before checking cacheability are optimising the wrong thing.
+
+The risk is that compression is lossy adversarially: the token you dropped is the answer. It is most dangerous on extraction and exact-detail tasks, safest on background and history. So never compress the user's actual instruction or the output contract, only the background. And measure it as a frontier: quality on your eval against tokens saved, not tokens saved alone.
+
+**Follow-ups:** Why might token-level compression hurt an extraction task more than a summarisation task? How would you decide between compressing history and offloading it to a file?
+
+</details>
+
+### 29. You have retrieved chunks and a question. How do you actually build the prompt? Assume some documents are irrelevant and two of them contradict each other.
+
+<details><summary><b>Answer</b></summary>
+
+This is the prompt-layer half of RAG, and it is where most of the quality lives once retrieval is adequate.
+
+**Structure.** Each document gets a delimiter, a stable id, and metadata the model needs to reason about trust: source, title, and date. Dates matter more than people expect, because half of all conflicts are just staleness.
+
+```text
+<documents>
+<doc id="7" source="policy-wiki" updated="2026-03-11">...</doc>
+<doc id="12" source="policy-wiki" updated="2024-08-02">...</doc>
+</documents>
+```
+
+**Placement.** Instructions above the documents, question restated below them. Retrieval quality over long contexts is U-shaped (Liu et al., "Lost in the Middle"), so put the highest-scoring documents at the edges of the block, not the middle.
+
+**Citations.** Require a doc id after each claim. This is not decoration: it converts groundedness from a vibe into something you can check programmatically. If a sentence cites doc 7, you can verify doc 7 supports it, and you can build an automated hallucination metric out of that.
+
+**Abstention.** State it explicitly: the documents may be irrelevant or incomplete, and if the answer is not there, say so rather than answering from memory. Without this the model silently falls back to parametric knowledge, which is the failure that erodes trust fastest because it is fluent and unattributed.
+
+**Conflicts.** Do not leave resolution to chance. Give a policy: prefer the more recent document, prefer the authoritative source, and if they genuinely disagree on something material, surface the disagreement to the user rather than picking. "Surface it" is often the correct product behaviour and candidates rarely say it.
+
+**Volume.** More context is not better. Past a point, irrelevant chunks measurably distract the model, and precision matters more than recall. If your reranker gives you 8 good chunks, send 8.
+
+And mark the whole block as data, never instructions, since retrieved content is a prime injection vector.
+
+**Follow-ups:** How would you turn per-claim citations into an automated groundedness metric? If recall matters and you must send 40 chunks, what changes in the prompt?
+
+</details>
+
+### 30. Your model refuses requests that are perfectly legitimate. How do you diagnose and fix over-refusal?
+
+<details><summary><b>Answer</b></summary>
+
+Over-refusal is the failure mode that quietly kills products, and it gets much less attention than under-refusal because it never makes the news. A support bot that refuses 8% of legitimate questions has an 8% broken product, and nobody files a bug because the refusal sounds responsible.
+
+**Diagnose first.** Build two eval sets: benign-but-scary inputs from your real domain, and genuinely disallowed inputs. Track the refusal rate on both. You are choosing a point on a tradeoff curve, and the only professional move is to make that choice explicit and get product and legal to agree on it rather than discovering it in support tickets.
+
+**Common causes**, in order:
+
+- Your domain looks risky to a safety-trained model. Medicine, law, security research, and finance all trigger caution that is appropriate for a general assistant and wrong for your scoped product.
+- Your own prompt caused it. Vague instructions like "be careful" or "prioritise safety" get resolved conservatively, because the model has no way to know where your line is. Vague caution instructions are a common self-inflicted wound.
+- Keyword triggers in otherwise fine content.
+
+**Fixes at the prompt layer.** Replace vague caution with a specific, positively-stated scope: "You may explain drug interactions listed on the provided label. You may not recommend personalised dosing. If asked for dosing, say so and point to the prescriber." Then add two or three examples sitting right on the boundary, one allowed and one refused, because the boundary is exactly the thing that is easier to show than to describe.
+
+Also treat refusal as a product surface, not an error. Give the model an approved refusal template that explains what it cannot do, why, and where to go instead, and log every refusal with the trigger. An unlogged refusal is invisible failure.
+
+What I would not do is jailbreak my own model to get past its training. If the base model will not do the task, change models, fine-tune, or reconsider whether it should be automated.
+
+**Follow-ups:** How would you build a benign-but-scary eval set for a medical product without a clinician on the team? When is over-refusal a signal that you picked the wrong model rather than the wrong prompt?
+
+</details>
+
+### 31. A user reports a bad answer. Walk me through how you debug it.
+
+<details><summary><b>Answer</b></summary>
+
+Reproduce, isolate, then change one thing. The order matters, and most people skip straight to rewriting prompt text.
+
+**Reproduce.** I need the exact rendered prompt as the model saw it, the model id, the sampling params, the retrieved doc ids, and every tool call with its result. If my tracing does not give me that, the first fix is tracing, not the prompt. "The model ignored my instruction" is most often the instruction not being in the rendered string at all, or sitting 80k tokens above the question.
+
+**Check variance before believing anything.** Run it five times. If it fails 1 in 5, this is a distribution problem, not a prompt bug, and no amount of rewording fixes it. That gets solved with constrained decoding, validation and retry, or a lower temperature. If it fails 5 in 5, it is deterministic and worth bisecting.
+
+**Bisect the context.** Halve the documents, halve the examples, halve the rule list, and see if the failure survives. Drive to a minimal reproduction. This routinely finds that rule 7 contradicts rule 31, or that one example was teaching the exact wrong behaviour.
+
+**Root causes, roughly by frequency:**
+
+- Retrieval failure. The answer was never in the context. Check this first, it is the most common by a wide margin, and it is not a prompt bug.
+- Contradictory or competing instructions.
+- The model pattern-matched an example instead of following the instruction.
+- A tool result was truncated or malformed.
+- Context rot from earlier turns: a stale error or an abandoned plan still sitting in history.
+
+Asking the model why it did something is a useful diagnostic and terrible evidence. Its self-report is a plausible story, not an introspection log. Use it to generate hypotheses, then test them.
+
+Only then do I change something, one thing, and re-run the whole eval set rather than the single case. Fixing the reported case while regressing four others is the default outcome otherwise.
+
+**Follow-ups:** How would you tell context rot apart from a retrieval failure from a trace? What do you do when the failure only reproduces at 1 in 50?
+
+</details>
+
+### 32. How is a system prompt for a long-running agent different from one for a single-shot feature?
+
+<details><summary><b>Answer</b></summary>
+
+A feature prompt governs one response. An agent system prompt governs a loop, and the loop will visit states you never imagined. That changes what belongs in it.
+
+What an agent system prompt needs that a feature prompt does not:
+
+- **Stop conditions and a definition of done.** The single most common agent failure is not stopping: searching forever, re-verifying, polishing. Say what finished looks like.
+- **Error recovery policy.** "If a tool fails twice with the same error, do not try a third time. Report what you tried and what failed." Without this you get retry loops that burn the budget and fill the context with identical stack traces.
+- **Escalation rules.** When to ask the human rather than guess, and specifically before anything irreversible.
+- **Tool-use policy**, which is different from tool descriptions. When to prefer search over the database, when to stop gathering and start acting.
+- **Budget awareness.** A rough sense of how many steps this class of task should take.
+- **Ambiguity handling.** Ask or assume, and if assume, state the assumption.
+
+The hard-won principle: **describe policy, not cases.** A rule set enumerating 60 special cases fails on case 61 and burns attention on the other 59 the whole time. Agents need heuristics that generalise, plus the judgment to apply them.
+
+Keep tool descriptions in the tool schema, not duplicated in the system prompt. Duplicated, they drift, and then the model has two conflicting specs.
+
+Keep it stable. It is your cacheable prefix, and it is read on every single step of the loop, so bloat there is multiplied by the number of steps rather than paid once.
+
+And the thing to say unprompted: destructive-action prevention does not belong in the prompt. "Never delete production data" is a wish. The tool layer either has delete permission or it does not. The prompt tells the model what to do; the permission system decides what is possible.
+
+**Follow-ups:** How would you write a stop condition for an open-ended research task? What would you do if an agent kept asking the human too often after you added escalation rules?
+
+</details>
+
 ## Advanced
 
-### 18. Compare JSON mode with schema-constrained decoding. How does constrained decoding actually enforce the schema?
+### 33. Compare JSON mode with schema-constrained decoding. How does constrained decoding actually enforce the schema?
 
 <details><summary><b>Answer</b></summary>
 
@@ -388,7 +756,7 @@ Rule of thumb: constrained decoding for anything a program parses; JSON-mode-plu
 
 </details>
 
-### 19. What is context rot, and what compaction strategies do you use in long-running agents?
+### 34. What is context rot, and what compaction strategies do you use in long-running agents?
 
 <details><summary><b>Answer</b></summary>
 
@@ -408,7 +776,7 @@ Name the cache tension: compaction rewrites the prefix and invalidates the promp
 
 </details>
 
-### 20. Explain DSPy-style programmatic prompt optimization. When would you use it over manual iteration?
+### 35. Explain DSPy-style programmatic prompt optimization. When would you use it over manual iteration?
 
 <details><summary><b>Answer</b></summary>
 
@@ -430,7 +798,7 @@ When manual wins: one-off prompts, tasks needing nuanced judgment you can't metr
 
 </details>
 
-### 21. What is meta-prompting? How would you use a model to improve your prompts - and what are the pitfalls?
+### 36. What is meta-prompting? How would you use a model to improve your prompts - and what are the pitfalls?
 
 <details><summary><b>Answer</b></summary>
 
@@ -456,7 +824,7 @@ Bottom line: meta-prompting is a candidate generator; the eval loop remains the 
 
 </details>
 
-### 22. How do you decide when to stop prompt engineering and fine-tune instead?
+### 37. How do you decide when to stop prompt engineering and fine-tune instead?
 
 <details><summary><b>Answer</b></summary>
 
@@ -479,7 +847,7 @@ Rule of thumb: prompt for capability and knowledge, fine-tune for consistency, f
 
 </details>
 
-### 23. How would you A/B test a prompt change safely in production?
+### 38. How would you A/B test a prompt change safely in production?
 
 <details><summary><b>Answer</b></summary>
 
@@ -505,7 +873,7 @@ Treat prompts as deployable artifacts: versioned, config-flagged (no code deploy
 
 </details>
 
-### 24. How do reasoning models change prompting practice? What transfers and what becomes obsolete?
+### 39. How do reasoning models change prompting practice? What transfers and what becomes obsolete?
 
 <details><summary><b>Answer</b></summary>
 
@@ -527,5 +895,158 @@ New knobs and considerations:
 - **When *not* to use them**: extraction, classification, formatting, simple RAG - a fast non-reasoning model is cheaper, faster, and equally accurate. "Reasoning model for everything" is the new "CoT for everything."
 
 **Follow-ups:** How would you build a router that picks model and effort level per query? Why can few-shot CoT exemplars hurt an RL-trained reasoner? How do you debug a wrong answer when you can't see the raw chain of thought?
+
+</details>
+
+### 40. Design a token budget for an agent with a 200k context window. How do you allocate it, and how do you enforce it?
+
+<details><summary><b>Answer</b></summary>
+
+Start by separating two numbers people conflate: the window is 200k, the *budget* is whatever your eval says quality holds at, which is meaningfully lower. Context rot starts well below the limit, prefill latency scales with tokens, and cost scales with tokens. Pick the budget from the quality-versus-length curve on your own eval, not from the model card. On many agents that lands somewhere well under half the window.
+
+Then partition it, with a declared cap and a declared degradation strategy per component:
+
+| Component | Cap | On overflow |
+|---|---|---|
+| System + tool schemas | ~5k | Hard fail, this is a bug |
+| Session state / memory | ~2k | Drop lowest-confidence records |
+| Retrieved documents | ~25k | Rerank, keep top-n |
+| Conversation history | ~50k | Compact at threshold |
+| Tool results | remainder | Paginate and truncate with markers |
+| Output reserve + margin | ~15% | Never allocate |
+
+Enforcement is architectural, not disciplinary. One `ContextBuilder` owns assembly, and no code path may append to the prompt directly. Every component registers with a cap and a `degrade()` callback. Count with the provider's real tokenizer or counting endpoint, never a chars/4 heuristic, which is fine for English prose and badly wrong for JSON, code, and non-Latin scripts.
+
+```python
+for comp in components:            # stable to volatile order
+    text = comp.render()
+    while count(text) > comp.cap:
+        text = comp.degrade(text)
+    emit(text, tokens=count(text))  # per-component metric to the trace
+```
+
+That last line is the point most candidates miss. **Emit per-component token counts into your traces.** You cannot manage what you do not measure, and the near-universal finding on first instrumentation is that one tool is eating the majority of the window while everyone was arguing about the system prompt.
+
+Two interactions worth flagging: order components stable to volatile so the cache prefix is long, and recognise that compaction is a cache-invalidation event, so compact in big chunks rather than every turn.
+
+**Follow-ups:** How would you find the quality-versus-context-length curve for your agent? Why does chars/4 break as a token estimate, and where does it break worst?
+
+</details>
+
+### 41. Design memory that persists across sessions for an assistant. How is it different from managing context within a session?
+
+<details><summary><b>Answer</b></summary>
+
+Within a session you are compressing a transcript you already have. Across sessions you are deciding what was ever worth keeping, and that is a data problem with an ugly lifecycle.
+
+**What to write.** Not transcripts. Durable facts, stated preferences, decisions, and entities. An extraction step at session end (or on an explicit trigger) that emits typed records: `{type, key, value, source_turn, timestamp, confidence}`. Typed records are inspectable, diffable, and deletable. A pile of summarised prose is none of those.
+
+**What to read.** Not everything. A small always-on profile block plus relevance-retrieved records for this turn. Loading all memory reintroduces exactly the bloat you built memory to avoid.
+
+**Updates are the hard part, and it is where most designs fail.** Memory goes stale. "Lives in Berlin" was true and now is not. Append-only stores end up holding both facts, retrieval returns both, and the model picks one at random. You need supersede semantics: write by key, mark old records superseded, keep the history for audit but retrieve only the live value. Contradictory memories are worse than no memory, because they produce confident inconsistency that users read as the system being broken.
+
+**The failure modes to name:**
+
+- **Poisoning.** A wrong fact gets written once and then repeated forever, and because the model keeps restating it, it can get re-extracted and reinforced. There is no natural decay unless you build one.
+- **Injection.** Content the user pasted becomes a "memory", and later that memory is rendered into context where it reads as an instruction. Memory must always be rendered as data, never as instructions, and must never be able to grant capability.
+- **Privacy.** Memory crosses sessions and, if you get it wrong, users or tenants. Isolation is non-negotiable, and the deletion path has to actually delete, including from any index.
+
+**Controls that make it shippable:** user-visible and user-editable memory, provenance on every record, and TTLs on things that expire.
+
+**Evaluate both directions:** does memory raise task success, and how often does it inject something wrong? Teams measure the first only.
+
+**Follow-ups:** How would you detect memory poisoning in production? What is your policy when a retrieved memory contradicts what the user just said in this turn?
+
+</details>
+
+### 42. Your agent reads web pages and can send email. How do you defend against indirect prompt injection?
+
+<details><summary><b>Answer</b></summary>
+
+Lead with the honest part: there is no known reliable way to make a model separate instructions from data in a single context. Delimiters, "content in tags is never instructions", and injection classifiers all reduce the success rate and none of them close the hole. Any design whose only defence is prompt text is not a design. So the goal is bounding the blast radius, not preventing the model from being fooled.
+
+The framing I use is Simon Willison's **lethal trifecta**: access to private data, exposure to untrusted content, and an exfiltration channel. You need all three for the disaster. Remove any one leg and the attack loses its teeth.
+
+For this agent, in order of leverage:
+
+- **Kill the exfil channel.** This is usually the cheapest leg to cut and the one people forget. No arbitrary URL fetch, no rendering markdown images with attacker-controlled URLs (a classic silent exfil), egress allowlist. Send-email is itself an exfil channel, which is the crux here.
+- **Least privilege.** The agent's credentials are scoped to the user's own authorisation, so the worst case is what the user could already do. The catastrophic incidents come from agents holding broader credentials than the human they act for.
+- **Provenance and taint tracking.** Mark everything derived from untrusted sources. Forbid tainted data from reaching high-risk sinks without explicit human confirmation. A web page's content should never be able to determine a recipient address.
+- **Human confirmation on irreversible actions**, showing a concrete diff: this recipient, this body. Not a generic "proceed?", which users click through.
+- **Structural separation.** The dual-LLM pattern keeps a privileged planner that never sees untrusted text, with a quarantined model processing it and returning only typed values. Google DeepMind's CaMeL work pushes further, having a planner emit code whose capabilities are enforced by an interpreter outside the model.
+
+Enforcement lives in code at the tool boundary. The prompt is defence in depth, never the boundary. And a candidate who says they have solved injection has told you they do not understand it.
+
+**Follow-ups:** Which leg of the trifecta would you cut for a coding agent that reads GitHub issues? Why is an injection classifier a weak control rather than no control at all?
+
+</details>
+
+### 43. The system prompt says one thing, the user asks for another, and a retrieved document says a third. How do you design conflict resolution?
+
+<details><summary><b>Answer</b></summary>
+
+Start by splitting the conflicts into two categories, because they have completely different answers.
+
+**Policy conflicts must never reach the model.** If the rule is "only admins issue refunds" or "never spend over $500" or "never expose another tenant's rows", that is authorisation, and it belongs in code at the tool boundary. Implementing it as a system prompt sentence means implementing it as a request. The model resolving it correctly 99% of the time is a 1% breach rate.
+
+**Preference conflicts are the model's job.** Tone, format, verbosity, which of two reasonable framings to use. Those you resolve in the prompt.
+
+For those, models are post-trained with a privilege ordering: system and developer instructions outrank user turns, which outrank tool results and retrieved content. OpenAI formalised this as the instruction hierarchy. It is a learned prior, so it is probabilistic, it weakens as the conversation grows, and it weakens with distance in a long context. Treat it as a strong default, not a guarantee.
+
+What I do concretely:
+
+- **State precedence explicitly** rather than assuming it, and state the behaviour on conflict: refuse, ask, or prefer the standing rule. Then include one worked example of a conflict resolved correctly, because the boundary is easier shown than described.
+- **Untrusted content is never an instruction source**, and that is enforced by which tools exist, not by the model's obedience.
+- **Handle legitimate user conflicts gracefully.** A user asking for something the system forbids should get a specific explanation and an alternative, not a wall.
+
+The conflict that actually bites is the **silent** one: 40 accumulated rules where rule 7 contradicts rule 31, nobody noticed, and the model picks non-deterministically. That shows up as ~5% inexplicable weirdness that no single fix explains. Audit for it, put contradiction cases in the eval, and note a model is quite good at finding contradictions in your own prompt if you ask it to.
+
+Also decide explicitly how long a user instruction persists. "Always answer in French" at turn 2 outliving the session surprises people.
+
+**Follow-ups:** How would you build eval cases for instruction conflicts? Why does instruction-hierarchy adherence degrade over a long conversation?
+
+</details>
+
+### 44. Your prompt change gained 3 points on the eval. How confident are you that it is real?
+
+<details><summary><b>Answer</b></summary>
+
+Not confident at all, on that evidence. Two things have to be ruled out first: sampling noise and format sensitivity.
+
+**Noise.** One run per case is one sample from a distribution. On a 100-case eval, a 3-point move is a handful of cases flipping. Run n=5 per case, compute a confidence interval or a paired test on the per-case results, and a large fraction of "wins" evaporate. Paired matters: compare per-case outcomes between variants rather than comparing two aggregate numbers, which throws away most of your statistical power.
+
+**Format sensitivity is the subtler one.** LLM outputs are sensitive to changes a human would call semantically irrelevant: separator characters, casing, whether you write `Q:`/`A:` or `Question:`/`Answer:`, field order, whitespace. Sclar et al.'s FormatSpread work showed accuracy can swing substantially across formats that are meaning-identical. So if your "improvement" also changed the formatting, you may have won a formatting lottery rather than found a better instruction. That win will not survive the next model version.
+
+**So I measure the spread, not just the mean.** Define a perturbation set: paraphrase the instruction, permute few-shot order, swap separators, reorder equivalent fields. Run the eval across it and report mean *and* variance. A prompt with a high spread is brittle even when its best case looks great, and the mean over perturbations is a far better predictor of production behaviour than the single number you happened to measure.
+
+**Reducing brittleness** means preferring structure over wording: constrained decoding rather than "please output JSON", native tool schemas rather than parsed prose, prefill where available. Fewer and more orthogonal instructions. Use the model's trained conventions rather than fighting them. Reasoning models are somewhat less format-sensitive, not immune.
+
+And the connection worth drawing: sensitivity is a portability metric. If the prompt only works at that exact wording, you have overfitted to one checkpoint, and you will pay for it at the next model upgrade. For high-stakes prompts I track spread in CI alongside the score.
+
+**Follow-ups:** How would you construct a perturbation set without accidentally changing the task? Why is a paired test the right choice for comparing two prompt variants?
+
+</details>
+
+### 45. When should you split an agent into sub-agents, and what do you pass between them?
+
+<details><summary><b>Answer</b></summary>
+
+The reason sub-agents exist is context isolation: each gets a clean window and returns a distilled result, so the orchestrator never sees the 40k tokens of search results that produced a two-line conclusion. That is a real and large win. But context does not compose, and that is what decides when to use them.
+
+**The rule: parallelise reads, serialise writes.**
+
+Sub-agents work well for exploration, search, and verification. Several agents reading different sources in parallel, each returning findings, with an orchestrator synthesising. The sub-tasks are independent, and being wrong is recoverable.
+
+They work badly when the task requires shared, evolving state: writing a coherent codebase, drafting a single document. Each agent makes implicit decisions the others cannot see, and those decisions conflict. Cognition's argument against multi-agent systems is exactly this, and it is largely right for write-heavy work: you cannot cheaply share the full context that made the decision, so you get subtly incompatible outputs and an expensive reconciliation problem. Anthropic's multi-agent research system is the counterexample, and note that it is fundamentally a read-heavy fan-out.
+
+**What to pass down:** a complete, self-contained task spec. The classic failure is the orchestrator holding context implicitly and the sub-agent inventing a decision to fill the gap. If two sub-agents need the same convention, the orchestrator must state it in both briefs.
+
+**What to pass up:** a typed, structured summary, not the transcript. Treat the handoff as an RPC boundary with a schema. Returning the raw transcript just relocates the bloat and defeats the entire point.
+
+**The cost.** Multi-agent burns dramatically more tokens than single-agent for the same task, plausibly close to an order of magnitude versus a plain chat interaction, since every sub-agent re-reads a system prompt and tool schemas. It buys latency through parallelism and quality through isolation. If your task is not parallel and not context-starved, you are paying that multiple for nothing.
+
+And tracing: unless you can see each agent's full context, multi-agent bugs are undebuggable.
+
+**Follow-ups:** How would you detect that two sub-agents made conflicting implicit decisions? What would make you collapse a multi-agent system back into a single loop?
 
 </details>

@@ -1,6 +1,6 @@
 # Inference, Serving & Production LLM Systems - Interview Questions
 
-36 questions - 10 basic, 14 intermediate, 12 advanced.
+50 questions: 13 basic, 20 intermediate, 17 advanced.
 
 ## Basic
 
@@ -208,9 +208,67 @@ Also instrument it: 429 rate, retry rate, queue depth, and time-to-success shoul
 
 </details>
 
+### 11. We set temperature to 0, so outputs should be deterministic. Why do users still get different answers to the same prompt?
+
+<details><summary><b>Answer</b></summary>
+
+Temperature 0 makes the *sampling* step deterministic (take the argmax), but it does not make the *logits* bit-identical between runs. Once two candidate tokens are close in probability, a last-bit difference flips the argmax, and the continuation diverges from there.
+
+Where the non-determinism comes from:
+
+- **Kernels are not batch-invariant.** Floating point addition is not associative, so the order of reductions changes the result in the last bits. Matmul and attention kernels pick split strategies and reduction orders based on the shape of the batch. Under continuous batching, your request is batched with different neighbours every time, and batch composition depends on other users' traffic. That is the dominant cause.
+- **MoE routing** can depend on batch composition when implementations use per-expert capacity limits.
+- **Fleet heterogeneity**: different GPU generations, kernel or driver versions, tensor-parallel degree, or quantization all change numerics. Providers also roll model snapshots underneath you.
+
+What helps: a `seed` parameter removes sampling randomness only, so it is necessary but not sufficient. Providers expose a backend fingerprint precisely because they cannot promise more than best effort. True bitwise reproducibility needs batch-invariant kernels (fix the reduction order regardless of batch shape) plus a pinned model version, hardware type, and parallelism config, and you pay throughput for it.
+
+The practical stance: do not build systems that depend on exact token equality. Test on semantics (schema validity, evals with tolerance, property checks), not string comparison. Log outputs, because you cannot reliably regenerate them.
+
+The misconception to kill: "greedy means deterministic." Greedy is deterministic given identical logits. The logits are the problem.
+
+**Follow-ups:** Why does a busier server make divergence more likely? How would you write a regression test for an LLM feature that cannot rely on exact output matching?
+
+</details>
+
+### 12. What does FlashAttention actually do, and how is it different from PagedAttention?
+
+<details><summary><b>Answer</b></summary>
+
+They solve different problems at different layers, and you use them together rather than choosing between them.
+
+**FlashAttention is a kernel.** It is an exact, IO-aware implementation of attention. Instead of materialising the full n x n score matrix in HBM, it tiles Q, K and V into on-chip SRAM and computes the softmax in a streaming pass, keeping a running max and running sum. Memory traffic drops from roughly O(n^2) to roughly O(n), which is what makes long contexts tractable. It is exact, not an approximation: outputs match naive attention up to floating point. It wins most on prefill and long context, where the score matrix is large. Decode has a query length of 1, so there is almost no parallelism along the query axis, which is why decode-oriented variants split along the KV length and combine partial softmaxes afterwards.
+
+**PagedAttention is memory management.** Store the KV cache in fixed-size blocks (16 tokens is the common default) indexed through a per-sequence block table, so a sequence's KV does not need to be contiguous. That kills the fragmentation you get from pre-allocating max-length buffers, so the same HBM supports a much larger batch, and prefix sharing becomes a block-table pointer instead of a copy. The attention kernel then has to gather KV through the block table.
+
+So: FlashAttention makes the attention computation cheap in memory *traffic*; PagedAttention makes the KV cache cheap in memory *capacity*. A modern server runs FlashAttention-style kernels over a paged KV layout, and picking an "attention backend" is picking which such kernel you get.
+
+Red flag phrasing: "we use PagedAttention instead of FlashAttention." Also worth saying: neither one changes output quality.
+
+**Follow-ups:** Why does decode need a differently shaped kernel than prefill? What does changing the attention backend actually change for you operationally?
+
+</details>
+
+### 13. A user closes the tab halfway through a streamed response. What happens on the server, and what should happen?
+
+<details><summary><b>Answer</b></summary>
+
+By default, more than you would like: unless cancellation is propagated all the way from the HTTP connection down to the engine scheduler, the model keeps generating tokens nobody will ever read, holding a KV slot and burning GPU time for the full `max_tokens`. On a self-hosted server that is wasted capacity and worse P99 for everyone else. Against a provider API, you are typically still billed for tokens generated before the abort actually lands, so an undetected disconnect is a silent cost line.
+
+Mechanically: a client disconnect on an SSE stream shows up as a write failure or a disconnect event on the connection. The web framework has to notice it, close the generator, and the engine has to abort the request. Two things commonly break this chain. First, proxies: nginx, load balancers and CDNs buffer responses, so the server may not see the disconnect promptly, or at all, until it tries to flush. Disable proxy buffering for streaming routes and send periodic heartbeats so the socket is exercised. Second, client SDKs: you have to actually cancel the request or context, not just stop reading.
+
+There is also a correctness angle. If the generation has side effects (tool calls, writes), being killed mid-flight leaves partial state, so steps need to be idempotent and checkpointed.
+
+The better design for anything long-running: do not tie the generation's lifetime to the browser connection at all. Generate server-side into a durable stream that the client subscribes to and can resume after a reconnect (a stream with a resume token). Then a refresh does not lose the answer, and cancellation happens because the user pressed stop, not because a socket dropped.
+
+What to measure: aborted-request rate, and tokens generated after client disconnect.
+
+**Follow-ups:** How would you implement a resumable stream? What is the cost signature in your metrics of disconnects that are never detected?
+
+</details>
+
 ## Intermediate
 
-### 11. Why do we obsess over P99 latency rather than the average, and what causes tail latency in LLM serving specifically?
+### 14. Why do we obsess over P99 latency rather than the average, and what causes tail latency in LLM serving specifically?
 
 <details><summary><b>Answer</b></summary>
 
@@ -233,7 +291,7 @@ Measure percentiles per prompt-length bucket and per feature; a global P99 mixes
 
 </details>
 
-### 12. Explain arithmetic intensity and the roofline model as applied to LLM inference. Why does batching improve decode throughput so dramatically?
+### 15. Explain arithmetic intensity and the roofline model as applied to LLM inference. Why does batching improve decode throughput so dramatically?
 
 <details><summary><b>Answer</b></summary>
 
@@ -251,7 +309,7 @@ This lens also explains quantization's asymmetry (weight-only quant lifts the me
 
 </details>
 
-### 13. What problem does PagedAttention solve, and how does it work?
+### 16. What problem does PagedAttention solve, and how does it work?
 
 <details><summary><b>Answer</b></summary>
 
@@ -269,7 +327,7 @@ The mental model to say out loud: *virtual memory and paging for the KV cache* -
 
 </details>
 
-### 14. What is chunked prefill and what scheduling problem does it fix?
+### 17. What is chunked prefill and what scheduling problem does it fix?
 
 <details><summary><b>Answer</b></summary>
 
@@ -288,7 +346,7 @@ Costs: the chunked prompt's own TTFT gets somewhat worse (its prefill is spread 
 
 </details>
 
-### 15. Explain speculative decoding. Why is the output provably faithful to the target model, and when does it actually help?
+### 18. Explain speculative decoding. Why is the output provably faithful to the target model, and when does it actually help?
 
 <details><summary><b>Answer</b></summary>
 
@@ -302,7 +360,7 @@ When it helps: expected tokens per target pass rise with the **acceptance rate**
 
 </details>
 
-### 16. Compare GPTQ, AWQ, GGUF, INT8, and FP8. How do you actually choose a quantization approach for a deployment?
+### 19. Compare GPTQ, AWQ, GGUF, INT8, and FP8. How do you actually choose a quantization approach for a deployment?
 
 <details><summary><b>Answer</b></summary>
 
@@ -320,7 +378,7 @@ Choosing - ask three questions. (1) **Bottleneck**: latency-sensitive/low-batch 
 
 </details>
 
-### 17. What is KV-cache quantization, and when is it the right lever?
+### 20. What is KV-cache quantization, and when is it the right lever?
 
 <details><summary><b>Answer</b></summary>
 
@@ -336,7 +394,7 @@ When to reach for it: (1) KV-bound deployments - high concurrency or long contex
 
 </details>
 
-### 18. Describe the throughput - latency tradeoff curve for an LLM server, and explain goodput.
+### 21. Describe the throughput - latency tradeoff curve for an LLM server, and explain goodput.
 
 <details><summary><b>Answer</b></summary>
 
@@ -350,7 +408,7 @@ Operationally: load-test each config to find the knee, then run at ~60-70% of kn
 
 </details>
 
-### 19. vLLM, SGLang, TensorRT-LLM, TGI, llama.cpp/Ollama - how do you choose a serving stack?
+### 22. vLLM, SGLang, TensorRT-LLM, TGI, llama.cpp/Ollama - how do you choose a serving stack?
 
 <details><summary><b>Answer</b></summary>
 
@@ -368,7 +426,7 @@ Decision drivers to name: hardware (NVIDIA datacenter vs AMD/TPU vs laptop), wor
 
 </details>
 
-### 20. Explain tensor parallelism vs pipeline parallelism for inference. When do you need each?
+### 23. Explain tensor parallelism vs pipeline parallelism for inference. When do you need each?
 
 <details><summary><b>Answer</b></summary>
 
@@ -384,7 +442,7 @@ Practical serving playbook: fit on one GPU if quantization allows (parallelism-f
 
 </details>
 
-### 21. Self-host an open-weights model or call a provider API - walk me through the decision.
+### 24. Self-host an open-weights model or call a provider API - walk me through the decision.
 
 <details><summary><b>Answer</b></summary>
 
@@ -403,7 +461,7 @@ The mature answer is usually **hybrid**: frontier API for the hard, low-volume r
 
 </details>
 
-### 22. When would you use a batch API, and how do you design a pipeline around one?
+### 25. When would you use a batch API, and how do you design a pipeline around one?
 
 <details><summary><b>Answer</b></summary>
 
@@ -424,7 +482,7 @@ Pipeline design points:
 
 </details>
 
-### 23. What is semantic caching, how is it different from prompt/prefix caching, and what are its failure modes?
+### 26. What is semantic caching, how is it different from prompt/prefix caching, and what are its failure modes?
 
 <details><summary><b>Answer</b></summary>
 
@@ -445,7 +503,7 @@ Where it shines: high-repetition, low-personalisation traffic - FAQ-style suppor
 
 </details>
 
-### 24. How do you handle streaming when the model is emitting tool calls or structured JSON?
+### 27. How do you handle streaming when the model is emitting tool calls or structured JSON?
 
 <details><summary><b>Answer</b></summary>
 
@@ -465,9 +523,150 @@ Patterns on top of that:
 
 </details>
 
+### 28. You need to serve 200 customer-specific fine-tunes of the same 8B base model. How do you do that on a handful of GPUs, and what breaks first?
+
+<details><summary><b>Answer</b></summary>
+
+Multi-LoRA serving. Load the base weights once and treat each tenant as a rank-r adapter: for each targeted projection, y = Wx + scale * (B A x). The expensive base matmul is shared across the whole batch, and only the small low-rank terms are per-adapter, so one batch can mix adapters and you keep continuous batching. The alternative, 200 full model replicas, is absurd: 200 x ~16 GB versus 1 x 16 GB plus 200 x tens of MB.
+
+The kernel is what makes it work. A naive loop over adapters serialises the batch. Production systems sort tokens by adapter into contiguous segments and do one grouped GEMM (the SGMV approach from Punica, used by LoRAX, vLLM and SGLang). vLLM exposes this as `--enable-lora` with `--max-loras` (distinct adapters allowed in one batch), `--max-lora-rank`, and `--max-cpu-loras` (host-side pool); the request names the adapter it wants.
+
+What breaks:
+
+- **Rank heterogeneity.** Grouped kernels pad to the max rank, so one rank-64 adapter taxes every rank-8 tenant sharing the batch. Standardise ranks across tenants.
+- **The `max_loras` cap.** If more distinct adapters are concurrently active than the cap allows, the scheduler serialises across adapter groups and TTFT tails explode. Fix it by routing: give each replica a subset of adapters (adapter affinity) so concurrency per replica stays under the cap.
+- **Cold adapter fetch.** Adapters are small, so host RAM paging is fast, but pulling from object storage on first request is a visible spike. Prefetch on session start.
+- **Prefix cache does not cross adapters.** KV is adapter-specific, so a shared system prompt is cached separately per adapter. This surprises people.
+- **Evaluation.** You now own 200 quality surfaces, not one.
+
+Expect a real throughput cost versus a base-only server, growing with distinct adapters per batch. Measure it on your traffic rather than trusting a headline number.
+
+**Follow-ups:** Why can't a shared system prompt's KV be reused across two different adapters? When would you merge an adapter into the base weights and serve it as its own model instead?
+
+</details>
+
+### 29. How do you load test an LLM service so the numbers actually mean something?
+
+<details><summary><b>Answer</b></summary>
+
+Most LLM load tests are wrong in the same three ways: closed-loop load, unrealistic prompts, and reporting means.
+
+**Open loop, not closed loop.** A closed-loop test (N workers, each sends a request and waits) throttles itself when the server slows down, so you never observe the queue building. That is coordinated omission, and it hides exactly the failure you are testing for. Generate arrivals from a Poisson process at a target rate, independent of responses:
+
+```python
+import asyncio, random
+
+async def open_loop(rate, duration, send, next_prompt):
+    loop = asyncio.get_event_loop()
+    end, tasks = loop.time() + duration, []
+    while loop.time() < end:
+        await asyncio.sleep(random.expovariate(rate))  # do not wait on responses
+        tasks.append(asyncio.create_task(send(next_prompt())))
+    return await asyncio.gather(*tasks)
+```
+
+**Realistic token distributions.** Sample input and output lengths from production logs, including the tail; a fixed 512-in/128-out synthetic workload tells you nothing about a service that occasionally sees 100K-token prompts. Critically, get the prefix-cache realism right: replaying one identical prompt gives a ~100% cache hit rate and a fantasy TTFT. Mirror your real ratio of shared to unique prefixes.
+
+**Sweep, don't spot-check.** Ramp the rate from idle to saturation and plot TTFT and ITL percentiles against throughput. What you want is the knee, and the maximum rate at which you still meet the SLO. Report **goodput** at the SLO, plus P50/P95/P99, never the mean. Tools like vLLM's serve benchmark and GuideLLM do the sweep and the Poisson arrivals for you.
+
+**Warm up and hold.** Weight load, CUDA graph capture and compilation make the first requests unrepresentative. Discard the warm-up window and measure at steady state for a fixed duration.
+
+Then test the ugly parts: behaviour past saturation (does it queue, shed, or fall over?), preemption rate, a mixed multi-tenant workload, and a long soak for leaks and fragmentation. Against a provider API, you are mostly testing your own rate limits and their variance by time of day, so do not tune to a single run.
+
+**Follow-ups:** Why does a closed-loop test with 100 workers understate P99 latency? How would you design the prompt corpus for a benchmark of an agentic workload?
+
+</details>
+
+### 30. Your product is moving from a standard chat model to a reasoning model with extended thinking. What changes for capacity, SLOs, and design?
+
+<details><summary><b>Answer</b></summary>
+
+Almost everything downstream of "tokens per request", because that number jumps by roughly an order of magnitude and gets a much fatter tail.
+
+**Capacity.** Thinking tokens are generated tokens: they bill as output, they occupy KV, and they consume decode steps. A request that used to emit ~300 tokens might emit several thousand. Since fleet sizing is driven by total decode tokens, not requests, plan in tokens. The comforting part is that reasoning traffic is decode-heavy and batches well, so per-GPU throughput holds up; the problem is per-request latency and KV occupancy.
+
+**The tail is the enemy.** Output length becomes heavy-tailed and unpredictable per request. You cannot size on the mean, and a handful of requests can hold KV slots for minutes, causing head-of-line blocking and preemption cascades that hurt everyone. Cap it: hard `max_tokens`, and use the provider's thinking budget or reasoning-effort control rather than hoping. Watch preemption rate as a first-class metric.
+
+**SLOs must change.** TTFT is close to meaningless when the first token can be a thinking token the user may never see. Track time to first *answer* token and total time to answer. Interactive budgets move from hundreds of milliseconds to seconds or tens of seconds, and the UX has to carry that: stream a progress or status surface, or move the work to a background job with a notification.
+
+**Scheduling.** Do not mix long reasoning generations and fast chat in one queue; the long ones will wreck chat's P99. Separate pools or priority classes, routed by effort.
+
+**Design levers.** Route by difficulty: cheap non-reasoning model first, escalate on signals of hardness. Prompt caching does not help thinking tokens, since they are generated fresh every time, and reasoning traces are usually not reusable across turns, so multi-turn agents re-pay. Speculative decoding often does well here because long traces contain predictable structure. And for anything not interactive, a batch API path is the right answer.
+
+**Follow-ups:** How would you pick the thinking budget per request rather than setting one global value? Which is worse for your fleet: one 30K-token reasoning request or thirty 1K-token chat requests, and why?
+
+</details>
+
+### 31. Explain KV cache offloading and cross-request reuse beyond a single GPU's memory. When does loading a cached prefix beat just recomputing prefill?
+
+<details><summary><b>Answer</b></summary>
+
+GPU HBM only holds a small working set of KV, so blocks get evicted and the next request re-prefills the same prefix from scratch. Offloading adds tiers below HBM: host RAM first, then NVMe, then a shared network tier so any replica can pull a prefix another replica computed an hour ago. LMCache and vLLM's KV connector interface are the common implementations, and the same machinery moves KV from prefill nodes to decode nodes under PD disaggregation.
+
+The decision is a bandwidth comparison: recomputing a prefix costs prefill FLOPs, loading it costs bytes over a link. Work it per model.
+
+```python
+kv_bytes_per_token = 320_000        # ~320 KB, 70B-shape model, FP16 KV
+link_bw = 50e9                      # ~50 GB/s achievable over PCIe Gen5 x16
+load_tokens_per_s = link_bw / kv_bytes_per_token   # ~156K tokens/s
+# prefill for a 70B model is order of a few thousand tokens/s per GPU
+```
+
+Host RAM wins by a wide margin, so offloading to CPU memory almost always beats recompute *when the hit is real*. NVMe at single-digit GB/s is a closer call, and a network tier closer still. The model architecture flips the answer: MLA-style attention with tiny KV per token makes loading trivially cheap, while a fat-KV model pushes you back toward recompute.
+
+Failure modes worth naming:
+
+- **Hit rate is everything.** A 20% hit rate means you mostly pay transfer overhead for nothing.
+- **Interference.** Fetch and decompression contend with inference for PCIe bandwidth and SMs, so a naive implementation slows the requests it is trying to help.
+- **Correctness.** The cache key must include model version, quantization, adapter, TP layout and positional handling. Serving KV computed under a different config is a silent quality bug, and it is a classic outage.
+
+Where it pays: multi-turn chat and agents with long stable prefixes, RAG over a repeated corpus, and document Q&A where one long document is queried many times.
+
+**Follow-ups:** What exactly must go into the cache key? At what hit rate does an NVMe tier stop paying for itself?
+
+</details>
+
+### 32. How do you choose inference hardware: NVIDIA GPUs, AMD, TPUs, or cloud silicon like Inferentia and Trainium?
+
+<details><summary><b>Answer</b></summary>
+
+Start from the workload's binding constraint and the software you would have to own, not the spec sheet, and settle it with a benchmark denominated in dollars per million tokens at your SLO.
+
+**Match the constraint.** Decode is memory bandwidth and capacity bound, so HBM capacity and TB/s matter more than peak FLOPS. Capacity has a second-order effect people miss: a 192 GB MI300X can hold a model that would need two 80 GB cards, which removes tensor-parallel all-reduces from every layer and can beat the "faster" option. An H200 at 141 GB tells a similar story. Prefill and large-batch serving are compute bound, so there tensor-core throughput and low-precision support (FP8, and FP4 on Blackwell-class parts) is what you are buying.
+
+**Software usually casts the deciding vote.** NVIDIA gets day-one support in vLLM, SGLang and TensorRT-LLM, plus the widest kernel coverage for speculative decoding, LoRA and structured output. ROCm has closed a lot of ground and MI300X is supported in the main open stacks. TPUs are strong for large steady-batch serving through JAX and XLA and can be excellent on price-performance, but the ecosystem is narrower. Inferentia and Trainium need Neuron compilation, so model and feature coverage is the risk you are underwriting; the payoff is unit cost if your model is supported.
+
+**The metric that matters** is dollars per million tokens at your SLO, on your model, with your traffic shape. Sticker price per GPU-hour is meaningless. A cheaper chip that halves your achievable batch size is more expensive, and a chip that misses your latency target at any batch size is infinitely expensive.
+
+**Then reality.** Availability and commitment terms often dominate the technical comparison: the best chip you cannot get for six months loses to the adequate one you can reserve today. Multi-minute weight loads make spot capacity a poor fit for interactive serving. Hedge portability by keeping an OpenAI-compatible serving interface and avoiding hand-written kernels, so switching is a config change and a requalification, not a rewrite.
+
+**Follow-ups:** Why might one GPU with more HBM beat two smaller GPUs with the same total memory? What would make you reject a chip that wins on dollars per token?
+
+</details>
+
+### 33. When does on-device or edge inference make sense, and what actually constrains it?
+
+<details><summary><b>Answer</b></summary>
+
+It makes sense when privacy or data residency, offline operation, per-request cost at very high volume, or near-zero network latency matters more than peak model quality. Typical real deployments: text prediction, on-device summarisation and transcription, classification or redaction before anything goes to the cloud, and local agents on laptops.
+
+The constraints, in the order they bite:
+
+- **Memory.** A phone realistically gives an app a couple of GB. That puts you around 1B to 4B params at 4-bit (roughly 0.5 to 2.5 GB), with ~8B at 4-bit (~4.5 GB) only on high-memory devices. KV cache competes for the same budget, so usable context is short. Laptops are far more generous, which is why the local-agent story is a laptop story first.
+- **Bandwidth.** You are at batch 1 forever, so decode is purely memory-bandwidth bound. Phone LPDDR5X sits in the tens of GB/s versus a datacentre GPU's TB/s, so expect an order of magnitude fewer tokens/s. The batching trick that saves you in the cloud does not exist here.
+- **Thermals and battery.** Sustained generation throttles. A benchmark's first 30 seconds is a lie; measure a long run and measure power.
+- **Distribution.** Multi-GB model downloads hurt install rates and updates. OS-provided on-device models sidestep this, at the price of less control.
+- **Toolchain.** llama.cpp/GGUF, MLX on Apple silicon, ONNX Runtime, Core ML and vendor NPUs. NPU support is uneven, and operator coverage plus supported quantization formats decide feasibility more often than raw TOPS.
+
+The design that usually wins is hybrid: a small local model handles classification, routing, redaction and drafting, and hard queries escalate to the cloud; offline degrades to local-only. Evaluate the small model on your task, not on general leaderboards. The quality cliff from a frontier model to a 3B is task-dependent: often acceptable for extraction and classification, poor for open-ended reasoning.
+
+**Follow-ups:** How do you decide where the local/cloud routing boundary sits? What breaks about your evaluation and observability story when inference runs on the user's device?
+
+</details>
+
 ## Advanced
 
-### 25. Build the full GPU memory budget for a serving deployment, and show how it determines maximum batch size and concurrency.
+### 34. Build the full GPU memory budget for a serving deployment, and show how it determines maximum batch size and concurrency.
 
 <details><summary><b>Answer</b></summary>
 
@@ -497,7 +696,7 @@ Close the loop with behaviour at the limit: when admission would exceed the pool
 
 </details>
 
-### 26. Design the SLOs for a new LLM-powered feature. What do you promise, and how do you measure it?
+### 35. Design the SLOs for a new LLM-powered feature. What do you promise, and how do you measure it?
 
 <details><summary><b>Answer</b></summary>
 
@@ -518,7 +717,7 @@ Finally, wire SLOs to action: alerts on budget burn rate (not point-in-time blip
 
 </details>
 
-### 27. Capacity planning: you're told to expect 100 requests/sec at peak with ~2K input and ~300 output tokens per request. Walk me through estimating the GPU fleet.
+### 36. Capacity planning: you're told to expect 100 requests/sec at peak with ~2K input and ~300 output tokens per request. Walk me through estimating the GPU fleet.
 
 <details><summary><b>Answer</b></summary>
 
@@ -540,7 +739,7 @@ The trap to avoid: quoting a tokens/s number from a blog benchmark run with 128-
 
 </details>
 
-### 28. GPU cold starts take minutes. How do you autoscale an inference fleet anyway?
+### 37. GPU cold starts take minutes. How do you autoscale an inference fleet anyway?
 
 <details><summary><b>Answer</b></summary>
 
@@ -560,7 +759,7 @@ Mention the economic frame explicitly: autoscaling GPUs is about trading standby
 
 </details>
 
-### 29. What do you monitor in production LLM serving, and what pages someone at 3 a.m.?
+### 38. What do you monitor in production LLM serving, and what pages someone at 3 a.m.?
 
 <details><summary><b>Answer</b></summary>
 
@@ -582,7 +781,7 @@ Two practices worth naming: burn-rate alerting (alert on error-budget consumptio
 
 </details>
 
-### 30. Design the reliability layer for calls to an LLM provider: timeouts, retries, circuit breakers, idempotency.
+### 39. Design the reliability layer for calls to an LLM provider: timeouts, retries, circuit breakers, idempotency.
 
 <details><summary><b>Answer</b></summary>
 
@@ -598,7 +797,7 @@ Two practices worth naming: burn-rate alerting (alert on error-budget consumptio
 
 </details>
 
-### 31. Traffic doubles overnight and you can't get more GPU capacity for a week. What are your graceful-degradation options?
+### 40. Traffic doubles overnight and you can't get more GPU capacity for a week. What are your graceful-degradation options?
 
 <details><summary><b>Answer</b></summary>
 
@@ -621,7 +820,7 @@ Two operational notes that distinguish senior answers: every rung needs a **feat
 
 </details>
 
-### 32. How is structured output actually enforced at the serving layer, and what does it cost?
+### 41. How is structured output actually enforced at the serving layer, and what does it cost?
 
 <details><summary><b>Answer</b></summary>
 
@@ -641,7 +840,7 @@ Guarantee scope: constrained decoding guarantees **syntax, not semantics** - the
 
 </details>
 
-### 33. Your LLM bill tripled this quarter. Design a cost-engineering programme - attribution, cascades, context management.
+### 42. Your LLM bill tripled this quarter. Design a cost-engineering programme - attribution, cascades, context management.
 
 <details><summary><b>Answer</b></summary>
 
@@ -662,7 +861,7 @@ Guarantee scope: constrained decoding guarantees **syntax, not semantics** - the
 
 </details>
 
-### 34. Go deeper on speculative decoding: acceptance-rate math, modern drafters like Medusa/EAGLE, and when it backfires.
+### 43. Go deeper on speculative decoding: acceptance-rate math, modern drafters like Medusa/EAGLE, and when it backfires.
 
 <details><summary><b>Answer</b></summary>
 
@@ -676,7 +875,7 @@ Guarantee scope: constrained decoding guarantees **syntax, not semantics** - the
 
 </details>
 
-### 35. What is prefill/decode disaggregation, and why do large-scale deployments separate the two?
+### 44. What is prefill/decode disaggregation, and why do large-scale deployments separate the two?
 
 <details><summary><b>Answer</b></summary>
 
@@ -694,7 +893,7 @@ Costs and open problems: **KV transfer** is the tax - hundreds of MB to GBs per 
 
 </details>
 
-### 36. Design a multi-provider LLM gateway: routing, fallbacks, and the pitfalls teams hit.
+### 45. Design a multi-provider LLM gateway: routing, fallbacks, and the pitfalls teams hit.
 
 <details><summary><b>Answer</b></summary>
 
@@ -714,5 +913,113 @@ Costs and open problems: **KV transfer** is the tax - hundreds of MB to GBs per 
 - **The lowest-common-denominator trap**: over-abstracting forfeits each provider's best features - the gateway should route and govern, not flatten.
 
 **Follow-ups:** How do you run evals continuously across backends without exploding cost? Where does the gateway enforce prompt-injection and data-egress controls?
+
+</details>
+
+### 46. You run 40 replicas of the same model behind a load balancer, and round-robin gives you a terrible prefix cache hit rate. Design the routing layer.
+
+<details><summary><b>Answer</b></summary>
+
+The KV cache is per-replica state, so a stateless load balancer throws away the single biggest cost lever you have. The goal is cache locality without destroying load balance, and the tension between those two is the whole design.
+
+**Key the request.** Hash the longest *stable* prefix, block-aligned to the engine's block size, typically the system prompt plus tool definitions plus conversation history up to the latest turn. The key must include model version, quantization and LoRA adapter, since KV is not portable across them.
+
+**Route by longest prefix match.** Maintain a router-side approximation of what each replica has cached, either a radix tree over prefixes (the SGLang router's approach) or consistent hashing over the first N blocks, and send the request to the replica with the longest match.
+
+**Never route on cache alone.** Score candidates on something like `w1 * match_length - w2 * (queue_depth + running)`, or take the top few cache candidates and apply power-of-two-choices on load among them. Overflow to the next best replica when the best is saturated. This is what turns a hot tenant from a hotspot into merely a warm spot.
+
+**Session affinity is the cheap 80%.** Sticky routing by conversation id gets most of the benefit for chat and agents with a fraction of the machinery. Its costs: you need a graceful fallback when a replica drains or dies, and it correlates failures with sessions.
+
+**The scalable end state** is a shared KV tier that any replica can fetch from, which turns the router's job from "be right" into "be approximately right", and composes with prefill/decode disaggregation, where prefix-aware routing applies to the prefill pool.
+
+Pitfalls to raise unprompted: the router's view goes stale when the engine evicts blocks, so measure the *actual* hit rate reported by the engine, not the router's belief. Every rolling deploy and scale-up resets caches, so stagger them and expect a TTFT and cost spike each time. And measure hit rate on **tokens**, not requests, since that is what you pay for.
+
+**Follow-ups:** How does prefix-aware routing interact with autoscaling, and what does that do to your scale-up policy? What hit rate would justify a shared KV tier over simple sticky sessions?
+
+</details>
+
+### 47. How does serving a large sparse mixture-of-experts model differ from serving a dense model, and what does expert parallelism change?
+
+<details><summary><b>Answer</b></summary>
+
+MoE decouples memory from FLOPs: total parameters are enormous, but only a small fraction activate per token. So compute per token is cheap and quality is high, but you must hold every expert somewhere, and routing is data-dependent. That combination rewrites the serving playbook.
+
+**Parallelism choice.** The weights do not fit on one GPU. You can tensor-parallel the experts (every GPU holds a slice of every expert), or use **expert parallelism**: each GPU holds whole experts, and tokens are shipped to the right GPU with all-to-all dispatch and combine (this is what DeepEP-style kernels optimise). EP keeps each expert's GEMM whole and large, which is efficient, and it shrinks weight memory per GPU, but it puts two all-to-alls per MoE layer on the critical path of every token.
+
+**Batch size stops being optional.** All-to-all cost amortises over tokens, and each expert needs enough tokens to make its GEMM worthwhile. At low QPS you pay for all that memory and interconnect and get dense-like latency with none of the throughput. A sparse MoE at low traffic is a bad deal, and that is the point most candidates miss.
+
+**Load imbalance is the defining problem.** Routing is data-dependent, so some experts run hot. The slowest GPU sets the step time and everyone waits at the all-to-all barrier, so imbalance shows up as latency, not as a partial slowdown. Mitigations: replicate hot experts, rebalance expert placement periodically from observed routing statistics (DeepSeek's EPLB is the public example), and run bigger batches so routing averages out.
+
+**Prefill and decode want different parallelism.** Prefill is compute-bound and naturally batchy; decode is all-to-all latency bound. Wanting different EP degrees on each side is one of the strongest arguments for prefill/decode disaggregation, which is exactly the shape of published large-scale MoE deployments.
+
+**Re-derive your memory model.** MLA-style attention makes KV per token small, so KV stops being what caps batch size and expert weights plus communication become the constraint instead. Do not carry the dense model's intuitions across.
+
+**Follow-ups:** Why does low traffic hurt an MoE deployment more than a dense one of similar quality? How would you detect and quantify expert imbalance in production?
+
+</details>
+
+### 48. You run a shared LLM platform for 30 internal teams on one GPU fleet. Design the tenancy model: fairness, isolation, and cost attribution.
+
+<details><summary><b>Answer</b></summary>
+
+**Fairness first, and in the right unit.** Continuous batching is effectively first-come-first-served over tokens, so a tenant that fires 10K requests starves everyone else with no error and no signal. You need admission control at the gateway plus fair scheduling in the engine. The unit must be *work*, not requests: per-tenant token buckets on tokens per second, with output tokens weighted higher than input. Requests-per-second quotas are the classic mistake, because one 200K-token prompt is worth thousands of chat turns. In the scheduler, prefer the tenant that has consumed least service recently (a virtual-token-counter style fair queue) rather than pure arrival order.
+
+**Isolation is a ladder, pick a rung per tenant.** Shared engine is cheapest and weakest. Separate pools by traffic class is the sweet spot: nearly every org needs exactly two, interactive (latency SLO, headroom, priority) and background/batch (preemptible, no SLO, backfills the trough). That split is also the cheapest capacity trick available. Dedicated fleets only for the tenants with genuine compliance requirements.
+
+**Attribution.** Log per request: tenant, model, input/output/reasoning/cached-token counts, and measured GPU-seconds. Bill on tokens for legibility, but reconcile against GPU-seconds, because they diverge badly. A tenant with 90% prefix cache hits is nearly free; a tenant with unique 50K-token prompts pays real prefill. Then decide explicitly what happens to unattributable cost (idle headroom, warm pools, failed requests), because otherwise your chargeback never sums to the invoice. Charge it as an overhead rate or eat it centrally, but decide.
+
+**Guardrails**: per-tenant context and max_tokens caps, per-tenant circuit breakers, and spend alerts on burn rate rather than month-end totals.
+
+**The subtle failure modes**: noisy neighbours act through KV, not just compute, so one long-context tenant evicts everyone's blocks and triggers preemption cascades. Track preemption rate per tenant. And a shared prefix cache is a cross-tenant timing channel: a fast TTFT reveals that someone else recently sent that prefix. If tenants are mutually untrusted, namespace cache keys per tenant and accept the hit rate loss.
+
+**Follow-ups:** Why are requests-per-second quotas the wrong unit, and what would you use instead? How do you price internal chargeback when 60% of a tenant's input tokens are cache hits?
+
+</details>
+
+### 49. Your traffic is shifting from single-turn chat to agents: 20 to 50 model calls per task, tool calls in between, sessions lasting tens of minutes. What does that do to your serving design?
+
+<details><summary><b>Answer</b></summary>
+
+It changes what you are optimising for, from per-token latency to task completion time and cost per task.
+
+**Prefix reuse stops being an optimisation and becomes the economics.** Every step resends the whole trajectory, so cumulative input tokens grow roughly quadratically with step count. Without prefix caching you re-prefill the entire history each step; with it you prefill only the delta. That makes context discipline a serving concern: append-only history, never reorder or edit earlier turns, stable tool definitions, and nothing volatile near the front of the prompt. Pair it with cache-aware routing or session affinity, otherwise the cache exists but nobody hits it.
+
+**Idle gaps.** Tool calls take anywhere from ~100 ms to seconds, during which the session's KV sits there earning nothing. Retain it (memory pressure, fewer concurrent sessions) or drop it (re-prefill on return)? This is the natural home for a KV offload tier: evict to host memory on a tool-call boundary, reload on return, which is cheap because host bandwidth vastly exceeds prefill throughput.
+
+**Burstier queueing.** Sub-agents fan out in parallel and then go quiet, so arrivals are correlated rather than Poisson. Your P99 will be worse than the average-rate arithmetic predicts, and capacity sized on mean QPS will miss.
+
+**Latency budget per step.** Thirty steps at two seconds is a minute. That is fine if you stream progress, but the SLO you defend is task completion time, and the metric split you need is model latency versus tool latency, because it is often the tools.
+
+**Lifecycle.** A user cancelling a task must kill in-flight generations and pending tool calls; long tasks need durable server-side execution rather than living on one HTTP connection. Background agents should be preemptible and backfill the interactive pool's trough, in a separate priority class, or one batch job will wreck chat P99.
+
+**Guardrails.** Cap steps and total tokens per task. An agent loop without a budget is an unbounded cost incident waiting for a bad Tuesday.
+
+Metrics: tokens per task, cache hit rate per step, model vs tool latency split, steps to completion, task success rate.
+
+**Follow-ups:** Why is input token growth in an agent loop roughly quadratic in steps, and what would you change to flatten it? Make the case for and against keeping session KV resident during a 5-second tool call.
+
+</details>
+
+### 50. After a routine deploy, P99 TTFT went from ~600 ms to ~4 s. Throughput, error rate, GPU utilization and the model version are all unchanged. Debug it.
+
+<details><summary><b>Answer</b></summary>
+
+Roll back first, debug second: a 4 s P99 TTFT is a user-visible incident, and the deploy is the obvious suspect.
+
+Then the decomposition. TTFT = queue wait + prefill. Unchanged throughput with worse TTFT means we are not simply overloaded: either each request is prefilling more tokens, or the scheduler is admitting them later. So the first thing I want is those two components instrumented separately, because that single number bisects the whole search space.
+
+**If queue time grew**, it is scheduling and admission. Candidates: `max_num_seqs` or the batched-token budget changed; chunked prefill got disabled or its threshold moved, so one long prefill now stalls the queue; preemption rate is up because of KV pressure, so requests are evicted and re-queued; replica count dropped via an autoscaler config change or a rollout still draining; a new priority or routing rule.
+
+**If prefill time grew**, we are prefilling more tokens, and the prime suspect is the prefix cache hit rate collapsing. Check hit rate measured in tokens. If it went from ~80% to near zero, someone put something volatile at the front of the prompt: a timestamp, a request id, a user name, a reshuffled tool list, a reordered RAG block. Everything after the change point is a miss. Same symptom from a routing change that lost cache affinity, an adapter or quantization bump (cache keys include them), or simply a rolling restart that reset every cache, and that one recovers, so check whether the graph is flat or climbing back.
+
+Other prefill growers: a longer prompt template, RAG returning more chunks, a chat-template or tokenizer change, or a new tenant sending 100K-token prompts into the shared queue.
+
+**Why "GPU utilization unchanged" proves nothing:** utilization counts busy SMs, and both a bandwidth-starved decode and a compute-bound prefill read as busy.
+
+**Method:** diff the deploy including config and prompt templates, not just model code; break P99 down by tenant, route and prompt-length bucket, since an aggregate regression is usually one segment; replay yesterday's traffic against both configs.
+
+The tempting wrong move is adding replicas. That hides a cache regression at several times the cost.
+
+**Follow-ups:** How would you alert on prefix cache hit rate without paging on every deploy? What deploy-time check would catch a prompt-prefix change before it ships?
 
 </details>

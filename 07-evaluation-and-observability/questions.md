@@ -1,6 +1,6 @@
 # Evals & Observability - Interview Questions
 
-31 questions: 8 basic, 15 intermediate, 8 advanced.
+50 questions: 13 basic, 23 intermediate, 14 advanced.
 
 ## Basic
 
@@ -179,9 +179,105 @@ Pitfalls, in order of severity:
 
 </details>
 
+### 9. What is the difference between observability and evals? Vendors seem to sell one product for both.
+
+<details><summary><b>Answer</b></summary>
+
+Observability is descriptive: what happened on this request. Evals are evaluative: was the output good. Same data, different question, which is why every vendor ships them as one surface.
+
+Observability is always-on and unsampled. It captures the trace: spans for each model call, retrieval, tool call and guardrail check, with tokens, latency, cost, errors, retrieved chunk IDs and the exact model version. It answers "why was this request slow", "what did retrieval actually return", "where did the agent loop".
+
+Evals are sampled and scored against a criterion. They answer "is this correct", "is it grounded", "did the task complete". A score requires a grader and a notion of good, which observability has no opinion about.
+
+The practical test I use: the metric that pages you at 3am is observability (error rate, p95 latency, cost spike). The metric that blocks a merge is an eval (pass rate on the golden set). Different consumers, different cadence, different failure mode when absent.
+
+They depend on each other in one direction. You cannot build good evals without observability, because production traces are where eval examples come from. But observability without evals is the classic trap: dashboards stay green on volume and latency while quality quietly rots, because nothing in the stack is asking whether the answers are any good.
+
+Online evals are where the line blurs, and that confuses people. Sampling 2% of production traces and scoring them with a judge is running an eval on top of observability data. That is one pipeline, but it is still worth keeping the concepts separate: if you conflate them, you end up believing a green latency dashboard means a healthy product.
+
+**Follow-ups:** Which of the two would you build first on a brand new LLM feature, and why? If your observability bill got cut in half, what would you stop capturing?
+
+</details>
+
+### 10. What is the difference between reference-based and reference-free evaluation, and why do BLEU, ROUGE and exact match fail on LLM output?
+
+<details><summary><b>Answer</b></summary>
+
+Reference-based grading compares the output to a gold answer: exact match, BLEU, ROUGE, embedding similarity, BERTScore. Reference-free grading judges the output on its own merits against a criterion or against the input context: code execution, JSON schema checks, an LLM judge scoring faithfulness against retrieved chunks.
+
+The n-gram metrics fail because they were designed for machine translation and summarisation, where references are dense and the output space is narrow. LLM output has an enormous space of correct phrasings. BLEU punishes a correct answer worded differently from the reference and rewards a wrong answer that happens to borrow the reference's vocabulary. ROUGE measures overlap with reference n-grams, so an extractive summary that copies phrases while inventing a relationship between them scores well. Neither has any notion of whether the claim is true.
+
+BERTScore and embedding similarity are a real improvement because contextual embeddings catch paraphrase. But they are insensitive to exactly the things that matter most: negation, numbers, and entity swaps. "The dose is 5mg" and "The dose is not 5mg" sit close together in embedding space and are opposite in the only way anyone cares about. A high similarity score is not evidence of correctness.
+
+Exact match is fine, but only where the answer space is genuinely closed: a classification label, an extracted field, a final numeric answer. Its failure mode is formatting, not semantics, so normalise first (case, whitespace, date and currency formats) or you will measure your parser.
+
+What to do instead: decompose. Execute code against hidden tests. Extract atomic claims and check each against the source. Use a judge with a rubric for genuinely open-ended criteria. Keep reference-based grading where the answer is closed and the comparison is cheap and valid.
+
+**Follow-ups:** When is BLEU still the right tool? How would you grade a summarisation feature where every summary is legitimately different?
+
+</details>
+
+### 11. Your eval reports 82% pass on 100 examples. What does that number not tell you?
+
+<details><summary><b>Answer</b></summary>
+
+Quite a lot, and the most important omission is precision. For a proportion, the standard error is sqrt(p(1-p)/n). At p=0.82 and n=100 that is about 0.038, so the 95% confidence interval is roughly 74% to 90%. The honest way to report it is "82% (95% CI ~74-90%)". Anyone treating 82% versus 78% on this set as an improvement is reading noise.
+
+Second, it does not tell you the run-to-run variance. Sampling is stochastic and agents are flaky. Run the identical config five times and you might see 79% to 85%. That spread is your real noise floor and it is usually wider than people assume.
+
+Third, it hides distribution. 82% aggregate could be 95% on the easy majority slice and 40% on the one segment that generates your revenue. An average over a mixed set is a weighted average of things you probably want to look at separately.
+
+Fourth, it says nothing about whether the grader is right. If the judge agrees with humans 80% of the time, the 82% is measuring the judge as much as the model. Grader error is not noise, it is bias, and it does not shrink with more examples.
+
+Fifth, it says nothing about whether those 100 examples resemble what users actually send this week.
+
+And it says nothing about the failures. The 18 that failed are the whole value of the run. Reading them tells you what to fix; the number 82 tells you nothing actionable.
+
+**Follow-ups:** How many examples would you need to detect a 3-point improvement? What would make you distrust the 82% even with a tight confidence interval?
+
+</details>
+
+### 12. Why do you version an eval dataset, and what exactly belongs in the version?
+
+<details><summary><b>Answer</b></summary>
+
+Because a score is meaningless without knowing what produced it. Comparing this quarter's 82% to last quarter's 76% is worthless if anything underneath moved, and something always moved.
+
+The misconception is that the version is the examples. It is not. A score is a function of the examples, the expected outputs and rubrics, the grader code, the judge prompt, the judge model and its exact version, and the sampling parameters. Change any one and the number shifts with no change to the product. So all of it gets versioned together and recorded in every result row. If the grader prompt lives in someone's notebook, you do not have an eval, you have an anecdote.
+
+Governance is the other half. Every example carries provenance: where it came from (production trace ID, hand-written, synthetic and from which generator), who reviewed it, when it was added. That matters because when an example turns out to be mislabelled, you need to know what else that annotator or generator touched. Changes go through review like code, with a changelog.
+
+Retire, do not silently delete. Dropping the cases you fail is the easiest way to make a dashboard go up, and it happens by accident more than by malice. Tombstone them with a reason.
+
+PII and consent apply here too: production-sourced examples inherit whatever obligations the original data had, including deletion requests.
+
+Structurally I keep two things apart: a frozen regression suite that changes rarely and gates merges, and a living development set that absorbs new production failures. Mixing them means you can never tell a real regression from a set that got harder.
+
+**Follow-ups:** How would you handle an example everyone agrees is mislabelled but that has been in the frozen suite for a year? What goes in the eval set versus a unit test?
+
+</details>
+
+### 13. What are OpenTelemetry's GenAI semantic conventions, and why should you care?
+
+<details><summary><b>Answer</b></summary>
+
+They are a standardised vocabulary for describing LLM operations in traces: agreed attribute names under a gen_ai.* namespace, such as gen_ai.request.model, gen_ai.usage.input_tokens and gen_ai.operation.name, plus conventions for how a model call, a tool call and an agent step should be shaped as spans.
+
+Why care: it decouples instrumentation from backend. If your app emits standard OTel spans, you can point them at Langfuse, Phoenix, Datadog, Honeycomb or your own collector without touching application code. The alternative is a vendor SDK threaded through every call site, which quietly becomes the reason you cannot leave that vendor. It also means LLM spans sit in the same trace as your HTTP and database spans, so you can see that the 4 second p95 was 300ms of model and 3.7s of your own retrieval code. Many frameworks now emit compliant spans natively or through an instrumentation package, so you often get this close to free.
+
+Two caveats worth raising. First, as of 2026 much of the GenAI convention set is still marked experimental, so attribute names do shift between releases. Pin your instrumentation version and expect some churn rather than treating the names as stable forever.
+
+Second, and more important in interviews: the conventions cover mechanics, not quality. Tokens, models, parameters, latency, finish reasons. There is no standard for "was this answer correct" or "did this violate policy". Eval scores and safety verdicts are your own custom attributes layered on top. OTel gives you the skeleton and portability; the judgement is still yours to build.
+
+Also note that capturing prompt and completion content is deliberately opt-in, because that content is where the privacy exposure lives.
+
+**Follow-ups:** How would you attach an eval score to a span after the fact? What would you do when a convention you depend on changes names in a new release?
+
+</details>
+
 ## Intermediate
 
-### 9. Pointwise scoring vs pairwise comparison for LLM judges - which is more reliable, and why?
+### 14. Pointwise scoring vs pairwise comparison for LLM judges - which is more reliable, and why?
 
 <details><summary><b>Answer</b></summary>
 
@@ -200,7 +296,7 @@ Whichever you pick, force chain-of-thought before the verdict, pin the judge mod
 
 </details>
 
-### 10. What are the known biases of LLM judges, and how do you mitigate each?
+### 15. What are the known biases of LLM judges, and how do you mitigate each?
 
 <details><summary><b>Answer</b></summary>
 
@@ -218,7 +314,7 @@ Process-level mitigations that help across the board: chain-of-thought before ve
 
 </details>
 
-### 11. How do you decide whether to trust your LLM judge? Walk me through calibration.
+### 16. How do you decide whether to trust your LLM judge? Walk me through calibration.
 
 <details><summary><b>Answer</b></summary>
 
@@ -236,7 +332,7 @@ Reference point: the MT-Bench work found strong judges reach ~80% agreement with
 
 </details>
 
-### 12. How do you design a good rubric for model-graded evals, and where does chain-of-thought fit?
+### 17. How do you design a good rubric for model-graded evals, and where does chain-of-thought fit?
 
 <details><summary><b>Answer</b></summary>
 
@@ -255,7 +351,7 @@ Finally, structure the output (JSON with `reasoning` and `verdict` fields) so pa
 
 </details>
 
-### 13. What do MMLU, GSM8K, HumanEval, MT-Bench, and SWE-bench each measure - and why shouldn't you pick a model for your product based on them?
+### 18. What do MMLU, GSM8K, HumanEval, MT-Bench, and SWE-bench each measure - and why shouldn't you pick a model for your product based on them?
 
 <details><summary><b>Answer</b></summary>
 
@@ -273,7 +369,7 @@ Right usage: coarse shortlisting and capability trend-watching. Then run the sho
 
 </details>
 
-### 14. What is benchmark contamination, and how would you detect or protect against it?
+### 19. What is benchmark contamination, and how would you detect or protect against it?
 
 <details><summary><b>Answer</b></summary>
 
@@ -296,7 +392,7 @@ Protection, for your own evals:
 
 </details>
 
-### 15. How would you build an execution-based eval for a code-generation feature?
+### 20. How would you build an execution-based eval for a code-generation feature?
 
 <details><summary><b>Answer</b></summary>
 
@@ -315,7 +411,7 @@ Operational gotchas that bite in practice: **flaky tests** (time, randomness, or
 
 </details>
 
-### 16. How do you evaluate a RAG pipeline? Why evaluate components separately from the end-to-end system?
+### 21. How do you evaluate a RAG pipeline? Why evaluate components separately from the end-to-end system?
 
 <details><summary><b>Answer</b></summary>
 
@@ -336,7 +432,7 @@ Classic interview trap: quoting only faithfulness. A system that answers "I don'
 
 </details>
 
-### 17. Which retrieval metrics would you use - recall@k, MRR, nDCG - and when does each matter?
+### 22. Which retrieval metrics would you use - recall@k, MRR, nDCG - and when does each matter?
 
 <details><summary><b>Answer</b></summary>
 
@@ -352,7 +448,7 @@ Also name the labelling caveat: all of these are computed against *judged* relev
 
 </details>
 
-### 18. How do you measure faithfulness - whether the model's answer is actually grounded in retrieved context?
+### 23. How do you measure faithfulness - whether the model's answer is actually grounded in retrieved context?
 
 <details><summary><b>Answer</b></summary>
 
@@ -374,7 +470,7 @@ Two traps to name: verifying with the *same* model that generated the answer inf
 
 </details>
 
-### 19. How do you wire evals into CI so that prompt or model changes can't silently regress quality?
+### 24. How do you wire evals into CI so that prompt or model changes can't silently regress quality?
 
 <details><summary><b>Answer</b></summary>
 
@@ -392,7 +488,7 @@ The failure mode to avoid: an advisory eval job whose red X everyone merges past
 
 </details>
 
-### 20. How do you evaluate an LLM feature online? Design the A/B test and name the implicit feedback signals you'd use.
+### 25. How do you evaluate an LLM feature online? Design the A/B test and name the implicit feedback signals you'd use.
 
 <details><summary><b>Answer</b></summary>
 
@@ -419,7 +515,7 @@ Close the loop: log arm assignment into traces so offline error analysis can com
 
 </details>
 
-### 21. You have 500 production transcripts flagged as failures. Walk me through your error-analysis process.
+### 26. You have 500 production transcripts flagged as failures. Walk me through your error-analysis process.
 
 <details><summary><b>Answer</b></summary>
 
@@ -436,7 +532,7 @@ Two senior habits: report base rates ("retrieval misses are 32% of failures affe
 
 </details>
 
-### 22. How do you keep an eval set fresh over time, and how do you avoid overfitting to it?
+### 27. How do you keep an eval set fresh over time, and how do you avoid overfitting to it?
 
 <details><summary><b>Answer</b></summary>
 
@@ -460,7 +556,7 @@ Anti-overfitting practices, borrowed straight from ML hygiene:
 
 </details>
 
-### 23. How would you use synthetic data to build or extend an eval set, and what are the failure modes?
+### 28. How would you use synthetic data to build or extend an eval set, and what are the failure modes?
 
 <details><summary><b>Answer</b></summary>
 
@@ -484,9 +580,170 @@ Position synthetic data honestly: a bootstrap and gap-filler that production fai
 
 </details>
 
+### 29. How do you measure inter-annotator agreement on a human labelling effort, and what do you do when your annotators disagree a lot?
+
+<details><summary><b>Answer</b></summary>
+
+Measure it before you trust any label, and never with raw percent agreement alone. On a task where 90% of examples pass, two annotators who both say "pass" reflexively agree 90% of the time while carrying zero information. Chance-corrected metrics fix this: Cohen's kappa for two annotators on categorical labels, Fleiss' kappa for more than two, Krippendorff's alpha when you have missing labels, more than two raters, or ordinal scales. Alpha is the most flexible and is what I would default to at production scale.
+
+On interpretation, kappa between human pairs commonly lands somewhere around 0.5 to 0.8 depending on how subjective the task is. Objective extraction should be up near 0.9. Genuinely subjective preference work often sits lower, and that is not a defect.
+
+When agreement is poor, it is diagnostic, not an annoyance. Two causes. Either the rubric is underspecified, which is the usual case and is fixable, or the task is irreducibly subjective, which is not. Distinguish them by reading the disagreements. If two reviewers split on "is this helpful" because one counts length as helpful, that is a rubric bug: define the criterion, add anchor examples of each verdict, decompose "quality" into separate binary criteria, and re-measure.
+
+The process I run: ~50 overlapping items across three annotators, measure alpha, read every disagreement, rewrite the rubric, re-measure on fresh items. Only once agreement is acceptable do I scale to one annotator per item with a ~10% overlap sample to keep monitoring drift.
+
+The payoff matters for judges: human-human agreement is the ceiling. If humans hit 0.65, a judge at 0.65 is at parity, not broken. Chasing 95% judge agreement on a task humans agree on 70% of the time means you are fitting one annotator's idiosyncrasies.
+
+**Follow-ups:** Your annotators reach alpha 0.4 and the rubric rewrite does not help. What now? How would you detect one annotator drifting over a month?
+
+</details>
+
+### 30. You want to detect a 3-point improvement in pass rate. How many eval examples do you need, and how do you get that number down?
+
+<details><summary><b>Answer</b></summary>
+
+Work backwards from the minimum detectable effect rather than picking a round number like 100 and hoping.
+
+For two independent proportions at ~80% power and 95% confidence, the required n per arm is approximately 2.5 / delta^2 when the base rate is around 80%. At delta = 0.03 that is roughly 2,800 examples per arm. At 2 points, ~6,300. At 7 points, ~500. This is the uncomfortable arithmetic behind most eval theatre: teams declare victory on 4-point deltas over 100 examples, where the noise floor is around 8 points.
+
+The lever is pairing. You are not running two random groups of users, you are running both variants over the identical examples, so use that. In a paired design only the discordant pairs carry signal: examples where A passed and B failed, or the reverse. Everything both got right or both got wrong contributes nothing. McNemar's test on the discordant counts, or a bootstrap over the per-example paired delta vector, buys roughly an order of magnitude in sample size, because you have removed example difficulty as a source of variance. Detecting a few points of net difference can drop into the hundreds rather than thousands.
+
+```python
+import numpy as np
+
+def paired_bootstrap(a, b, n=10_000):
+    """a, b: per-example 0/1 outcomes on the SAME examples."""
+    d = np.asarray(a, float) - np.asarray(b, float)
+    idx = np.random.randint(0, len(d), (n, len(d)))
+    boot = d[idx].mean(axis=1)
+    return d.mean(), np.percentile(boot, [2.5, 97.5])
+```
+
+Ship when the interval sits entirely on one side of zero.
+
+Two caveats. Sampling noise means you should average several runs per example, or the pairing is polluted. And if you peek repeatedly, correct for it, or your 5% false positive rate is not 5%.
+
+**Follow-ups:** Your MDE calculation says you need 2,800 examples and you have 200. What do you actually do? When is a paired design not available to you?
+
+</details>
+
+### 31. You are swapping the model behind a live feature. Walk me through shadow, canary and A/B. When do you use each?
+
+<details><summary><b>Answer</b></summary>
+
+They are a sequence with increasing user exposure and increasing quality of evidence, and they answer different questions. Offline evals come first; these three are what you do after.
+
+Shadow: mirror production traffic to the candidate, serve the incumbent's response to the user, score the candidate offline. It answers "does the candidate behave sanely on the real input distribution", which your eval set cannot tell you because your eval set is not your traffic. It catches crashes, format breaks, refusals, latency regressions and cost blowouts on real inputs, at zero user risk. Costs: you pay double inference, and there is one sharp edge people miss. If the feature has side effects, shadowing an agent means it actually issues the refunds and sends the emails twice. You need read-only mode or mocked write tools before you shadow anything agentic.
+
+What shadow cannot tell you is whether users like it, because no user saw it.
+
+Canary: serve the candidate to a small slice, ~1-5%, with guardrails wired to auto-rollback on error rate, latency, cost and safety violations. It answers "does this survive contact with users", and it is about blast radius, not statistics. A canary at 2% will almost never have the power to resolve a 2-point quality difference.
+
+A/B: user-level randomisation, powered, run for one to two weeks against a north-star product metric plus guardrails. This is the only one that answers "is this better for users", and the only one that sees novelty effects and longer-horizon behaviour like retention and escalation rates.
+
+Not every change earns all four stages. A prompt typo fix goes offline eval then ship. A model family swap gets the full ladder, because that is where behaviour shifts in ways your eval set has never seen.
+
+**Follow-ups:** How would you shadow an agent that writes to a production database? Your canary looks fine at 2% and quality tanks at 50%. What happened?
+
+</details>
+
+### 32. How do you instrument cost and latency for an agentic feature, and what actually drives cost creep?
+
+<details><summary><b>Answer</b></summary>
+
+Instrument at the span level and aggregate at the task level. Every model call span carries input tokens, output tokens, cached tokens, model and version, and a computed cost. Every span also carries the dimensions you will want to group by later: route or feature, prompt template version, customer tier, and a task ID that ties the whole trace together. Watch cardinality; per-user labels on metrics will destroy your time series database, so keep high-cardinality attributes on traces and keep metrics dimensions coarse.
+
+The headline metric is cost per resolved task, not cost per call. This is the distinction that separates people who have operated these systems from people who have not. A cheaper model that needs three extra tool-calling loops and still escalates to a human is more expensive on every axis, and cost per call says it got cheaper.
+
+What actually creeps, roughly in order: prompt template growth, because every incident adds a paragraph and nobody removes one; context accumulation in multi-turn sessions, where turn 20 costs 10x turn 1; retrieval top-k raised during a recall panic and never lowered; agent step count, which has the fattest tail; and reasoning token budgets, which are billed and invisible to the user.
+
+For latency, track time-to-first-token and total separately, at p50, p95 and p99. Streaming means TTFT is what users feel and total is what your timeouts hit. Also track prompt cache hit rate, since a prompt edit that busts the cache prefix can multiply cost overnight with no visible change.
+
+Alert on distribution shape, not means. The mean step count is stable while a runaway loop burns thousands; p99 step count and a hard max-steps guard catch it. Track truncation and budget-exhaustion rates as first-class failures.
+
+**Follow-ups:** Your cost per task doubled but every per-call metric is flat. Where do you look? How would you attribute cost to a specific customer without high-cardinality metrics?
+
+</details>
+
+### 33. Prompts and completions contain user data. How do you redact PII in traces without destroying your ability to debug?
+
+<details><summary><b>Answer</b></summary>
+
+Redact at ingestion, before persistence, not on read. Redaction on read means the raw data is already sitting in your trace store and every access control gap is now a breach. Once it is written, you own it.
+
+The naive version, replacing everything with [REDACTED], makes traces useless. A conversation where every name is [REDACTED] cannot be followed. The fix is pseudonymisation rather than deletion: detect the entity, then replace it with a stable token derived from a keyed HMAC of the value, so the same person becomes PERSON_a91f consistently across the trace. You can still follow "the user asked about PERSON_a91f's order, and the tool returned the wrong record", which is the debugging question, without ever storing the name. Preserving shape helps too: keep type, rough length and position, since "the model hallucinated a 16-digit number" is a finding.
+
+Detection is layered because the two approaches fail differently. Deterministic patterns catch structured data cheaply and reliably: emails, card numbers with a Luhn check, national IDs. An NER pass catches names, addresses and free-text mentions that patterns never will, at the cost of latency and recall gaps. Run patterns inline and the model pass inline if you can afford it, or asynchronously against a sample if you cannot.
+
+Then tier the storage. Redacted traces get long retention and broad access. Raw capture, if you need it at all, gets a short TTL of days not months, encryption, access logging and a break-glass process, and I would scope it to error traces only.
+
+Two things people forget. Index traces by user ID so a deletion request is a delete-by-key rather than a full scan. And do not ship raw prompts to a third-party judge or eval vendor without checking the data agreement covers it.
+
+**Follow-ups:** Your NER redactor misses ~5% of names. Is that acceptable? How do you debug a failure whose root cause was the exact text you redacted?
+
+</details>
+
+### 34. Design a human review queue for a production LLM feature. What gets reviewed, and how much?
+
+<details><summary><b>Answer</b></summary>
+
+The first decision is what to sample, and the default answer of "random traces" wastes the budget. If the system succeeds 90% of the time, random sampling spends 90% of expensive human attention confirming things that worked.
+
+I stratify into four streams. First, suspected failures: low judge scores, guardrail hits, tool errors, retries. Highest yield. Second, implicit negative signals: regenerations, abandonment, thumbs-down, escalation to a human agent, heavy editing of accepted output. These are cheap and honest. Third, high-risk routes regardless of signal, because a rare failure on a billing action costs more than a common one on a summary. Fourth, and non-negotiable, a small uniform random sample of maybe 5%.
+
+That random slice is what keeps the system honest. The other three streams are filtered by your current beliefs about what failure looks like, so they are structurally blind to failure modes you have not imagined and to anything your judge scores as fine. The random sample is also the only stream that gives an unbiased estimate of the true failure rate. Teams drop it first when budget tightens, and then they cannot tell you how often the product works.
+
+Queue mechanics: one item is a trace plus the rendered context the model saw, not a bare string. Reviewers give binary verdicts per criterion, never a 1-10, because pointwise numeric scoring drifts between reviewers and within one reviewer across a shift. Require a one-line free-text failure description; that text is the raw material for clustering.
+
+Budget realistically: ~20-40 chat transcripts an hour, far fewer for agent trajectories, which can run 10 minutes each.
+
+Most importantly, route the labels back: into the judge calibration set, into the eval set, and into prompt fixes. A queue that only produces a quality percentage is data entry.
+
+**Follow-ups:** How would you keep two reviewers consistent over six months? What would you cut first if the review budget halved?
+
+</details>
+
+### 35. Your team ran a red-team exercise and found 30 ways to break the assistant. How do you turn that into something durable?
+
+<details><summary><b>Answer</b></summary>
+
+A red-team exercise finds problems once. An eval suite is what keeps them fixed. The conversion is the whole value, and most teams skip it: they patch the prompt, close the tickets, and regress silently three releases later.
+
+Each finding becomes a test case with the attack input, the policy criterion it violated, and a grader. Prefer a deterministic grader where the violation is checkable (did a card number appear in the output, did it call the refund tool) and fall back to a judge with a tightly scoped rubric where it is not.
+
+The critical move is generalising past the literal string. If you add the exact jailbreak prompt and nothing else, you will fix that string. The next release passes your suite and fails to the same attack rephrased. So each finding expands into ~5-20 mutations: paraphrases, a different language, a different framing, the same attack embedded in a retrieved document rather than typed by the user. Maintain the taxonomy behind them: roleplay framing, encoding tricks, indirect injection via retrieved content or tool output, multi-turn escalation where turn 1 is innocuous. The taxonomy is what generalises; the individual prompts are instances.
+
+These belong in the guardrail suite, not the quality suite. Binary, must-pass, any failure blocks the merge. You do not trade a jailbreak for a helpfulness gain.
+
+Cadence: humans red-team on a schedule and per major change, because they find new categories. The automated suite runs every CI, because it defends the old ones. Track attack success rate over the suite as a trend.
+
+One caution: keep a private holdout and do not publish the whole set. A public attack suite ends up in the next pretraining run, and then it measures memorisation.
+
+**Follow-ups:** How do you keep a red-team suite from going stale as models improve? Your attack success rate is 0% for six months. Good news or bad?
+
+</details>
+
+### 36. Your judge model is being deprecated and you have to move to a new version. How do you keep your scores comparable?
+
+<details><summary><b>Answer</b></summary>
+
+Start from the fact that the score is a function of the judge, not just the system. A judge version bump changes your numbers with zero change to the product. If the dashboard rebases silently, you will spend a week debugging a regression that never happened, or worse, miss a real one hiding under a judge shift.
+
+Preventatively: pin the exact judge model version, never a floating alias. Aliases re-point under you, and that is one of the most common ways a team's eval history quietly becomes non-comparable. The judge prompt is code and gets versioned alongside. Every result row records dataset version, grader version, judge model version and sampling params.
+
+For the migration itself, treat the judge change as a change requiring its own eval, because that is exactly what it is. Concretely: re-run the human-labelled calibration set under the new judge and compare agreement against the old one. The new judge is only acceptable if agreement with humans is at least as good; a newer, stronger model is not automatically a better judge for your rubric, and I have seen stronger models be worse judges because they reason past a rubric they consider wrong.
+
+Then dual-run. Score the last several releases' eval sets under both judges and publish the offset, so you know whether the new judge simply runs 3 points stricter. Re-baseline explicitly and annotate the dashboard at the cutover date. Never mix judge versions within a single A-vs-B comparison, which is the actual cardinal sin.
+
+One cheap ongoing safeguard: keep a judge sanity set of ~30 items with known, unambiguous verdicts and run it before every eval batch. If the judge fails those, the batch is void and something moved upstream.
+
+**Follow-ups:** The new judge agrees with humans slightly less but is 5x cheaper. Do you take it? How would you detect a judge drifting if the version is genuinely pinned?
+
+</details>
+
 ## Advanced
 
-### 24. How do you evaluate agents? Compare trajectory-based and outcome-based approaches.
+### 37. How do you evaluate agents? Compare trajectory-based and outcome-based approaches.
 
 <details><summary><b>Answer</b></summary>
 
@@ -502,7 +759,7 @@ Practices that matter: run **k trials per task** - agent variance is enormous, s
 
 </details>
 
-### 25. How does Chatbot Arena - style evaluation work, and what are its strengths and limits?
+### 38. How does Chatbot Arena - style evaluation work, and what are its strengths and limits?
 
 <details><summary><b>Answer</b></summary>
 
@@ -524,7 +781,7 @@ Net: excellent for tracking the frontier and coarse shortlisting; never a substi
 
 </details>
 
-### 26. Your new prompt scores 78% vs the old prompt's 74% on a 100-example eval. Do you ship it?
+### 39. Your new prompt scores 78% vs the old prompt's 74% on a 100-example eval. Do you ship it?
 
 <details><summary><b>Answer</b></summary>
 
@@ -540,7 +797,7 @@ What I'd actually do: (1) read the ~16 flipped transcripts - five minutes that o
 
 </details>
 
-### 27. Design the observability stack for a production LLM application. What does a good trace look like?
+### 40. Design the observability stack for a production LLM application. What does a good trace look like?
 
 <details><summary><b>Answer</b></summary>
 
@@ -573,7 +830,7 @@ Tooling: LangSmith, Langfuse, Braintrust, W&B Weave, Arize Phoenix all implement
 
 </details>
 
-### 28. How do you monitor a deployed LLM system for drift? What kinds of drift matter?
+### 41. How do you monitor a deployed LLM system for drift? What kinds of drift matter?
 
 <details><summary><b>Answer</b></summary>
 
@@ -590,7 +847,7 @@ Wiring: alerts fire on trend breaks, and the response runbook is always the same
 
 </details>
 
-### 29. Where does Goodhart's law bite in LLM evaluation? Give concrete examples and defences.
+### 42. Where does Goodhart's law bite in LLM evaluation? Give concrete examples and defences.
 
 <details><summary><b>Answer</b></summary>
 
@@ -616,7 +873,7 @@ Defences:
 
 </details>
 
-### 30. Evals are nondeterministic - temperature, sampling, flaky agents. How do you get trustworthy numbers?
+### 43. Evals are nondeterministic - temperature, sampling, flaky agents. How do you get trustworthy numbers?
 
 <details><summary><b>Answer</b></summary>
 
@@ -644,7 +901,7 @@ Culture point: put error bars on every eval number shown in a decision context. 
 
 </details>
 
-### 31. A team ships prompt changes on vibes - the founder tries five favourite prompts and merges. How do you move them to eval maturity without halting shipping?
+### 44. A team ships prompt changes on vibes - the founder tries five favourite prompts and merges. How do you move them to eval maturity without halting shipping?
 
 <details><summary><b>Answer</b></summary>
 
@@ -661,5 +918,139 @@ Meet them where they are and make each step pay for itself immediately - evals a
 The maturity ladder you're walking: vibes → written spot-checks → versioned offline suite in CI → observability + closed feedback loop → online experimentation. Two anti-patterns to avoid: buying an eval platform before having ten good test cases (tools don't create judgment), and letting evals become a blocking gate before they're trusted (advisory first, blocking once they've caught two real bugs). Track adoption by one number: what fraction of quality decisions cite an eval result.
 
 **Follow-ups:** The founder says "our users are the eval" - respond. Which single metric would you put on the team dashboard first, and why that one?
+
+</details>
+
+### 45. Your new prompt improves aggregate pass rate by 3 points, but one customer segment drops 8. How do you catch this before shipping, and what do you do about it?
+
+<details><summary><b>Answer</b></summary>
+
+Catch it by never gating on an aggregate. The aggregate is a weighted average over slices and it will happily hide a segment on fire, which is how you ship a win and lose a customer.
+
+Define slices before the run, from dimensions that plausibly change model behaviour: language, customer tier, query intent, document source, context length bucket, modality, new versus returning. Report per-slice deltas with confidence intervals next to the aggregate, and gate on "no slice regresses beyond the noise floor" as well as "aggregate improves".
+
+The hard part is that slicing destroys your sample size. 500 examples across 12 slices is ~40 each, where everything is noise and you have learned nothing. The fix happens at dataset construction, not analysis: allocate a floor of ~50-100 examples per slice you actually care about, which means deliberately oversampling rare slices relative to production, then reweight back to the production mix when computing the aggregate. Design the sampling for the question you intend to ask.
+
+On Simpson's paradox specifically: an aggregate can move opposite to every individual slice only when the slice mix differs between the arms. Fixed per-slice counts across arms structurally prevent it, which is another reason for paired designs over the identical examples.
+
+Watch multiple comparisons. Twelve slices at alpha 0.05 gives you roughly a 46% chance of at least one spurious alarm. So I treat slice results as a triage signal that tells me which transcripts to read, not as an automatic ship gate, and I apply a correction if I am making a formal claim.
+
+Then decide. If the segment is small and the regression is cosmetic, ship with a follow-up. If it is your enterprise tier, do not ship. Usually reading those 8 points of failures reveals one fixable cause, like the new prompt assuming a formatting convention that only that segment violates.
+
+**Follow-ups:** How do you pick slices for failure modes you have not thought of yet? The regressed slice has 12 examples total. What do you do?
+
+</details>
+
+### 46. Design the evaluation for a document understanding feature: users upload invoices and scanned forms and ask questions about them.
+
+<details><summary><b>Answer</b></summary>
+
+The structural decision is to separate perception from reasoning, because they fail differently and the fix is different.
+
+Perception: can the model read what is on the page. Grade this as structured field extraction against annotated ground truth: invoice number, dates, line items, totals. Code-graded with normalisation, since dates, currency and whitespace differences are parser noise, not model error. Reasoning: given what it read, is the answer right. Run this against the ground-truth extraction to isolate it.
+
+The split earns its keep in diagnosis. "Total is wrong" is useless. "It read 1,240 as 1.240 and then reasoned correctly" is a preprocessing fix; "it read every field correctly and summed wrong" is a different fix entirely. Without the split you will tune prompts against an OCR problem.
+
+For open-ended questions you need a judge, and here is the trap: the judge has to see the image too. A text-only judge grading against a human caption inherits every blind spot of that caption, and you end up evaluating the caption. A vision judge is expensive and brings its own bias surface, so keep as much as possible on code-graded extraction.
+
+Slices matter more here than in text, and they are physical: resolution and DPI, rotation and skew, handwriting versus print, multi-page versus single, language and script, photograph versus clean scan, and layout type (tables, dense prose, charts). Failures cluster hard on these.
+
+Add perturbation robustness, which text evals rarely need: downscale, JPEG-compress, rotate a few degrees, and check the answer does not flip. If it does, you have a fragile feature regardless of pass rate.
+
+Cost and latency: image tokens dominate, so track tokens per page and cost per document, not per request.
+
+On ground truth, be realistic. Annotating one document is minutes, not seconds. Start at ~100-200 documents stratified across those slices, and buy the rest with production failures. Public multimodal benchmarks will not predict performance on your document distribution.
+
+**Follow-ups:** How would you evaluate a 40-page document where the answer requires two facts from different pages? Your vision judge costs more than the feature. What now?
+
+</details>
+
+### 47. How does evaluating and observing a reasoning model differ from a standard one?
+
+<details><summary><b>Answer</b></summary>
+
+The core change is that quality is no longer a property of the model, it is a function of the thinking budget. So a single pass rate is the wrong artefact. You report a curve: pass rate against reasoning budget, or against samples for best-of-n. Choosing a model now means choosing a triple of model, budget and sampling strategy, and the interesting question is where the curve flattens, because that knee is your operating point. Frequently a mid-tier model at a high budget beats a frontier model at a low one for less money, and you cannot see that from a point estimate.
+
+Observability changes concretely. Reasoning tokens are billed and invisible to the user, so track them as a separate dimension from output tokens. Your cost per task can multiply with no visible change to the response, which is the failure mode teams get surprised by on the invoice rather than the dashboard.
+
+Latency is worse than the mean suggests. Thinking length has a much fatter tail than ordinary generation, so p50 looks healthy while p99 is hitting your timeouts. Instrument the distribution of reasoning tokens per route, and count budget-exhaustion and truncation as first-class failure events, since a run that hits the cap mid-thought is a distinct failure from a wrong answer and needs a different fix.
+
+Variance rises, so you need more trials per item before any comparison means anything.
+
+One trap to name: do not rubric-grade the reasoning trace as though it explains the answer. Reasoning traces are not reliably faithful to the computation, so grading them teaches you to optimise a surface that need not reflect the process. Grade outcomes; use traces as debugging artefacts and for clustering failures. Providers also summarise or restructure raw reasoning, so a grader that depends on its format will break without warning.
+
+Finally, overthinking on trivial inputs is a real regression. Track budget spent against input difficulty.
+
+**Follow-ups:** How would you set a reasoning budget per request rather than globally? Your pass-rate curve is still climbing at max budget. What does that tell you?
+
+</details>
+
+### 48. How would you build a deterministic replay harness for agent evals, and what does it genuinely buy you?
+
+<details><summary><b>Answer</b></summary>
+
+Record every non-deterministic boundary during a live run and stub it on replay. That means tool responses, retrieval results, model completions, clock reads, random seeds and simulated user turns, each keyed by a canonicalised call signature such as tool name plus normalised arguments. On replay, your orchestration code runs for real and everything it observes comes from the recording.
+
+What it buys: CI runs in seconds with no API spend and no flakes; you can re-run a specific production failure a thousand times while changing only your code; and orchestration bugs get isolated from model variance, which otherwise swamp each other. When an agent fails, "is this my retry logic or did the model just roll badly" is the question that eats days, and replay answers it.
+
+The limits are the more important half, and this is where candidates oversell it. Replay only exercises paths you recorded. Change the prompt and the agent asks a different question, your key misses, and you either hard-error or silently fall through to a live call and lose determinism. So replay is exact for "did I break the plumbing" and worthless for "is the new prompt better". Anyone gating prompt quality on a replay suite is measuring nothing.
+
+So layer it. Replay for unit and integration tests on every commit. A stateful mocked sandbox for behaviour evals nightly: give the agent a simulated database it can actually write to, then grade the final world state against an annotated goal rather than grading the conversation. That is the tau-bench shape, and it tolerates novel trajectories, which is exactly what replay cannot. Live or staging integration for a small suite before release.
+
+Practical details that bite: define miss policy explicitly (strict error versus record-and-passthrough in update mode); handle side effects and idempotency; and re-record on a schedule, because recorded tool responses rot as the real APIs drift, and a green replay suite against a stale recording is a false sense of safety.
+
+**Follow-ups:** How do you detect that your recordings have gone stale? Where does the mocked sandbox stop being worth its maintenance cost?
+
+</details>
+
+### 49. Your eval suite is green, ship velocity is good, and users are complaining that quality got worse. Debug it.
+
+<details><summary><b>Answer</b></summary>
+
+Users are right and the eval suite has a bug. Start from that, because the alternative framing wastes a week.
+
+First, get specific. Pull the actual complaints and the traces behind them and read 30 to 50. Vague dissatisfaction usually resolves into two or three concrete things.
+
+Then the fastest diagnostic, which is usually the answer: take 20 traces users flagged as bad and run them through your grader. If the grader passes them, the grader is broken, not the model. You now know exactly what to fix and you have the test cases. I would do this before anything else.
+
+If the grader correctly fails them, the problem is coverage, and I check in this order:
+
+Distribution gap. Compare the eval set's slice mix to last week's actual traffic. Eval sets are built once and traffic moves: a new locale, a new surface, longer inputs, an upstream integration that changed the document format. The set is measuring last quarter's product.
+
+Unmodelled dimensions. Most eval suites score correctness only. Users complain about latency, streaming stalls, truncation, markdown that renders badly, tone, and verbosity. "It got worse" is frequently "it got slower" or "it got preachy". Nothing in a correctness suite sees any of that.
+
+Turn depth. Most eval sets are single-turn. Most complaints are turn four, where context has accumulated and the system has forgotten the constraint from turn one.
+
+Concentration. Are complaints one customer, one language, one integration? Aggregate health is compatible with a segment burning.
+
+Then fix in order: add the complaint traces to the set so the fix is verifiable, repair the grader, add the missing slice, promote the missing dimension to a guardrail.
+
+The cultural point I would push: treat this as a P1 on the eval suite itself, not just on the feature. The feature bug is one incident; a suite that cannot see this class of bug will let the next ten through.
+
+**Follow-ups:** How would you prevent this recurring without doubling eval cost? What if the complaints came from 3 users out of 50,000?
+
+</details>
+
+### 50. How do you evaluate your eval suite itself? What makes one good or bad?
+
+<details><summary><b>Answer</b></summary>
+
+Evals are code with no tests, which is a strange thing to run a company on. Six properties I would measure:
+
+Discriminative power, the big one. Can the suite separate systems you know differ? Run a deliberately crippled config: a weaker model, retrieval ablated, the key instruction removed from the prompt. If the real system scores 91% and the crippled one 89%, the suite is decorative and every decision you made with it was a coin flip. This test takes an afternoon and almost nobody runs it. Saturation is the same disease: if everything scores 98%, retire the easy cases to a smoke suite and buy harder ones.
+
+Noise floor. Run the identical config five times and measure the spread. That number is your ship threshold, and it is usually wider than the deltas people are shipping on.
+
+Grader validity. Agreement with humans on a fresh sample, per criterion, re-measured on a schedule rather than once at inception.
+
+Coverage against production, measured by escaped defects: of the last 10 quality bugs users found, how many would the suite have caught beforehand? If it is 2, your suite is 20% effective and each miss names exactly what to add. This is the single best health metric because it is grounded in reality rather than self-report.
+
+Redundancy and cost. Items whose verdict has not changed across the last 20 runs are paying for no information. They belong in a nightly suite, not the pre-merge subset that gates your velocity.
+
+Flakiness per item. Items whose verdict flips run to run with no change are either genuinely borderline or badly graded. Quarantine and diagnose. Flaky evals get ignored exactly like flaky tests, and one ignored suite means nobody reads any of it.
+
+Cadence: audit quarterly, and re-run the crippled-config test whenever the suite changes materially. Track escaped defects continuously, since that is the one that tells you the truth.
+
+**Follow-ups:** Your suite catches 9 of 10 escaped defects but takes 40 minutes in CI. Worth it? How would you build the crippled config without it being trivially detectable?
 
 </details>

@@ -1,6 +1,6 @@
 # Fine-tuning, RLHF & Alignment - Interview Questions
 
-36 questions: 10 basic, 14 intermediate, 12 advanced.
+50 questions: 13 basic, 20 intermediate, 17 advanced.
 
 ## Basic
 
@@ -239,9 +239,69 @@ Why RL at all, instead of more SFT? Preferences encode *relative* quality on the
 
 </details>
 
+### 11. Would you fine-tune a base model or an instruct model? How does that choice change your data and your recipe?
+
+<details><summary><b>Answer</b></summary>
+
+For almost all applied work, start from the instruct model. You only reach for a base model when you have a lot of data (tens of thousands of high-quality examples), you want total control of the output format, or you are doing continued pretraining on a domain corpus.
+
+The difference is what you inherit. An instruct model already has instruction following, multi-turn behaviour, tool calling, a trained EOS habit, and a safety baseline. You get all of that free, and you can also destroy it: fine-tuning an instruct model on narrow single-turn data reliably degrades multi-turn and general instruction following, which is why you mix in ~5-25% general instruction data. It also ships a chat template that was actually trained, and you must reproduce it byte for byte.
+
+A base model is a next-token predictor. It has no meaningful chat template (the one in `tokenizer_config.json` may be nominal and untrained), it will not stop on its own, and it has no refusal behaviour. You are re-doing post-training yourself: format, stopping, chattiness, safety. That is a real project, not a weekend.
+
+The common misconception is "a base model is a blank slate so it is easier to steer". It is cheaper to steer in the sense that you are not fighting existing behaviour, but you inherit nothing, and with a few thousand examples you will produce something worse than the instruct model on everything except your narrow task.
+
+Practical rule: instruct model plus LoRA is the default. Budget a base-model SFT run only if the instruct model's baked-in style is actively fighting you and you have the data to replace it. Also check what you can even get: for many hosted models only the instruct weights or a tuning endpoint exist, so the decision is made for you.
+
+**Follow-ups:** If you fine-tune an instruct model and its multi-turn behaviour degrades, how would you detect that before shipping? What would you do differently if the base model and instruct model have different tokenizers?
+
+</details>
+
+### 12. Why do you deduplicate fine-tuning data, and how would you actually do it?
+
+<details><summary><b>Answer</b></summary>
+
+Because duplicates silently reweight your dataset and drive memorisation. If 20% of a set is duplicated and you train 3 epochs, those examples are effectively seen ~6 times while the rest are seen 3. You did not choose that mixture, the scraper did. Duplicates also inflate held-out metrics whenever a near-copy straddles the train/test split, and heavy repetition of a single response teaches the model to emit that response as a canned answer.
+
+The pipeline I run, in order:
+
+1. Normalise: strip whitespace, unicode-normalise, lowercase for hashing only.
+2. Exact dedup: hash the normalised text, drop collisions. Cheap, catches a surprising amount.
+3. Near-dup: MinHash over ~5-gram shingles with LSH banding, Jaccard threshold around 0.8. Linear time, CPU only, minutes on 100k examples.
+4. Semantic dedup: embed, then drop near neighbours above a cosine threshold (~0.95) or cluster and cap per cluster. Catches paraphrases that MinHash misses.
+5. Decontaminate against every eval set you plan to report, using the same overlap machinery.
+
+Dedup the prompt and the response separately, because they fail differently. Many near-identical prompts with conflicting answers teach inconsistency. Identical responses to different prompts teach a canned reply.
+
+The part people get wrong is over-dedup. Some repetition is signal: if 30% of production traffic is the same intent, collapsing it to one example makes your training distribution stop matching reality. Prefer capping counts per cluster over dropping to a single instance. And always dedup before you split, never after, or your test set leaks.
+
+**Follow-ups:** Why is MinHash preferred over pairwise cosine similarity at scale? How would you pick the Jaccard threshold rather than just taking 0.8 on faith?
+
+</details>
+
+### 13. What is the difference between an outcome reward model and a process reward model, and when do you need each?
+
+<details><summary><b>Answer</b></summary>
+
+An outcome reward model (ORM) scores a completion as a whole, one scalar per response. A process reward model (PRM) scores each intermediate reasoning step, giving a dense per-step signal. The trade is annotation cost against credit assignment.
+
+ORMs are cheap to supervise: you need a final-answer label or a preference on the final response. But the signal is sparse and credit assignment is blind. A trajectory that guesses correctly after broken reasoning gets full credit, and a nearly-correct trajectory that slips on the last line gets zero. In long-horizon tasks where the success rate is low, most rollouts return zero and you learn very little per step.
+
+PRMs give a gradient at every step, so the model learns which step was the mistake. The cost is step-level labels. Human step annotation is expensive (OpenAI's PRM800K is the canonical example of paying for it). The cheaper route is automatic labelling by rollout: from a given step, sample continuations and label the step by how often they reach the correct answer. That is Math-Shepherd-style supervision, and it costs compute rather than annotators.
+
+Where PRMs really earn their keep is inference-time: reranking best-of-N, or guiding tree search, where a per-step score lets you prune early. That is a large part of why they matter in the test-time-compute era.
+
+Two caveats worth raising. First, if you have a real verifier (unit tests, an answer checker), you do not need an ORM at all, RLVR uses the checker directly and there is nothing to hack in the reward. Second, PRMs are themselves hackable and step boundaries are ill-defined for free-form reasoning.
+
+Practical order: verifier reward first, ORM if the task is not verifiable, PRM only when the reward is too sparse to learn from.
+
+**Follow-ups:** How would you generate PRM labels without human annotators, and what bias does that introduce? Why might a PRM used as a best-of-N reranker degrade as N grows?
+
+</details>
+
 ## Intermediate
 
-### 11. Which modules do you target with LoRA, how do you pick the rank, and what are the actual memory savings?
+### 14. Which modules do you target with LoRA, how do you pick the rank, and what are the actual memory savings?
 
 <details><summary><b>Answer</b></summary>
 
@@ -261,7 +321,7 @@ Two caveats that show real experience: activations still scale with batch × seq
 
 </details>
 
-### 12. How does adapter merging work, and how do multi-LoRA serving and hot-swapping work in production?
+### 15. How does adapter merging work, and how do multi-LoRA serving and hot-swapping work in production?
 
 <details><summary><b>Answer</b></summary>
 
@@ -277,7 +337,7 @@ Operational notes worth volunteering: pin the exact base-model version an adapte
 
 </details>
 
-### 13. Explain QLoRA - NF4, double quantization, paged optimizers. What do you give up?
+### 16. Explain QLoRA - NF4, double quantization, paged optimizers. What do you give up?
 
 <details><summary><b>Answer</b></summary>
 
@@ -295,7 +355,7 @@ Crucially, compute still happens in bf16: weights are dequantized block-by-block
 
 </details>
 
-### 14. How do you train a reward model? Explain the preference data and the Bradley - Terry loss.
+### 17. How do you train a reward model? Explain the preference data and the Bradley - Terry loss.
 
 <details><summary><b>Answer</b></summary>
 
@@ -315,7 +375,7 @@ so you minimise $-\log\sigma(r_\theta(x,y_w) - r_\theta(x,y_l))$ - logistic regr
 
 </details>
 
-### 15. Explain PPO in the RLHF context. Why is there a KL penalty against a reference model?
+### 18. Explain PPO in the RLHF context. Why is there a KL penalty against a reference model?
 
 <details><summary><b>Answer</b></summary>
 
@@ -336,7 +396,7 @@ where $\pi_{ref}$ is the frozen SFT model. It exists for two reasons:
 
 </details>
 
-### 16. What is reward hacking? Give concrete examples and mitigations.
+### 19. What is reward hacking? Give concrete examples and mitigations.
 
 <details><summary><b>Answer</b></summary>
 
@@ -357,7 +417,7 @@ Mitigations: the **KL penalty** to a reference model (keeps the policy where the
 
 </details>
 
-### 17. Explain DPO. What's the key insight that lets it skip the reward model and the RL loop?
+### 20. Explain DPO. What's the key insight that lets it skip the reward model and the RL loop?
 
 <details><summary><b>Answer</b></summary>
 
@@ -381,7 +441,7 @@ Hence the paper's title: *your language model is secretly a reward model*. The p
 
 </details>
 
-### 18. DPO vs PPO-style RLHF - when would you choose each?
+### 21. DPO vs PPO-style RLHF - when would you choose each?
 
 <details><summary><b>Answer</b></summary>
 
@@ -399,7 +459,7 @@ Honest summary: frontier labs run online RL for their main post-training because
 
 </details>
 
-### 19. Give one-liners on IPO, KTO, and ORPO - what problem does each solve, and when would you pick it?
+### 22. Give one-liners on IPO, KTO, and ORPO - what problem does each solve, and when would you pick it?
 
 <details><summary><b>Answer</b></summary>
 
@@ -417,7 +477,7 @@ Framework support (TRL implements all three) makes trying them cheap; in practic
 
 </details>
 
-### 20. How do you evaluate a model before and after fine-tuning?
+### 23. How do you evaluate a model before and after fine-tuning?
 
 <details><summary><b>Answer</b></summary>
 
@@ -437,7 +497,7 @@ Fine-tune evaluation is a *differential* measurement: the question is not "is th
 
 </details>
 
-### 21. What's the difference between continued pretraining and SFT? When do you need domain knowledge injection?
+### 24. What's the difference between continued pretraining and SFT? When do you need domain knowledge injection?
 
 <details><summary><b>Answer</b></summary>
 
@@ -453,7 +513,7 @@ Fine-tune evaluation is a *differential* measurement: the question is not "is th
 
 </details>
 
-### 22. How do you generate synthetic training data with an LLM, and what are the pitfalls?
+### 25. How do you generate synthetic training data with an LLM, and what are the pitfalls?
 
 <details><summary><b>Answer</b></summary>
 
@@ -472,7 +532,7 @@ Pitfalls, the part interviewers care about:
 
 </details>
 
-### 23. Explain distillation for LLMs - black-box vs logit distillation - and the licensing caveats.
+### 26. Explain distillation for LLMs - black-box vs logit distillation - and the licensing caveats.
 
 <details><summary><b>Answer</b></summary>
 
@@ -488,7 +548,7 @@ Distillation transfers capability from a stronger/larger teacher to a smaller/ch
 
 </details>
 
-### 24. Do the GPU memory math: why can't you full-fine-tune a 7B model on a single 24 GB GPU with Adam?
+### 27. Do the GPU memory math: why can't you full-fine-tune a 7B model on a single 24 GB GPU with Adam?
 
 <details><summary><b>Answer</b></summary>
 
@@ -521,9 +581,156 @@ This accounting question is a favourite because it instantly reveals whether a c
 
 </details>
 
+### 28. You are fine-tuning on a domain full of jargon and someone suggests adding new tokens to the tokenizer. What can go wrong, and how do you handle vocabulary changes correctly?
+
+<details><summary><b>Answer</b></summary>
+
+First question back: do you actually need new tokens? Subword splitting of jargon is usually fine, the model handles it. New tokens pay off for high-frequency control markers (role tags, tool-call delimiters) or when a term appears in a large fraction of your traffic and you care about sequence length. They rarely pay off for domain nouns.
+
+If you do add them, the failure modes:
+
+**Random init.** Resizing the embedding matrix draws new rows from the model's init distribution, which is nothing like the trained embedding manifold. You get large logits and loss spikes. Init at the mean of existing embeddings plus small noise, or better, at the mean of the token's own subword pieces:
+
+```python
+model.resize_token_embeddings(len(tokenizer))
+emb = model.get_input_embeddings().weight.data
+for tok_id, pieces in new_tokens.items():
+    emb[tok_id] = emb[pieces].mean(dim=0)
+```
+
+If input and output embeddings are tied, you are initialising both at once, so check.
+
+**Frozen embeddings under LoRA.** By default LoRA targets attention and MLP projections, so the embedding and `lm_head` stay frozen and your new tokens never train. They must go in `modules_to_save`.
+
+**Tokenizer drift between training and serving.** Save the tokenizer with the adapter. If the serving stack loads the base tokenizer, your new IDs mean nothing, and you get silent garbage rather than an error.
+
+**Padded vocab.** Embedding matrices are often padded to a multiple of 64 or 128 for tensor cores, so there are unused rows that can be sampled if you do not mask them.
+
+**EOS and pad.** Setting `pad_token = eos_token` without masking pad positions in the labels teaches the model to stop early or never stop at all. This one burns people constantly.
+
+Cheapest path: most modern tokenizers ship reserved/unused special tokens precisely for this. Repurpose those instead of resizing.
+
+**Follow-ups:** How would you verify after training that the new tokens actually learned anything? What breaks if you add tokens to a model whose embeddings are tied and quantized to 4-bit?
+
+</details>
+
+### 29. DoRA, rsLoRA and LoRA+ all claim to improve on vanilla LoRA. What does each actually change, and when would you reach for them?
+
+<details><summary><b>Answer</b></summary>
+
+Each attacks a different known weakness, and none of them changes the game. Data quality, rank and target-module choice dominate all three.
+
+**rsLoRA (rank-stabilised LoRA).** Vanilla LoRA scales the update by `alpha/r`. As `r` grows, the update and the gradients flowing through it are damped harder, so high ranks underperform the capacity you paid for. rsLoRA scales by `alpha/sqrt(r)`, which keeps the update variance roughly stable as rank grows. Worth turning on when you are running r >= 64. Below that the difference is small.
+
+**LoRA+.** `A` and `B` play asymmetric roles: `B` is initialised at zero, `A` is not. A single learning rate is therefore suboptimal, and the fix is to give `B` a substantially higher LR than `A` (the paper's starting suggestion is a ratio around 16x). One config flag, no extra parameters, no extra compute. Helps most on harder tasks and at higher learning rates.
+
+**DoRA.** Decomposes each weight into a magnitude vector and a direction, applies LoRA to the direction and trains the magnitude separately. The motivation is empirical: full fine-tuning and LoRA show different magnitude-versus-direction update patterns, and freeing the magnitude closes much of the gap, particularly at low rank. Cost is roughly a norm computation per step, call it ~20-30% slower training. Still mergeable, negligible extra parameters.
+
+Worth also knowing **PiSSA**: initialise the adapter from the principal singular components of `W` rather than randomly (OLoRA does something similar with an orthonormal QR-based init), so training starts on the dominant subspace and converges faster.
+
+My defaults: LoRA r=16-32, alpha=2r, target all linear layers. Reach for DoRA when I am rank-constrained and losing to full FT, rsLoRA when I am pushing r high. Do not stack all three at once, or you have changed three variables and learned nothing. And measure on a real eval, not train loss, because at these margins train loss will lie to you.
+
+**Follow-ups:** Why does DoRA still merge cleanly into the base weights at inference? If DoRA beats LoRA on your eval by 0.4 points but costs 30% more training time, how do you decide?
+
+</details>
+
+### 30. Explain model merging: task arithmetic, TIES, DARE and SLERP. When does merging actually work?
+
+<details><summary><b>Answer</b></summary>
+
+Merging combines the weights of several models fine-tuned from a common base. No training, no data, minutes on CPU. The core object is the task vector: `tau_i = theta_ft_i - theta_base`.
+
+**Task arithmetic:** `theta = theta_base + sum(lambda_i * tau_i)`. Adding a task vector adds a behaviour, and negating one can subtract it (a crude unlearning knob).
+
+**TIES** fixes interference, where task vectors overlap and cancel. Three steps: trim each task vector to its top-magnitude entries (~top 20%), elect a sign per parameter by summed magnitude across models, then average only the entries agreeing with the elected sign. Sign conflict is the main thing that destroys naive averaging.
+
+**DARE** exploits redundancy: randomly drop 80-99% of the delta entries and rescale the survivors by `1/(1-p)`. Deltas are highly redundant, so this barely hurts individually and dramatically reduces overlap between models. DARE+TIES stacked is a common recipe.
+
+**SLERP** interpolates spherically between exactly two models, preserving norm rather than shrinking it the way naive linear averaging does. Two models only.
+
+When it works: the models must share a common ancestor and sit in the same loss basin. Merging two independently pretrained models does not work, permutation symmetry means their neurons are not comparable. Reliable wins are combining capabilities from sibling fine-tunes, averaging checkpoints from one run (model soups), merging LoRAs on a shared base, and merging a narrow fine-tune back toward base at lambda around 0.7 to buy back general capability. That last one is effectively a dial on the alignment tax, and it is the use I reach for most.
+
+Be honest in the interview: this is cheap and empirical. There is no principled way to choose lambda, you sweep it against a real eval. mergekit is the standard tool. Merging is a free lunch when it works and a mystery when it does not.
+
+**Follow-ups:** Why does merging fail across independently pretrained models but work across fine-tunes of one base? How would you merge three LoRAs of different ranks trained on the same base?
+
+</details>
+
+### 31. You have 500k instruction examples of mixed quality and compute budget to train on 20k. How do you choose the 20k?
+
+<details><summary><b>Answer</b></summary>
+
+Treat it as selection along three axes: quality, difficulty and diversity. Optimising any one alone fails.
+
+**1. Hard filters first** (cheap, do them before anything expensive): dedup, truncated or malformed responses, length outliers, wrong language, format violations, template artifacts ("As an AI language model"), leaked system prompts, unwanted refusals. This typically removes 20-40% and costs nothing.
+
+**2. Quality scoring.** LLM judge with an explicit rubric per example (Alpagasus-style), or a reward model score. A small judge over 500k items is affordable, and a 7B RM scoring in a single batched pass is cheaper still.
+
+**3. Difficulty.** Examples your model already nails add nothing. IFD (instruction-following difficulty) scores how much having the instruction in front of the response lowers the loss on that response, and you keep the harder examples: the ones the model still cannot predict well even with the instruction present. Response perplexity under your current model is a cruder proxy for the same idea.
+
+**4. Diversity.** Embed the instructions, cluster into a few thousand clusters, sample with a per-cluster cap. Without this, your top-scored 20k collapses onto one or two intents, because judges have systematic taste.
+
+**5. Mixture.** Set the per-capability budget up front to match production traffic, plus a general-instruction slice to prevent regressions. Selection scores should compete within a bucket, not across buckets.
+
+Then read 100 random selected examples yourself. Every selection pipeline I have built had a bug that only surfaced by reading.
+
+The part that separates candidates: **ablate against random.** Train on a random 20k, your selected 20k, and 20k selected on a single axis. If the elaborate pipeline does not beat random 20k on a real eval, you built a Rube Goldberg machine and random is the better engineering decision. That baseline is non-negotiable, and it fails more often than people admit.
+
+**Follow-ups:** How would you handle the case where your judge model and your target model share a base, so the judge systematically prefers its own style? What changes if the 500k examples come from 4 different sources with very different quality profiles?
+
+</details>
+
+### 32. Walk me through actually collecting preference data. What are the logistics, and where does it go wrong?
+
+<details><summary><b>Answer</b></summary>
+
+The engineering is maybe 20% of the work. Annotation design is the rest.
+
+**Sampling responses.** Generate on-policy from the model you are about to train, not from a grab-bag of different models, or the reward model learns to identify models rather than judge quality. Sample at temperature ~0.8-1.0 so the two responses genuinely differ; near-identical pairs produce coin-flip labels that are pure noise. Some teams sample 4-8 and take best/worst by a judge to get a clean margin, trading off-policy-ness for signal.
+
+**Format.** Pairwise comparison beats absolute 1-5 ratings, because annotators are not calibrated against each other and one person's 3 is another's 4. Comparative judgments cancel that out. Include a "tie / both bad" option, and require a free-text reason: it is a quality check on the annotator and useful training data later.
+
+**Rubric.** Define what "better" means, per dimension (correctness, instruction following, safety, tone) with a stated tie-break priority. Without a rubric, annotators default to length and confident tone, and you have just built a length-bias dataset.
+
+**Quality control.** Overlap ~5-10% of items across annotators and track agreement. Expect Krippendorff's alpha around 0.6-0.75 for genuinely subjective preference and do not panic, disagreement is real signal, not just noise. Aim higher (0.8+) on objective dimensions. Seed gold items with known answers to catch drift, run per-annotator dashboards, and hold calibration sessions. Use domain experts for domain data: a generalist crowd cannot judge medical or code correctness and will pick the prettier answer.
+
+**Known biases:** position (randomise which response is shown first), length (measure the fraction of pairs where chosen is longer, and if it is above ~65% you will see it in the trained model), and annotator-population values becoming the model's values.
+
+**Budget:** tens of thousands of pairs for a general RM, low thousands for a narrow one. Have your own team label the first 500 before you pay anyone.
+
+**Follow-ups:** Your vendor delivers 50k pairs with alpha of 0.45. What do you do? How would you design the collection differently if the task is code review rather than open-ended chat?
+
+</details>
+
+### 33. How do you evaluate a reward model? Why is held-out pairwise accuracy not enough?
+
+<details><summary><b>Answer</b></summary>
+
+Pairwise accuracy on a held-out preference set is the first sanity check, it saturates quickly, and it correlates poorly with how good the resulting policy is.
+
+Why it misleads:
+
+- It is measured on the SFT model's output distribution. During RL the policy moves away from that distribution, and the RM's real job is to be correct about text it will only encounter after hundreds of optimisation steps. Test accuracy says nothing about that regime.
+- It weights all pairs equally, and most pairs are easy. Everything scores high on easy pairs, so the metric compresses.
+- It ignores calibration and margins. An RM that is correct by a hair everywhere is trivially hackable.
+
+What I actually run:
+
+1. **A benchmark for triage.** RewardBench / RewardBench 2 give category-level accuracy (chat, safety, reasoning), so you can spot that your RM is at chance on code before you waste a training run.
+2. **Bias probes.** Construct controlled pairs where only one thing varies: length, markdown formatting, agreeableness. Measure the score delta. If the RM prefers the longer response 90% of the time, it will teach your policy to ramble.
+3. **Best-of-N curves.** Sample N = 1..64 from the policy, rerank with the RM, and score the top pick with ground truth (a verifier, or a strong judge). A sound RM improves the true metric monotonically in N. A hackable one peaks at a moderate N and then declines, because at large N you are sampling the RM's failure modes. That inversion is the single most useful diagnostic, because it is optimisation pressure in miniature and costs no training.
+4. **Fresh on-policy human agreement,** refreshed each round. RMs go stale as the policy shifts, which is exactly why online RLHF keeps a KL leash or retrains the RM.
+5. **Calibration.** Bradley-Terry says the score difference should map through a sigmoid to human preference rate. Check that it does.
+
+My ship criterion is (3) and (4). Not test accuracy.
+
+**Follow-ups:** How would you decide when to retrain the reward model during a long RLHF run? What would a best-of-N curve that is flat from N=1 tell you?
+
+</details>
+
 ## Advanced
 
-### 25. Explain gradient accumulation, gradient checkpointing, and ZeRO/FSDP - and how you'd combine them for a real training run.
+### 34. Explain gradient accumulation, gradient checkpointing, and ZeRO/FSDP - and how you'd combine them for a real training run.
 
 <details><summary><b>Answer</b></summary>
 
@@ -541,7 +748,7 @@ Three orthogonal tools attacking different memory terms:
 
 </details>
 
-### 26. Explain GRPO. Why has it displaced PPO for reasoning RL?
+### 35. Explain GRPO. Why has it displaced PPO for reasoning RL?
 
 <details><summary><b>Answer</b></summary>
 
@@ -563,7 +770,7 @@ Tradeoffs to name: many samples per prompt makes generation the compute bottlene
 
 </details>
 
-### 27. Why are math and code so RL-friendly? Explain verifiable rewards and the R1-style training recipe.
+### 36. Why are math and code so RL-friendly? Explain verifiable rewards and the R1-style training recipe.
 
 <details><summary><b>Answer</b></summary>
 
@@ -581,7 +788,7 @@ The broader significance: this is the test-time-compute paradigm - RL teaches th
 
 </details>
 
-### 28. What are RLAIF and Constitutional AI? How does AI feedback replace human feedback?
+### 37. What are RLAIF and Constitutional AI? How does AI feedback replace human feedback?
 
 <details><summary><b>Answer</b></summary>
 
@@ -598,7 +805,7 @@ The constitution matters beyond cost: it makes alignment criteria **explicit, in
 
 </details>
 
-### 29. What is the "alignment tax"? How does preference tuning cause over-refusal, and how do you manage it?
+### 38. What is the "alignment tax"? How does preference tuning cause over-refusal, and how do you manage it?
 
 <details><summary><b>Answer</b></summary>
 
@@ -619,7 +826,7 @@ The mature framing to end on: some tax is a deliberate product/policy choice - t
 
 </details>
 
-### 30. When is fine-tuning the wrong call? Describe failure modes you'd warn a team about.
+### 39. When is fine-tuning the wrong call? Describe failure modes you'd warn a team about.
 
 <details><summary><b>Answer</b></summary>
 
@@ -638,7 +845,7 @@ Failure modes to warn about even when fine-tuning *is* right: catastrophic forge
 
 </details>
 
-### 31. Hosted fine-tuning APIs vs training it yourself - how do you decide?
+### 40. Hosted fine-tuning APIs vs training it yourself - how do you decide?
 
 <details><summary><b>Answer</b></summary>
 
@@ -660,7 +867,7 @@ A sensible default path: prototype on a hosted API to prove value fast, and move
 
 </details>
 
-### 32. Your fine-tuned model's training loss looked great, but outputs in production are worse than the base model. Walk me through your debugging process.
+### 41. Your fine-tuned model's training loss looked great, but outputs in production are worse than the base model. Walk me through your debugging process.
 
 <details><summary><b>Answer</b></summary>
 
@@ -684,7 +891,7 @@ The meta-answer interviewers want: reproduce a concrete failing example end-to-e
 
 </details>
 
-### 33. Design an end-to-end fine-tuning pipeline for a customer-support model at a mid-size company. Walk me through data → training → eval → deployment → iteration.
+### 42. Design an end-to-end fine-tuning pipeline for a customer-support model at a mid-size company. Walk me through data → training → eval → deployment → iteration.
 
 <details><summary><b>Answer</b></summary>
 
@@ -704,7 +911,7 @@ The meta-answer interviewers want: reproduce a concrete failing example end-to-e
 
 </details>
 
-### 34. How do you construct the data mixture for a fine-tune to prevent capability regressions - and how do you validate the mixture?
+### 43. How do you construct the data mixture for a fine-tune to prevent capability regressions - and how do you validate the mixture?
 
 <details><summary><b>Answer</b></summary>
 
@@ -731,7 +938,7 @@ If general data can't fix a specific regression, escalate to LoRA-only training 
 
 </details>
 
-### 35. Explain sequence packing in SFT. What's the attention contamination problem and how is it solved?
+### 44. Explain sequence packing in SFT. What's the attention contamination problem and how is it solved?
 
 <details><summary><b>Answer</b></summary>
 
@@ -751,7 +958,7 @@ Nuances that signal depth: (1) some recipes skip the mask and accept contaminati
 
 </details>
 
-### 36. How do you serve fine-tuned models at scale - merged checkpoints vs adapters, versioning, rollback?
+### 45. How do you serve fine-tuned models at scale - merged checkpoints vs adapters, versioning, rollback?
 
 <details><summary><b>Answer</b></summary>
 
@@ -769,5 +976,125 @@ The core decision is **merged checkpoint vs. runtime adapter**, and it's driven 
 - **Watch the interactions**: adapters add small per-token overhead and constrain some kernel fusions; measure your actual latency SLO under multi-LoRA batching, and cap concurrently-active adapters per replica based on memory headroom.
 
 **Follow-ups:** Why can serving a QLoRA-trained adapter on an fp16 base shift behaviour? Design routing for 500 tenant adapters where 10 tenants are 80% of traffic. What changes if variants need different system prompts too?
+
+</details>
+
+### 46. Your DPO run improves win rate against the SFT model, but outputs are longer, waffly and hedge constantly. Debug it.
+
+<details><summary><b>Answer</b></summary>
+
+You optimised the preference proxy, not quality. The two usual causes are length bias in the data and beta set too low. Diagnose before you touch anything.
+
+**1. Measure the data.** Compute the fraction of pairs where the chosen response is longer than the rejected. Above ~65% and your dataset literally encodes "longer is better"; DPO is faithfully learning what you gave it. Also measure output length before and after: a 1.5-2x jump is the smoking gun.
+
+**2. Distrust the win rate.** If you measured it with an LLM judge, judges carry their own verbosity and formatting bias, so your "improvement" may be measurement error. Re-score with a length-controlled win rate, or bucket by length. If the gain evaporates under length control, there was no gain.
+
+**3. Look at the log probabilities.** In DPO both chosen and rejected logps typically fall, since the loss only cares about the margin. If the chosen logp is dropping hard, you are in likelihood displacement: the model is suppressing everything and the probability mass flows to unrelated tokens, which surfaces exactly as generic hedging. Fixes: raise beta, run SFT on the chosen responses first, or add an SFT auxiliary term (this is essentially what ORPO and RPO-style variants build in). And confirm the reference model is the same checkpoint you initialised the policy from. A reference that is not the SFT checkpoint is a classic and completely silent bug.
+
+**4. Sweep beta** at ~0.05, 0.1, 0.3, plotting KL to the reference alongside win rate. Pick the point before KL takes off. Low beta means an unconstrained policy that drifts into degeneracy.
+
+**5. Fix the data** rather than the loss where you can: rebalance so chosen and rejected have similar length distributions, or use a length-normalised objective (SimPO-style).
+
+**6. Epochs.** DPO overfits fast. One epoch is usually right; three is usually a mistake.
+
+Then re-evaluate on the actual production task, not the preference proxy that got you here.
+
+**Follow-ups:** Why do both chosen and rejected log probabilities decrease during DPO, and when is that actually fine? How would you construct a length-controlled evaluation that a reviewer would trust?
+
+</details>
+
+### 47. Your fine-tune gained 8 points on your benchmark. How do you know the gain is real and not contamination?
+
+<details><summary><b>Answer</b></summary>
+
+Assume it is contaminated until proven otherwise, especially if any of the training data is synthetic.
+
+**Where contamination gets in:**
+- Your training data contains the eval items directly, scraped from the same source.
+- Your *teacher* saw the benchmark during pretraining, so distilled synthetic data reproduces eval items or the exact reasoning that solves them. This is the sneaky one: you never touched the test set, but your teacher did.
+- The eval is public, so the base model was already contaminated. Your "before" number is inflated too, just differently, and the delta is meaningless.
+- You split before deduping, so near-duplicates straddle train and test.
+
+**Checks, cheapest first:**
+1. n-gram overlap between every eval item and the training set (13-gram is the common convention), plus embedding nearest-neighbour search, since paraphrases sail straight past n-grams. Report the contaminated fraction and re-score with those items removed.
+2. Dedup, then split. Split by source or entity if items cluster, not randomly.
+3. Memorisation probe: can the model complete an eval answer from a truncated prompt? Is loss on the eval anomalously below comparable fresh data? Both are flags.
+4. **The one that matters:** a private eval your team wrote after the training data was frozen, never posted anywhere, never in a prompt. Plus a temporal holdout of data created after the base model's cutoff. This is exactly why rolling evals like LiveBench and LiveCodeBench exist.
+5. Perturbation: rename entities, change numbers, shuffle multiple-choice option order. Genuine capability survives; memorisation collapses. A large drop from shuffling option order is a classic tell.
+6. Read the newly-correct items. If the 8 points are all one template, it memorised a template.
+
+And the outer loop: 8 benchmark points is not the goal. Does it move the production metric? Contamination cannot fake a live A/B test, which is why I gate ships on that and treat the benchmark as a smoke test.
+
+**Follow-ups:** You find 3% n-gram overlap and removing it costs you 2 of the 8 points. Do you ship? How would you detect that your synthetic-data teacher was contaminated, given you cannot inspect its training set?
+
+</details>
+
+### 48. You are running GRPO with a verifier reward on a code task. Reward climbs steadily, but outputs get shorter and more repetitive and held-out pass rate drops. What is happening?
+
+<details><summary><b>Answer</b></summary>
+
+Entropy collapse plus verifier hacking, and the reward curve is why you did not notice.
+
+**Diagnose in this order:**
+
+1. **Plot policy entropy per step.** Steady collapse means the model concentrated on one mode. Once entropy is near zero, GRPO has no signal at all: all G samples in a group become identical, advantages go to zero, the gradient vanishes, and you are just sharpening whatever it converged to. Log the fraction of degenerate groups (all-pass or all-fail). If most groups are degenerate you are burning compute and learning nothing.
+
+2. **Read the samples.** Not the reward curve. The samples. Reward-up-quality-down almost always means an exploitable verifier: passing on a trivial special case, matching stdout format only, hard-coding expected outputs, `exit(0)`, reading the test file. Verifier hacking is unit-test hacking, and models are very good at it.
+
+3. **Decompose the reward.** If you added shaping terms (format reward, length penalty) they usually dominate, because format is trivially satisfiable, so the model maxes it and stops improving correctness. Log every component separately. Almost everyone learns this the expensive way.
+
+4. **Prompt set difficulty.** If train prompts get solved but held-out drops, your prompts are too narrow or too easy. Drop prompts where all G rollouts pass (no gradient) and where none pass (no signal, unless you are building a curriculum), and re-filter as the policy improves.
+
+5. **KL coefficient.** Too small lets the policy run away; too large pins it to the reference. R1-style recipes sometimes drop KL entirely, which works only when the verifier is airtight.
+
+**Fixes:** raise sampling temperature or add an entropy bonus, filter degenerate groups, harden the verifier (sandbox with no network, no test-file access, and hold out tests the model never optimises against), separate reward components, and gate on held-out pass rate as the ship metric rather than train reward. Two known biases worth mentioning: dividing advantages by the group standard deviation biases toward low-variance prompts, and length-normalising the loss biases toward length. If your symptoms match, try removing them.
+
+**Follow-ups:** How would you design a verifier that is genuinely hard to hack for a code task? Why does entropy collapse specifically kill GRPO harder than it kills PPO?
+
+</details>
+
+### 49. Design a pipeline to distil a frontier model's performance on your task into an 8B model you can serve yourself. Walk me through the whole thing.
+
+<details><summary><b>Answer</b></summary>
+
+The shape is: prompt distribution, teacher generation, filtering, SFT, on-policy refinement, eval gate. The filtering and the on-policy step are where the quality actually comes from.
+
+**1. Prompts first.** The prompt distribution matters more than the responses. Pull real production prompts, scrub PII, check consent. Synthetic prompts drift off-distribution and you end up with a model that is great at problems nobody has. Cluster and rebalance so the tail is represented. Target ~20-50k prompts.
+
+**2. Teacher generation.** Sample k=4-8 completions per prompt at temperature ~0.7-1.0. Check the teacher's terms of use *first*: several API providers prohibit training competing models on their outputs, and legal will kill this at the last minute otherwise. Open-weight teachers with permissive licences avoid the question entirely.
+
+**3. Filter, do not dump.** This is rejection fine-tuning. Where a verifier exists (tests, schema, answer key), keep only passing completions. Where it does not, use a judge or reward model, keep the best per prompt, and drop prompts where every sample fails, because those teach the model to be confidently wrong. Expect to discard 30-60%. Dedup and decontaminate here.
+
+**4. SFT the 8B** on the filtered set: correct chat template, loss masked to response tokens.
+
+**5. The step people skip: on-policy distillation.** Offline SFT only ever shows the student the teacher's distribution, so the student's own characteristic errors are never corrected, and you get exposure bias at inference. Sample from the *student*, have the teacher score or correct those samples, train on that. If teacher and student share a tokenizer and you can get logits, sequence-level KD on the student's own samples carries far more signal per token than hard labels. Otherwise use the teacher as a judge and run a preference round.
+
+**6. Eval gate.** Side-by-side against the teacher on a held-out set, plus latency and cost per request. Be honest about the ceiling: distillation transfers narrow behaviour and format reliably, and does not transfer general capability. If the task needs broad reasoning, an 8B may simply not get there. That is a valid finding, not a failure.
+
+**7. Flywheel.** Route low-confidence production traffic to the teacher; those become next round's data.
+
+**Follow-ups:** How would you decide the routing threshold between student and teacher in production? What changes if the teacher and student have different tokenizers and you only have text outputs?
+
+</details>
+
+### 50. You want to RL-train an agent for a multi-turn tool-use task, and the only reward you have is whether the final task succeeded. How do you make that work?
+
+<details><summary><b>Answer</b></summary>
+
+The hard parts are the environment and credit assignment. The algorithm is the easy bit.
+
+**1. Environment before algorithm.** You need a sandbox you can reset, run thousands of times a day in parallel, and that is deterministic enough that the same policy gets the same reward. Mock or record-and-replay external APIs. A live API in the loop gives you rate limits, flakiness and side effects, and reward noise from a flaky environment is indistinguishable from a bad action, so it poisons training directly. Cap turns and tool calls so one runaway episode cannot eat the batch.
+
+**2. Task set.** A few thousand tasks with programmatic success checks and a spread of difficulty. Then filter continuously: tasks solved on every rollout give no gradient, tasks never solved give no signal. Train the band in between and re-filter as the agent improves. That is your curriculum, and it is most of the win.
+
+**3. Credit assignment.** A group-relative method (GRPO-style: N rollouts per task, advantage relative to the group) gets you surprisingly far without a value network, which is welcome because value models are unreliable over long horizons. The whole trajectory shares one advantage, which is coarse, but it works when N is large enough and difficulty is right. If it is still too sparse, add step signal: a PRM, or cheap programmatic milestones (did it locate the right file, did the tool call parse, did the query return rows). Keep milestone rewards small relative to the terminal reward and log them separately, because shaped rewards are the easiest thing in the world to hack.
+
+**4. Masking.** Train only on the model's own tokens. Tool outputs, observations and system messages are context, not targets. Get this wrong and the model learns to hallucinate tool results, which is a nasty bug that looks like a capability problem.
+
+**5. Guardrails.** KL to reference, watch entropy, hold out a task set the reward never touches.
+
+**6. Validate the reward before spending compute.** Run 50 rollouts with a strong model and read them. Check that "success" means what you think. It usually does not on the first try.
+
+**Follow-ups:** How would you handle a task where success is only checkable by a human? Why is trajectory-level advantage tolerable here, and at what horizon does it stop working?
 
 </details>
