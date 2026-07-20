@@ -1,6 +1,6 @@
 # Interview Process & Behavioral - Interview Questions
 
-35 questions: 10 basic, 13 intermediate, 12 advanced. Answers here are guidance - what the interviewer is probing, how to structure a strong answer (STAR-ish: Situation → Task → Action → Result, with numbers), a brief example sketch, and the pitfalls that sink candidates.
+37 questions: 10 basic, 14 intermediate, 13 advanced. Answers here are guidance - what the interviewer is probing, how to structure a strong answer (STAR-ish: Situation → Task → Action → Result, with numbers), a brief example sketch, and the pitfalls that sink candidates.
 
 ## Basic
 
@@ -393,9 +393,25 @@ What's fatal is agreeing while visibly not agreeing, then quietly continuing to 
 
 </details>
 
+### 24. How do you use AI coding tools in your own work? Walk me through your workflow on a recent task.
+
+<details><summary><b>Answer</b></summary>
+
+This has quietly become a graded question. Meta now runs an AI-enabled coding round, Amazon has mixed AI-assisted tasks into online assessments, OpenAI is piloting an agentic-coding round, and job descriptions (Perplexity among them) list experience with agentic coding tools as a requirement. The interviewer is probing whether you have a real, disciplined workflow or are either a sceptic who has not adapted or someone who pastes and prays.
+
+**What a strong answer contains.** Ground it in one concrete recent task. Describe the division of labour: what you delegated (boilerplate, test scaffolding, a well-specified refactor, exploring an unfamiliar API), what you kept (architecture decisions, the tricky invariant, anything security-sensitive), and why. Describe how you direct the tool: small scoped asks with context provided, your own plan stated first, not "build the feature". Then the differentiator: verification. Strong candidates describe reading every generated diff, running tests before accepting, and catching a concrete case where the tool was confidently wrong; naming a real failure you caught is worth more than praising the tool.
+
+**Signals of seniority.** Decomposing work so parts can run in parallel with an agent while you handle the core; knowing when the tool is net-negative (novel algorithms, code needing deep repo context the tool lacks); treating generated code to the same review bar as a junior engineer's PR, since you own what you merge.
+
+**Pitfalls.** Claiming you never use AI tools (reads as rigid in 2026), claiming they write most of your code without quality caveats (reads as unserious about ownership), and having no concrete example ready.
+
+**Follow-ups:** Tell me about a time an AI tool led you down a wrong path - how did you notice? Where do you draw the line on what you will not delegate?
+
+</details>
+
 ## Advanced
 
-### 24. Tell me about a time you pushed back on shipping something you believed was unreliable.
+### 25. Tell me about a time you pushed back on shipping something you believed was unreliable.
 
 <details><summary><b>Answer</b></summary>
 
@@ -411,7 +427,7 @@ What's fatal is agreeing while visibly not agreeing, then quietly continuing to 
 
 </details>
 
-### 25. You're asked to ship an AI feature you have safety or ethical concerns about. Walk me through what you'd do - or a time it happened.
+### 26. You're asked to ship an AI feature you have safety or ethical concerns about. Walk me through what you'd do - or a time it happened.
 
 <details><summary><b>Answer</b></summary>
 
@@ -427,7 +443,7 @@ What's fatal is agreeing while visibly not agreeing, then quietly continuing to 
 
 </details>
 
-### 26. Tell me about a technical disagreement over model choice - how was it resolved?
+### 27. Tell me about a technical disagreement over model choice - how was it resolved?
 
 <details><summary><b>Answer</b></summary>
 
@@ -443,7 +459,7 @@ What's fatal is agreeing while visibly not agreeing, then quietly continuing to 
 
 </details>
 
-### 27. Deadline pressure: do you spend the next two weeks on eval infrastructure or the feature itself? How have you actually made this call?
+### 28. Deadline pressure: do you spend the next two weeks on eval infrastructure or the feature itself? How have you actually made this call?
 
 <details><summary><b>Answer</b></summary>
 
@@ -459,7 +475,7 @@ What's fatal is agreeing while visibly not agreeing, then quietly continuing to 
 
 </details>
 
-### 28. A stakeholder wants to send sensitive customer data (PII) to a third-party model API. They say the business need justifies it. What do you do?
+### 29. A stakeholder wants to send sensitive customer data (PII) to a third-party model API. They say the business need justifies it. What do you do?
 
 <details><summary><b>Answer</b></summary>
 
@@ -475,7 +491,7 @@ What's fatal is agreeing while visibly not agreeing, then quietly continuing to 
 
 </details>
 
-### 29. Tell me about mentoring or upskilling teammates on AI. How did you approach it and what changed?
+### 30. Tell me about mentoring or upskilling teammates on AI. How did you approach it and what changed?
 
 <details><summary><b>Answer</b></summary>
 
@@ -491,7 +507,7 @@ What's fatal is agreeing while visibly not agreeing, then quietly continuing to 
 
 </details>
 
-### 30. Your provider deprecates the model your product depends on, with 90 days' notice. Walk me through what you'd do - or a migration you actually ran.
+### 31. Your provider deprecates the model your product depends on, with 90 days' notice. Walk me through what you'd do - or a migration you actually ran.
 
 <details><summary><b>Answer</b></summary>
 
@@ -507,7 +523,7 @@ What's fatal is agreeing while visibly not agreeing, then quietly continuing to 
 
 </details>
 
-### 31. Leadership saw a demo and now expects magic. Tell me about managing expectations for what an AI system can actually do.
+### 32. Leadership saw a demo and now expects magic. Tell me about managing expectations for what an AI system can actually do.
 
 <details><summary><b>Answer</b></summary>
 
@@ -523,7 +539,7 @@ What's fatal is agreeing while visibly not agreeing, then quietly continuing to 
 
 </details>
 
-### 32. Your assistant's answer quality regressed and nobody noticed for three weeks. You're writing the postmortem. Walk me through the document.
+### 33. Your assistant's answer quality regressed and nobody noticed for three weeks. You're writing the postmortem. Walk me through the document.
 
 <details><summary><b>Answer</b></summary>
 
@@ -547,7 +563,7 @@ Blameless, but not mushy: the finding is that we shipped a system whose quality 
 
 </details>
 
-### 33. Tell me about a time you argued to kill an AI feature that was already live.
+### 34. Tell me about a time you argued to kill an AI feature that was already live.
 
 <details><summary><b>Answer</b></summary>
 
@@ -573,7 +589,7 @@ Killing your own work is a seniority signal. Most AI portfolios I've inherited n
 
 </details>
 
-### 34. An AI feature you're shipping needs sign-off from legal, security, and data governance. How do you run that without it eating the quarter?
+### 35. An AI feature you're shipping needs sign-off from legal, security, and data governance. How do you run that without it eating the quarter?
 
 <details><summary><b>Answer</b></summary>
 
@@ -597,7 +613,7 @@ Where I push back: if a control makes the feature useless, I say so plainly and 
 
 </details>
 
-### 35. You join as a staff engineer. The team ships prompt changes on vibes, has no evals, and as far as they can tell is shipping fine. What do you do in your first 90 days?
+### 36. You join as a staff engineer. The team ships prompt changes on vibes, has no evals, and as far as they can tell is shipping fine. What do you do in your first 90 days?
 
 <details><summary><b>Answer</b></summary>
 
@@ -612,5 +628,23 @@ I don't open by telling them evals matter. They've heard it, and a team shipping
 What I wouldn't do: propose an eval platform, demand a merge gate before there's trust, or frame any of it as process maturity. And I'd stay honest that 50 cases is not a real eval. It's the smallest thing that makes the argument. Where it goes next is the team's call, once they've felt it work.
 
 **Follow-ups:** What if the demonstration fails and the script never catches anything? Do you conclude they were right? How do you handle the engineer who wrote the prompt the script just flagged?
+
+</details>
+
+### 37. You are embedded with an enterprise customer whose stated goal is "we want AI in our workflows", with no spec. Walk me through your first month.
+
+<details><summary><b>Answer</b></summary>
+
+This is the forward-deployed engineer scenario, and it is now the job description almost verbatim at OpenAI, Anthropic, Databricks, and Sierra: own discovery, scoping, build, and rollout, embedded with customer teams, measured by production adoption.
+
+**Week one: discovery, not building.** Shadow the actual workflows and find where hours are spent on judgment-light, text-heavy work: triage, summarisation, drafting, lookup. Interview the people doing the work, not just the sponsor; the sponsor knows the budget, the operators know the pain. Map data access, security constraints, and who can say no to a deployment (legal, security, works council). The classic failure is building the sponsor's pet idea, which the operators then ignore.
+
+**Week two: pick the first slice.** Choose a use case that is high-frequency, low-blast-radius, measurable, and reachable with the data you can actually touch, then write a one-page scope: what it does, what it explicitly does not do, and the success metric agreed with the customer. Define evals up front as the success contract: a golden set built from their real historical cases, a target quality bar, and who judges disagreements. This converts "we want AI" into something falsifiable and protects both sides at rollout time.
+
+**Weeks three and four: working software plus the feedback loop.** Ship a thin end-to-end slice to a handful of friendly operators, instrument everything (acceptance rate, edit distance, escalation rate), and run a tight iteration loop on real failures. Close the month by presenting measured results against the agreed bar and a scale-or-stop recommendation.
+
+**What the interviewer grades.** Discovery discipline before code, evals as the contract, blast-radius thinking, and honest communication about model limitations, including the ability to say the second-priority use case is not ready for current models.
+
+**Follow-ups:** The operators like it but the sponsor is unhappy the demo is not flashier - handle it. What would make you recommend stopping after the pilot?
 
 </details>
