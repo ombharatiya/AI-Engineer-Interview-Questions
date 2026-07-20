@@ -9,6 +9,7 @@
 - Expect at least one **ML coding round where you build a primitive from scratch** (attention, a loss, a sampling routine, a training loop) and where interviewers reportedly expect the code to actually run - no libraries doing the work, no AI assistance (candidate reports describe a strict no-AI-tools policy in technical rounds).
 - The **algorithmic coding bar is standard Google**: LeetCode-medium/hard, clean communication, complexity analysis. Clearing coding is often gated before the ML rounds (reported, varies).
 - Process is **slow and committee-driven**: recruiter → hiring manager → phone screens → 5-7 round loop → hiring committee. Public reports put end-to-end at roughly 6-10 weeks, longer for research tracks.
+- **At least one round is now in person.** Google reinstated mandatory in-person interviewing for hires in 2025, a change publicly backed by Sundar Pichai and explicitly motivated by AI-assisted cheating in virtual technical rounds. Plan travel into your timeline.
 
 ## Company context
 
@@ -29,7 +30,7 @@ Note the ladder distinction: DeepMind maintains RE and RS as separate ladders wi
 
 ## The interview loop
 
-Public info on the DeepMind RE loop is comparatively good (multiple detailed candidate write-ups and coaching-site guides agree on shape). Confidence: **medium-high** for structure, lower for round-by-round specifics, which vary by team and level.
+Public info on the DeepMind RE loop is comparatively good (multiple detailed candidate write-ups and coaching-site guides agree on shape). Confidence: **medium-high** for structure, lower for round-by-round specifics, which vary by team and level. Since 2025, expect at least one stage to be conducted on site rather than virtually (company-wide policy, widely reported).
 
 | Stage | Format | What's evaluated |
 |---|---|---|
@@ -316,3 +317,4 @@ Anti-patterns: villainising the counterpart, "I was right all along" endings, es
 - [IGotAnOffer - Google DeepMind Research Engineer Interview](https://igotanoffer.com/en/advice/google-deepmind-research-engineer-interview) - coding/ML round gating and difficulty reports
 - [IGotAnOffer - Google Machine Learning Engineer Interview](https://igotanoffer.com/blogs/tech/google-machine-learning-engineer-interview) - Google-side SWE-ML loop structure
 - [Glassdoor - Google DeepMind Interview Questions](https://www.glassdoor.com/Interview/Google-DeepMind-Interview-Questions-E1596815.htm) - aggregated candidate reports
+- [Business Standard - Google shifts to in-person interviews amid AI cheating concerns](https://www.business-standard.com/companies/news/google-ai-cheating-job-interviews-in-person-hiring-shift-sundar-pichai-125082600492_1.html) - the 2025 in-person interviewing mandate

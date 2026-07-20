@@ -9,6 +9,7 @@
 - System design is tied to their real problems: LLM serving, batching, GPU utilisation, agent harnesses, evals.
 - The **values/culture round is where many otherwise-strong candidates fail**, per multiple public reports. Some version of "Why Anthropic?" reportedly comes up in nearly every round - a generic answer is a failure mode.
 - AI-use policy (official, published): refine your application with Claude after drafting it yourself; **no AI in take-homes or live interviews unless they explicitly say otherwise**. Some take-homes (e.g., performance engineering) explicitly allow it - read the instructions for your loop.
+- The exception is growing: some MLE loops now include a round where you are **given Claude and graded on how effectively you collaborate with it** - directing it, verifying its output, knowing when not to use it. (reported, varies by role)
 
 ## Company context
 
@@ -37,7 +38,7 @@ Public information on Anthropic's loop is unusually good: they publish official 
 | Technical screen | 45-60 min live coding; platform varies by team (reported, varies) | Practical implementation at medium-hard difficulty; communication while coding. You may reference docs - but no AI unless told otherwise. |
 | Take-home | Timed, role-specific (e.g., performance eng; Applied AI customer brief) | Production-quality code against a realistic, sometimes ambiguous spec. Some versions explicitly allow AI tools; most prohibit them. (reported, varies) |
 | Onsite: project deep dive | 1 hr with hiring manager (some candidates prepare a doc/presentation) (reported, varies) | End-to-end ownership: technical decisions, tradeoffs, cross-team coordination. |
-| Onsite: coding (x1-2) | 1 hr each, Python | Build-from-scratch, first-principles implementation; edge cases; concurrency comes up often. (reported, varies) |
+| Onsite: coding (x1-2) | 1 hr each, Python | Build-from-scratch, first-principles implementation; edge cases; concurrency comes up often. Some MLE loops replace one round with an AI-collaboration round where Claude is provided and graded. (reported, varies) |
 | Onsite: system design | 1 hr (reported, varies) | Problems adjacent to their stack: LLM serving, batching/queuing, GPU utilisation, agents, evals. |
 | Onsite: values/culture | 1 hr, non-technical (reported, varies) | Ethical reasoning, relationship to AI risk, honesty and self-awareness. Reported as a round where many candidates fail. |
 | Applied AI/FDE extra | Use-case and solution-design rounds | Scoping an ambiguous customer problem, technical communication with a non-expert, pushback handling. (reported, varies) |
@@ -285,6 +286,24 @@ Preparation is legitimate here and their own guidance endorses using Claude for 
 
 </details>
 
+### 12. Design the tool surface for a coding agent: which tools exist, what their schemas look like, and how results come back.
+
+<details><summary><b>Answer</b></summary>
+
+This is reported MLE-round territory: tool and MCP schema design as an engineering discipline, not an afterthought. A strong answer works through four layers.
+
+**Which tools.** Fewer, more capable tools beat many granular ones. A coding agent needs roughly: read (file or range), search (regex or semantic over the repo), edit (targeted replacement, not whole-file rewrite), execute (run tests or a command in a sandbox), and one escape hatch for everything else (shell). Every additional tool costs context tokens in its definition and adds a wrong-tool branch to every decision. Consolidate: one search tool with a mode parameter, not three search tools.
+
+**Schemas.** Parameter names should make invalid states hard to express: an edit tool that takes old text and new text forces the model to prove it read the file, where a line-number interface invites stale-offset bugs. Descriptions carry the behavioural contract: what happens on ambiguity, what the tool refuses to do, what errors look like. Vague descriptions are the top reported cause of tool-calling failures.
+
+**Results.** Token economics dominate. A test run that dumps 40,000 tokens of output wrecks the context budget; return the failure summary plus the first relevant traceback, with a way to fetch more. Errors must be actionable to the model: "file not found: did you mean src/utils.py" lets the loop self-correct, where a bare exception ends the trajectory.
+
+**Budget.** State the loop-level guards: max iterations, per-session token budget, and which calls (anything destructive) require confirmation rather than auto-execution.
+
+**Follow-ups:** When would you split one consolidated tool into two? How would you measure whether a tool-surface change actually improved the agent, and on what eval set?
+
+</details>
+
 ## How to prepare
 
 **Topic directories to go deep on, in priority order:**
@@ -315,4 +334,5 @@ Preparation is legitimate here and their own guidance endorses using Claude for 
 - [Fortune - Anthropic's hiring U-turn on AI use by applicants (July 2025)](https://fortune.com/2025/07/21/billion-dollar-giant-anthropic-ai-ban-hiring-policy-change-job-seekers-interview-process/) (policy history; surfaced via search)
 - [Exponent - Anthropic Forward Deployed Engineer (FDE) Interview Guide](https://www.tryexponent.com/guides/anthropic-forward-deployed-engineer-interview) (FDE/Applied AI loop reports; surfaced via search)
 - [IGotAnOffer - Anthropic Interview Process & Timeline](https://igotanoffer.com/en/advice/anthropic-interview-process) (stage/timeline reports)
+- [Exponent - Anthropic Machine Learning Engineer Interview Guide](https://www.tryexponent.com/guides/anthropic-machine-learning-engineer-interview) (MLE round reports: AI-collaboration rounds, agent-infrastructure and MCP themes; surfaced via search)
 - [Glassdoor - Anthropic Interview Questions](https://www.glassdoor.com/Interview/Anthropic-Interview-Questions-E8109027.htm) (aggregate candidate reports; surfaced via search)

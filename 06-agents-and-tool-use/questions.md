@@ -1,6 +1,6 @@
 # Agents, Tool Use & MCP - Interview Questions
 
-54 questions: 14 basic, 23 intermediate, 17 advanced.
+55 questions: 14 basic, 23 intermediate, 18 advanced.
 
 ## Basic
 
@@ -1164,5 +1164,23 @@ Static input-output pairs cannot evaluate an interactive agent, because turn 3 d
 **Where this bites you, and you should say it unprompted:** the user simulator is itself an LLM with its own failure modes. It leaks information it should withhold, it is too agreeable and accepts a wrong answer, it drifts out of character. So **validate the simulator**: have humans annotate a sample of transcripts specifically for simulator errors, and do not attribute simulator failures to the agent. Skip that and you are measuring two models while reporting one number. Dual-control variants, where the simulated user also holds tools and must act, push this further and are worth knowing.
 
 **Follow-ups:** Your agent overfits to the simulator's quirks and regresses in production. How do you detect that? How many scenarios do you need before the pass^k number means anything?
+
+</details>
+
+### 55. Design the memory and personalisation layer for an assistant serving millions of users. What do you store, when do you summarise versus retrieve, and how do you evaluate memory quality?
+
+<details><summary><b>Answer</b></summary>
+
+This is now named directly in applied-AI job descriptions (Perplexity calls it the "context layer"; Anthropic lists context engineering as an advisory area), so treat it as a system design question with four parts.
+
+**What to store.** Split memory by type. Working memory is the current conversation and lives in the context window. Episodic memory is what happened: past sessions, compacted into structured summaries at session end. Semantic memory is what is durably true about the user: stated preferences, entities, decisions, extracted as small structured facts rather than transcript blobs. Store facts with provenance (which conversation, when) so they can be corrected or expired.
+
+**Summarise versus retrieve.** Both, at different layers. Summarisation is lossy compression you pay once at write time; retrieval is precise recall you pay at read time. The pattern that scales: aggressively summarise raw transcripts into episodic notes, index both notes and extracted facts for retrieval, and at query time inject a small always-on profile (top durable facts) plus retrieved episodic context relevant to the current query. Injecting everything always is a token-budget and quality failure: irrelevant memory measurably degrades answers.
+
+**Privacy boundaries.** Memory is user data. Per-user isolation is enforced in the retrieval layer, never left to the model. Users need visibility and deletion, which means deletion must propagate to summaries, extracted facts, and any caches, not just raw logs. Sensitive categories (health, finances) may warrant opt-in rather than silent capture.
+
+**Evaluation.** Memory quality is measurable: write a golden set of (conversation history, later query, expected recalled fact) triples and score recall precision; track contradiction rate (model asserting stale facts after correction); and A/B the whole layer against no-memory on task success and user retention, because memory that does not move product metrics is cost without benefit.
+
+**Follow-ups:** How do you handle a user correcting a fact the system extracted wrongly? When does memory become a prompt-injection surface, and what is the mitigation?
 
 </details>

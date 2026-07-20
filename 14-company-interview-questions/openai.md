@@ -9,6 +9,7 @@
 - **Three broad tracks.** Software/applied engineering (practical coding + system design), research engineering (adds ML fundamentals, sometimes paper discussion), and Forward Deployed Engineering (adds customer-facing judgement and LLM-deployment design). Titles often roll up under "Member of Technical Staff."
 - **They grade code quality explicitly.** The official guide names its bar: well-designed solutions, high-quality code, performance, and good test coverage - plus communication and collaboration. Take-homes are graded on reliability and testing, not feature count.
 - **Mission and AI fluency matter.** Behavioural rounds probe why OpenAI specifically, your view on where the technology is going, and how you work with researchers and product teams. Generic "big tech prep" undershoots this.
+- **A beta "agentic coding" round is rolling out** (reported, not yet universal): you get an existing codebase and tasks deliberately too large to finish by hand, so you must drive an AI coding agent while screen-sharing and narrating. Graded on direction, verification, and judgement; pasting the whole problem into the model is reportedly penalised. AI remains strictly prohibited in every other round.
 
 ## Company context
 
@@ -36,7 +37,8 @@ Public confidence here is comparatively high: OpenAI publishes an official inter
 | Work trial / take-home | ~48-hour practical project, e.g. a small production-grade service, sometimes followed by a walkthrough or deep-dive session (reported, varies) | Reliability, code quality, testing - not feature count |
 | System design screen | ~60 min, often on a shared whiteboard tool (reported, varies) | Architecture tradeoffs, scaling, deep probing of every decision |
 | Final loop | 4-6 hours, 4-6 interviewers, 1-2 days, virtual by default (official guide) | Mix of coding, system design, project deep dive, behavioural |
-| Role-specific rounds | Research: ML fundamentals / paper discussion. FDE: customer-scenario + LLM-deployment design. Some loops: project presentation with slides; an agentic-coding round has been reported in beta (reported, varies) | Track-specific depth |
+| Role-specific rounds | Research: ML fundamentals / paper discussion (two technical screens reported for RE tracks: one general coding, one ML coding). FDE: customer-scenario + LLM-deployment design. Some loops: project presentation with slides (reported, varies) | Track-specific depth |
+| Agentic coding (beta) | Existing codebase, tasks sized beyond hand-coding, AI agent provided; screen-share and narrate (reported, beta - not all candidates get it) | How you decompose work for the agent, verify its output, and keep judgement in the loop; wholesale delegation is penalised |
 | Decision | ~1 week after finals; references may be requested (official guide) | - |
 
 End-to-end timelines reported publicly range from ~3 to 8 weeks.
@@ -279,6 +281,26 @@ What you *don't* do: promise end-to-end automation, or build for two weeks witho
 
 </details>
 
+### 13. Here are ~120 lines of working but messy code with passing tests. Improve the architecture without breaking them. What do you change first?
+
+<details><summary><b>Answer</b></summary>
+
+A refactoring exercise of exactly this shape is a reported OpenAI round, and the grading is about judgement under a clock, not aesthetic taste.
+
+**First move: read, don't type.** Spend the first minutes mapping what the code actually does, which tests pin which behaviours, and where the seams are. The strongest reported failure mode is candidates who start renaming variables in minute one and run out of time with the structural problems untouched.
+
+**Prioritise by risk-to-value.** State an explicit ordering out loud: (1) fix anything actively dangerous (shared mutable state, swallowed exceptions, hidden side effects in getters), because those block every other change; (2) carve the tangled core into functions with single responsibilities, since that unlocks testability; (3) only then do naming, dead-code removal, and cosmetic cleanup, explicitly labelled as "if time permits". Cosmetics-first is the anti-signal.
+
+**Keep the tests green the whole way.** Work in small, behaviour-preserving steps and run the tests after each one. If a change requires touching a test, say why: the test was pinning an implementation detail rather than a behaviour. Adding a missing test before an unprotected refactor is a strong senior signal.
+
+**Narrate the contract.** The interviewer wants your definition of better: fewer responsibilities per unit, dependencies made explicit, side effects isolated at the edges, and the next engineer able to extend it without reading all of it. Tie every change to one of those, not to preference.
+
+Finish with what you deliberately did not do and why: scope control is part of the grade.
+
+**Follow-ups:** The tests are green but coverage is thin - do you refactor anyway or write tests first, with ten minutes left? When is a rewrite honestly cheaper than a refactor?
+
+</details>
+
 ## How to prepare
 
 Repo topics, in priority order for OpenAI specifically:
@@ -306,5 +328,6 @@ Compensation: no numbers here - see [levels.fyi](https://www.levels.fyi/companie
 - [interviewing.io - OpenAI's Interview Process & Questions](https://interviewing.io/openai-interview-questions) - coding style, system design format, presentation and agentic-coding rounds, behavioural structure
 - [Exponent - OpenAI Forward Deployed Engineer Interview Guide](https://www.tryexponent.com/guides/openai-forward-deployed-engineer-interview) - FDE loop stages and evaluation focus
 - [IGotAnOffer - OpenAI Interview Process & Timeline](https://igotanoffer.com/en/advice/openai-interview-process) - progressive-gate screens, work-trial take-home reports, timelines
+- [Exponent - What it's actually like to interview at OpenAI in 2026](https://medium.com/exponent/what-its-actually-like-to-interview-at-openai-in-2026-03a646c9436c) - difficulty-gate coding format, refactoring exercise, product-tied design rounds, behavioural themes
 - [Glassdoor - OpenAI Interview Questions](https://www.glassdoor.com/Interview/OpenAI-Interview-Questions-E2210885.htm) - aggregated candidate reports (varies widely by team)
 - [levels.fyi - OpenAI](https://www.levels.fyi/companies/openai) - compensation data
