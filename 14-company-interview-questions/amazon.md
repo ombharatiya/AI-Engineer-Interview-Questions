@@ -9,6 +9,7 @@
 - **The loop shape is well documented.** Recruiter screen → (sometimes) online assessment → 1-2 technical phone screens → 4-6 back-to-back ~60-minute interviews covering coding, (ML) system design, domain depth, and behavioural. Amazon publishes official prep pages for several tracks.
 - **"AI engineer" spans very different orgs.** AWS AI platform teams (Bedrock, SageMaker, Q) interview like senior SDE loops with an ML flavour; the AGI org (Nova models, AGI SF Lab agents) runs science-style loops with ML breadth/depth rounds and - per candidate reports - fewer behavioural questions and heavy modern-LLM content.
 - **Coding is still classic DS&A.** Unlike most frontier labs, Amazon keeps traditional algorithm rounds (graphs, heaps, design-a-cache) alongside ML content. System design is at genuine extreme scale: multi-tenancy, throttling, cell-based isolation, and operational excellence are native vocabulary.
+- **Know the AI-use rules for your loop.** Amazon has begun mixing an AI-assisted coding task into some online assessments (documented in its own newsroom), while treating unauthorised AI-generated code in evaluations as misrepresentation. AI is allowed only where candidate instructions explicitly permit it - read them carefully.
 
 ## Company context
 
@@ -30,7 +31,7 @@ Public confidence here is high: Amazon documents its process (including official
 | Stage | Format | What's evaluated |
 |---|---|---|
 | Recruiter screen | 15-30 min | Fit, level calibration, timeline |
-| Online assessment | Coding tasks + work-style simulation; mainly SDE-track and junior roles (reported, varies) | DS&A correctness, LP-aligned judgement |
+| Online assessment | Coding tasks + work-style simulation; mainly SDE-track and junior roles. Some SDE/MLE assessments now include an AI-assisted task: work in a small repository alongside an interactive AI assistant instead of a second standalone algorithm problem (rollout reported as uneven by team) | DS&A correctness, LP-aligned judgement; on the AI-assisted variant, how you direct and verify the assistant |
 | Technical phone screen(s) | 1-2 × ~60 min, shared editor; for Applied Scientist, with a senior scientist/leader (official) | Coding, ML fundamentals (metrics, evaluation), 1-2 LP questions |
 | Onsite "loop" | 4-6 × 55-60 min back-to-back, virtual or in person; 4 interviews is the official applied-scientist shape | See below - every round includes assigned Leadership Principles |
 | - Coding round(s) | 1-2 rounds, classic DS&A; AGI loops add ML coding (implement a model component) (reported, varies) | Working code, complexity analysis, testing instincts |
@@ -365,4 +366,5 @@ Compensation data for Amazon is on [levels.fyi](https://www.levels.fyi/companies
 - [Dataford: Amazon AI Engineer interview guide](https://dataford.io/interview-guides/amazon/ai-engineer) - loop stages, Bar Raiser, evaluation areas
 - [IGotAnOffer: Amazon Machine Learning Engineer interview](https://igotanoffer.com/blogs/tech/amazon-machine-learning-engineer-interview) - MLE loop structure (surfaced in search; page body not fully retrievable at review time)
 - Publicly shared candidate reports on 1Point3Acres (e.g., [AGI ML onsite](https://www.1point3acres.com/interview/thread/1151585), [AGI SF Lab ML coding and design](https://www.1point3acres.com/interview/thread/1148854)) - AGI loop shape: coding, ML breadth/depth, science application; heavier LLM-training content, lighter behavioural (reported)
+- [About Amazon - How Amazon is using AI in hiring](https://www.aboutamazon.com/news/workplace/artificial-intelligence-resume-jobs-hiring-amazon) - official newsroom coverage of AI-assisted assessment elements
 - [levels.fyi: Amazon](https://www.levels.fyi/companies/amazon/salaries) - compensation data

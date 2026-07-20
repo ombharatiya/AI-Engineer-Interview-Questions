@@ -6,6 +6,7 @@
 
 - The loop is the classic standardised Meta big-tech loop adapted for ML: recruiter screen → 45-min coding screen → full loop of up to six 45-min rounds (coding ×2, ML system design, sometimes infra system design, behavioural).
 - **Meta now runs an AI-enabled coding round** (rolled out October 2025): ~60 minutes in a CoderPad-style environment with an LLM assistant (GPT, Claude, Gemini, Llama models available). You're graded on how well you *direct and verify* AI, not on typing speed.
+- Candidates consistently report the in-round assistant is **less helpful than in practice environments** (it reportedly will not just point at the bug), so your prompting strategy matters: guide it with your own approach and hypotheses rather than asking for wholesale solutions.
 - The coding bar for ML/AI roles is close to a pure SWE loop - Meta expects AI engineers to be strong software engineers first. Don't skimp on data structures and algorithms.
 - ML system design is where offers are won at E5+: end-to-end pipelines, ranking/recsys framing, metrics tied to business outcomes (engagement, revenue, integrity coverage) - not academic ML answers.
 - Behavioural is a real signal round, scored against five publicly documented axes: resolving conflict, growing continuously, embracing ambiguity, driving results, communicating effectively. Levelling (E4 - E7) is decided largely from scope in your behavioural and design answers.
@@ -31,8 +32,8 @@ Meta's loop is unusually well documented, including an official prep page ([meta
 | Recruiter screen | 20-30 min call / async questionnaire | Background, ML domain preference (ranking, ads, integrity, GenAI, infra), levelling calibration |
 | Technical screen | 45 min, 2 medium DS&A problems, shared editor | Problem solving, clean working code, complexity analysis, communication |
 | Full loop: coding ×1-2 | 45 min each, 2 problems per round | Same bar as SWE coding: correctness, verification, speed across two problems |
-| Full loop: AI-enabled coding | ~60 min, multi-file CoderPad with built-in LLM chat (choice of GPT, Claude, Gemini, Llama models) | Reading unfamiliar code, bug fixing, implementing a feature with AI help, verifying/explaining AI output (rolled out Oct 2025 in SWE loops across levels, replacing one classic coding round; now widely reported in MLE loops - varies by role) |
-| Full loop: ML system design ×1-2 | 45 min, open-ended ("Design X at Meta scale") | Problem framing, data/features, model choice, training + serving pipeline, metrics tied to business objectives |
+| Full loop: AI-enabled coding | ~60 min, multi-file CoderPad with built-in LLM chat (choice of GPT, Claude, Gemini, Llama models) | Three reported phases on a pre-written codebase: bug fixing, core implementation (~120+ lines), then optimisation for larger datasets - finishing everything is not required. Graded on problem solving, code understanding, verifying AI output before using it, and communication (rolled out Oct 2025, replacing one classic coding round; now widely reported in MLE loops - varies by role) |
+| Full loop: ML system design ×1-2 | 45 min, open-ended ("Design X at Meta scale") | Problem framing, data/features, model choice, training + serving pipeline, metrics tied to business objectives. Recent candidate reports: less time on feature-engineering theory, deeper probing on evaluation (offline and online) |
 | Full loop: infra system design | 45 min | Distributed systems, scaling, storage/serving (reported, varies - more common at E5+/infra-leaning roles) |
 | Full loop: behavioural | 45 min | Five signals: conflict resolution, continuous growth, ambiguity, driving results, communication; scope determines level |
 
