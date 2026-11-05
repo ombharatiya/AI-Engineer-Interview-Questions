@@ -59,6 +59,8 @@ The "build a thing that calls an LLM" round. Tests API fluency, async and error 
 
 Strong answers usually contain a cap on the number of loop iterations, a check that the model's output is what it claims to be before it gets used, retries that wait longer each time rather than hammering the API, and - on the curveball - a limit on how much money the loop can move without a human. If none of that appears, that is a real finding, not a gap in your knowledge. Reference implementations: [agent loop](../12-coding-challenges/10_agent_loop.py), [rate limiter and retry](../12-coding-challenges/11_rate_limiter_and_retry.py), [constrained JSON decoding](../12-coding-challenges/18_constrained_json_decoding.py).
 
+**AI-assisted variant.** Many real loops now run this round with a coding assistant allowed or required, and others run it proctored with none, so rehearse both. For the assisted version, keep the same script and change one line of the frame: "Use any assistant you like, but tell me what you're asking it and read every change before you keep it." Score the same five rows, and note two extra things in the debrief: whether they accepted a change they had not read, and how much of the round went on reading long assistant output instead of steering it. Running out of time while reading is the most common way candidates fail the assisted format.
+
 ### Rubric
 
 | Row | 1 | 3 | 5 |

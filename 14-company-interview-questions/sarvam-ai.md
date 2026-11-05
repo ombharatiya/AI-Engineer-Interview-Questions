@@ -1,6 +1,6 @@
 # 🪔 Sarvam AI - AI Engineer Interview Questions
 
-> **Last reviewed: October 2026.** Based only on public information - official pages, engineering blogs, technical reports, and publicly shared candidate reports. Processes change and vary by team; treat this as a map, not a contract. No confidential or leaked material.
+> **Last reviewed: November 2026.** Based only on public information - official pages, engineering blogs, technical reports, and publicly shared candidate reports. Processes change and vary by team; treat this as a map, not a contract. No confidential or leaked material.
 
 ## TL;DR
 
@@ -8,11 +8,11 @@
 - Loop shape varies by team and is only moderately documented. A common pattern from public reports: **briefing call -> time-boxed practical task/assignment -> follow-up technical rounds that dig into your submission -> a DSA-ish round in some tracks -> founder/CTO and HR conversations.**
 - They weight **Indic language depth** heavily: multilingual tokenization and fertility, code-mixed (Hinglish) handling, transliteration and script normalization, and low-resource adaptation. Generic English-only NLP answers read poorly here.
 - **Speech and voice pipelines** are core product surface (Saaras ASR, Bulbul TTS, real-time voice agents). Expect at least one round that touches streaming latency, VAD/endpointing, or ASR/TTS for Indian languages if you are on an applied or agents track.
-- **Efficiency and pragmatism** run through everything: small models that punch up (Sarvam-1 is 2B), MoE at the frontier (Sarvam-105B with ~10B active, open-sourced under Apache 2.0 in February 2026), quantization, on-device (Sarvam-Edge), and sovereign/on-prem deployment. They are building for cost-sensitive, population-scale, sometimes offline settings.
+- **Efficiency and pragmatism** run through everything: small models that punch up (Sarvam-1 is 2B), MoE at the frontier (Sarvam-105B with ~10B active, open-sourced under Apache 2.0 on 6 March 2026), quantization, on-device (Sarvam-Edge), and sovereign/on-prem deployment. They are building for cost-sensitive, population-scale, sometimes offline settings.
 
 ## Company context
 
-Sarvam AI is India's sovereign-AI frontier lab: founded in August 2023 in Bengaluru by Vivek Raghavan and Pratyush Kumar (both from AI4Bharat at IIT Madras), it builds LLMs, speech models, and voice agents centred on Indian languages. It was selected under the government's IndiaAI Mission to build India's sovereign foundation model, receiving one of the mission's largest compute allocations (a reported ~4,096 H100 GPUs for about six months) to train a family of models (Sarvam-Large, Sarvam-Small, Sarvam-Edge). Its public model lineup spans Sarvam-1 (a 2B Indic base model), Sarvam-M (24B, built on Mistral Small), the Sarvam-30B and Sarvam-105B MoE models (open-weight, released February 2026; the 105B also powers the Indus chat app), plus Saaras (ASR), Bulbul (TTS), Mayura (translation), and Sarvam Vision. The team is small and high-bar. Early backers include Lightspeed, Peak XV, and Khosla Ventures, and a 2026 Series B (reported ~$234M first close at a ~$1.5B valuation, with HCLTech as lead strategic investor) made it a unicorn. "AI engineer" here usually means end-to-end ownership: you might tune a model, wire an agent harness, build a low-latency voice pipeline, and deploy it on-prem for a government or enterprise customer, often in the same quarter.
+Sarvam AI is India's sovereign-AI frontier lab: founded in August 2023 in Bengaluru by Vivek Raghavan and Pratyush Kumar (both from AI4Bharat at IIT Madras), it builds LLMs, speech models, and voice agents centred on Indian languages. It was selected under the government's IndiaAI Mission to build India's sovereign foundation model, receiving one of the mission's largest compute allocations (a reported ~4,096 H100 GPUs for about six months) to train a family of models (Sarvam-Large, Sarvam-Small, Sarvam-Edge). Its public model lineup spans Sarvam-1 (a 2B Indic base model), Sarvam-M (24B, built on Mistral Small), the Sarvam-30B and Sarvam-105B MoE models (open-sourced under Apache 2.0 on 6 March 2026; the 105B also powers the Indus chat app), plus Saaras (ASR), Bulbul (TTS), Mayura (translation), and Sarvam Vision. The team is small and high-bar. Early backers include Lightspeed, Peak XV, and Khosla Ventures, and a 2026 Series B (reported ~$234M first close at a ~$1.5B valuation, with HCLTech as lead strategic investor) made it a unicorn. Recent launches: Saaras V4 ASR (September 2026, a 3B hybrid state-space decoder streaming first tokens in under 150 ms), Bulbul V4 Flash TTS (October), Sarvam Inference serving open models from an Indian Blackwell fleet, and Prism (November 2026, an Apache 2.0 calibrated decision model built as a LoRA of Sarvam 105B). Digit reports a 1T-parameter model being built from scratch and Devendra Singh Chaplot joining as a part-time adviser. On 27 October 2026 Sarvam signed an MoU with HQ Integrated Defence Staff, run through **Chanakya**, its firewalled national-security and defence division; the scope covers decision support, target acquisition and sensor-to-shooter data fusion, with humans keeping operational authority. "AI engineer" here usually means end-to-end ownership: you might tune a model, wire an agent harness, build a low-latency voice pipeline, and deploy it on-prem for a government or enterprise customer, often in the same quarter.
 
 ## Roles & titles they hire
 
@@ -23,9 +23,11 @@ From their public careers page (sarvam.ai/careers), recurring archetypes include
 - **AI Engineer - Intern** - product features across the full stack: RAG, agents, copilots, document intelligence for education and healthcare use cases
 - **Forward Deployed Software Engineer** (roughly 2-5 years) - work directly with customers and product teams to ship real solutions in production
 - **Backend Engineer, API Team** - the serving and API layer behind the models
+- **Performance Engineer, Kernels** and **Performance Engineer, Inference** - low-level efficiency work on the serving stack
+- **Chanakya (national security and defence)** - about 10 roles in late 2026, mostly in Delhi: strategic deployment, MLOps, embedded data science and infrastructure
 - Plus research-leaning roles around pretraining, post-training, speech, and Indic data
 
-Roles cluster in Bengaluru, mostly in-person given the startup's velocity.
+Most roles are in Bengaluru and all are on-site (the careers page listed 47 open roles across Bengaluru and Delhi in late 2026). There is a Delhi cluster for Chanakya, and Digit reports a new foundational research lab in San Francisco. The careers page says nothing about the interview process.
 
 ## The interview loop
 
@@ -49,6 +51,7 @@ Reported end-to-end timelines are short for the category, often around 1-2 weeks
 - **Low-latency voice pipelines.** Voice agents pairing Saaras (ASR) + an LLM + Bulbul (TTS) target sub-250ms streaming latency. Streaming, endpointing/VAD, barge-in, and partial hypotheses are expected fluency for applied/agents roles.
 - **Efficiency across the size spectrum.** From a 2B base model to a 105B MoE with ~10B active params (10.3B per the model card) to on-device Sarvam-Edge, the through-line is quality per FLOP and per rupee. Quantization, MoE routing, and small-model tricks matter.
 - **Adaptation with scarce data.** Building for 10+ Indian languages, many low-resource, means synthetic data generation, transliteration, continued pretraining, and tokenizer surgery are daily tools, not exotica.
+- **Mission and ethics, including defence.** With the Chanakya division and the October 2026 defence MoU, expect questions on how you think about working on national-security AI, similar to the mission screening at Palantir (Q15).
 - **Sovereign, population-scale, pragmatic delivery.** On-prem/air-gapped deployment, data residency, and forward-deployed customer work (government, enterprise) reward engineers who own the whole stack and ship, not just model in a notebook.
 
 ## Representative questions
@@ -310,6 +313,44 @@ They attack two different serving costs: MoE cuts compute per token, MLA cuts me
 
 </details>
 
+### 14. Build a calibrated decision model from an LLM that scores a fixed set of options in one forward pass in under 50 ms. How do you train it for calibration, remove option-order bias, and use it to grade agent traces?
+
+<details><summary><b>Answer</b></summary>
+
+Sarvam's Prism (November 2026) is a public example: a LoRA of Sarvam 105B trained with 5% label-smoothed cross-entropy plus a Brier loss, running at a 44 ms median on one B200, scoring 78.5% on agent-trace evaluation, with weights under Apache 2.0.
+
+**One forward pass, not generation.** Put the context and the candidate options in the prompt, each option tagged with a single label token, and read the logits for those label tokens at one position. A softmax over just those logits gives a distribution over options. No decoding loop, no parsing, and latency is one prefill, which is how you get under 50 ms on a large model: keep prompts short, cache shared prefixes (the rubric, the instructions), and batch requests.
+
+**Training for calibration.** Cross-entropy alone pushes probabilities towards 0 and 1 on the training labels and tends to give overconfident outputs. Label smoothing (a few percent) caps that pressure, and a Brier loss (squared error between the probability vector and the one-hot label) directly penalises miscalibration, because it is a proper scoring rule that rewards honest probabilities. LoRA keeps the base model's knowledge intact and makes the adapter cheap to train and serve. Evaluate with expected calibration error and reliability diagrams on held-out data, not just accuracy, and check calibration per language and per task type.
+
+**Removing order bias.** LLMs prefer options by position (first, last) and by label. Two standard fixes: score every permutation (or a cyclic set) and average, which costs several passes; or train and serve with a canonical fixed order so the model never sees order as a signal. Prism uses a fixed-order step and reports that 0 of 2,000 answers changed when option order was shuffled, versus 4.0% without it. Always test this explicitly: shuffle the options on an eval set and count how many decisions flip.
+
+**Grading agent traces.** Frame each check as a decision over fixed options: did the agent call the right tool (yes, no, partially), did it violate a policy, is the final answer supported by the retrieved evidence. A calibrated score lets you set thresholds by risk: auto-pass above 0.9, auto-fail below 0.1, send the middle to human review. Validate against human-labelled traces, track agreement over time, and keep the grader's model version pinned so scores stay comparable across releases.
+
+**Follow-ups:** Your calibration is good on aggregate but poor for Tamil traces - what do you do? How would you detect the grader drifting when the agent it grades is upgraded?
+
+</details>
+
+### 15. Sarvam now builds AI for India's armed forces through a firewalled division, including decision support and target acquisition. How do you think about working on that, and where would you draw a line?
+
+<details><summary><b>Answer</b></summary>
+
+On 27 October 2026 Sarvam signed an MoU with HQ Integrated Defence Staff, run through its Chanakya division, covering decision support, target acquisition and sensor-to-shooter data fusion, with humans keeping operational authority. This is a mission question, and the failure modes are the same as at any defence-adjacent company: a reflexive yes with no limits, or a reflexive no from someone applying to the company anyway.
+
+**Show you understand what the work is.** Decision support and data fusion mean combining sensor and intelligence feeds so people can act faster and with better information. Target acquisition is closer to the use of force, which is why the MoU's statement that humans keep operational authority matters. Distinguish clearly between systems that inform a human decision and systems that make or execute one.
+
+**State your position and reasons.** Several defensible views exist: sovereign capability in defence is legitimate and better built by careful engineers than careless ones; or you are comfortable with logistics, cyber defence and intelligence analysis but not with targeting; or you prefer to work outside Chanakya entirely. What matters is that the reasoning is yours and stays consistent when the interviewer changes the scenario.
+
+**Name concrete lines and safeguards.** Examples: no system that selects and engages targets without a human decision; meaningful human review rather than rubber-stamp approval, which means interfaces that show uncertainty and sources, and time for the human to disagree; evaluation of error rates by condition (terrain, weather, sensor type) before deployment, because a model that is right on average can be badly wrong in a specific setting; audit logs for every recommendation; and a clear path to raise concerns internally.
+
+**Explain how the firewall affects you.** A separate division with its own access controls protects both civilian customers' data and classified work. Say how you would behave inside such a boundary: need-to-know, no reuse of restricted data in civilian products, and comfort with not being able to talk about your work.
+
+**Close with what would make you leave.** Interviewers trust candidates who have a real limit. Saying what it is shows you have thought about it.
+
+**Follow-ups:** The system is 95% accurate in trials but operators approve its recommendations 99% of the time - is human authority real? What would you do if asked to remove a confidence display to speed up decisions?
+
+</details>
+
 ## How to prepare
 
 Priority order for this repo's topics:
@@ -328,6 +369,7 @@ Company-specific moves:
 - **Build a small voice agent** with their APIs (Saaras + an LLM + Bulbul) or an open equivalent. Get first-hand feel for streaming latency, endpointing, and barge-in, because a reported build round is literally a VAD from scratch.
 - **Do the tokenizer exercise for real**: measure fertility of a mainstream tokenizer versus an Indic-aware one on parallel Hindi/Tamil/English text. This turns the headline claim into something you can discuss from experience.
 - **Practise the proof-of-work format**: a time-boxed build where AI tools are allowed. Rehearse fast setup, reading unfamiliar library docs, and debugging under a clock, since that is what they grade.
+- **Decide where you stand on defence work** before the loop, especially for Chanakya roles: read the HQ IDS MoU announcement and be ready to discuss human authority, misuse and your own limits.
 - **Have a crisp view on sovereign AI and Indic language technology**: why it matters, the low-resource data problem, and how you would evaluate quality honestly across languages. "Why Sarvam / why Indic AI" is a real question.
 
 ## Sources
@@ -343,6 +385,11 @@ Company-specific moves:
 - [GetPersonalisedCV: Sarvam AI interview experience](https://getpersonalisedcv.in/blog/sarvam-ai-interview-experience-84-lpa-ml-engineer) - candidate report of the ~2.5 hr proctored build session (VAD from scratch), tools-allowed, no-DSA proof-of-work format
 - [Blind: Sarvam AI interviews with no DSA round (candidate discussion)](https://www.teamblind.com/post/sarvams-ai-interviews-have-no-dsa-and-still-offered-84-lpa-instead-l86l5tp0) - VAD build session and follow-up maths/architecture rounds (unofficial; process varies)
 - [Sarvam-105B on Hugging Face](https://huggingface.co/sarvamai/sarvam-105b) - 105B total / 10.3B active MoE, MLA-style attention, 128 experts with top-8 routing and a shared expert, auxiliary-loss-free balancing, 128K context, Apache 2.0
+- [Sarvam - MoU with HQ Integrated Defence Staff (October 2026)](https://www.sarvam.ai/blogs/sarvam-hq-ids-mou) - Chanakya division, scope, human operational authority
+- [Sarvam - Prism (November 2026)](https://www.sarvam.ai/blogs/sarvam-prism) - calibrated decision model, training losses, latency, order-bias removal
+- [Sarvam - 30B and 105B open-source release](https://www.sarvam.ai/blogs/sarvam-30b-105b) - Apache 2.0 release on 6 March 2026
+- [Digit - Sarvam is building a 1T model (July 2026)](https://www.digit.in/news/general/sarvam-is-building-1t-ai-model-hires-elon-musks-xai-expert-to-take-on-openai-and-anthropic.html) - San Francisco lab, adviser, 1T-parameter plans
+- [Sarvam - Epoch summary](https://www.sarvam.ai/epoch/summary) - summer 2026 launches (Indus voice agents, Work Agents, Sarvam Code, Sarvam Inference)
 - [Sarvam Series B first close (exchange4media)](https://www.exchange4media.com/industry-briefing-news/sarvam-raises-234m-in-first-close-of-300m-series-b-at-15b-valuation-155498.html) - 2026 funding and valuation
 
 *Interview-process detail is drawn from a small number of public candidate reports and is not officially published, so treat the loop as indicative rather than fixed.*

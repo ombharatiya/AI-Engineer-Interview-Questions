@@ -1,6 +1,6 @@
 # 🧭 Cognition (Devin and Windsurf) - AI Engineer Interview Questions
 
-> **Last reviewed: October 2026.** Based only on public information - official pages, engineering blogs, technical reports, and publicly shared candidate reports. Processes change and vary by team; treat this as a map, not a contract. No confidential or leaked material.
+> **Last reviewed: November 2026.** Based only on public information - official pages, engineering blogs, technical reports, and publicly shared candidate reports. Processes change and vary by team; treat this as a map, not a contract. No confidential or leaked material.
 
 ## TL;DR
 
@@ -8,15 +8,15 @@
 - Everything **around** that build day is thinner. Third-party guides describe a recruiter call, a pair-programming-style technical screen, then an onsite of roughly three to five sessions covering coding, agent-infrastructure systems design, and a mostly conversational judgement round. Treat the stage table below as inference from those reports, not as a published process.
 - They weight **judgement over recall**. Wu's stated view is that memorising syntax and details matters less now; what they look for is high-level decision-making, product intuition, and ownership. Twenty-one of their first thirty-five employees were former founders.
 - The technical centre of gravity is the **agent harness**, not the model: planning loops, tool schemas, sandboxed execution, context engineering over hours-long runs, VM snapshot and resume, and evaluation that survives contact with real repositories. Their public blog is unusually specific about all of this and is the single best prep source.
-- There is a **large customer-facing surface**: Deployed Engineer and Partner Deployed Engineer roles across several regions run a different loop (take-home inside Devin, project presentation, leadership one-on-ones, a simulated customer call). If you are targeting that side, prepare the customer story, not the kernel.
+- There is a **large customer-facing surface**: Forward Deployed Engineer and Partner Deployed Engineer roles across several regions run a different loop (take-home inside Devin, project presentation, leadership one-on-ones, a simulated customer call). If you are targeting that side, prepare the customer story, not the kernel.
 
 ## Company context
 
-Cognition is an AI agent lab building Devin, an autonomous software engineering agent that works asynchronously in its own cloud machine, and Windsurf, the agentic IDE it acquired in 2025 whose Cascade harness doubled as their RL training environment. In June 2026 Windsurf relaunched as Devin Desktop & CLI, described as the next generation of Windsurf: one surface for managing local and cloud agents, backwards-compatible with Windsurf, and open to other agents via the Agent Client Protocol. They train their own agent models (the SWE-1.x family through SWE-1.7 in July 2026, then SWE-2 in September 2026, RL post-trained from a large external base model; SWE-grep for fast context retrieval; Kevin-32B for CUDA kernels) and explicitly co-design model, inference, and harness as one system rather than treating the harness as a thin wrapper. The careers page leans hard on talent density: ten IOI gold medals, leaders out of Cursor, Scale AI, Google DeepMind, Waymo and Nuro. The company has scaled fast in 2026 (a Series E at a reported $48B valuation in September and a stated $1B annualised revenue run rate), and the open roles now skew heavily towards sales and customer engineering. "AI engineer" here almost never means prompt work; it means agent infrastructure (hypervisors, snapshots, orchestration), post-training and RL on real coding environments, evaluation harnesses, or product engineering on a surface where the user is partly a machine.
+Cognition is an AI agent lab building Devin, an autonomous software engineering agent that works asynchronously in its own cloud machine, and Windsurf, the agentic IDE it acquired in 2025 whose Cascade harness doubled as their RL training environment. In June 2026 Windsurf relaunched as Devin Desktop & CLI, described as the next generation of Windsurf: one surface for managing local and cloud agents, backwards-compatible with Windsurf, and open to other agents via the Agent Client Protocol. They train their own agent models (the SWE-1.x family through SWE-1.7 in July 2026, then SWE-2 in September 2026, RL post-trained from a large external base model, and SWE-2 Flash in November 2026, a low-cost, high-speed model and their first with a mid-training stage before RL; SWE-grep for fast context retrieval; Kevin-32B for CUDA kernels) and explicitly co-design model, inference, and harness as one system rather than treating the harness as a thin wrapper. The careers page leans hard on talent density: ten IOI gold medals, leaders out of Cursor, Scale AI, Google DeepMind, Waymo and Nuro. The company has scaled fast in 2026 (a Series E at a reported $48B valuation in September and a stated $1B annualised revenue run rate), and the open roles now skew heavily towards sales and customer engineering. Recent launches widen the technical surface: the Fusion harness (September 2026), which pairs a frontier lead model with a cheaper sidekick in Devin Desktop and the CLI; FrontierCode 2.0 (October 2026), a benchmark graded on whether output is actually mergeable; and Devin Security (October 2026), extended when Corridor joined Cognition on 28 October. "AI engineer" here almost never means prompt work; it means agent infrastructure (hypervisors, snapshots, orchestration), post-training and RL on real coding environments, evaluation harnesses, or product engineering on a surface where the user is partly a machine.
 
 ## Roles & titles they hire
 
-From the public careers page and Ashby board (titles as of August 2026, grouped as they group them; by October 2026 the board had grown, with Sales and Customer Engineering the largest groups and Research & Development a small minority of openings):
+From the public careers page and Ashby board (titles as of November 2026, grouped as they group them). The board lists 108 openings; Research & Development has only 11 of them, and the largest groups are Sales (30), General & Administrative (27) and Customer Engineering (23):
 
 **Research & Development**
 
@@ -25,13 +25,14 @@ From the public careers page and Ashby board (titles as of August 2026, grouped 
 - **Research Engineer, Mid-Training**
 - **Research Engineer, Post-Training**
 - **Research Engineer, ML Infrastructure**
-- **Site Reliability Engineer**
+- **Research Engineer, Safety & Alignment** and **Head of Safety**
+- **Data Engineer**
 - **Security Engineer**
 
 **Customer Engineering** (the larger board by count)
 
-- **Deployed Engineer** (multiple regional variants) and **Deployed Engineer, Federal**
-- **Partner Deployed Engineer** (multiple regional variants) - partner-facing, aimed at global systems integrators, posting asks for 25-50% travel
+- **Forward Deployed Engineer** - US; Europe (London and Southern Europe); Japan; South Korea; LATAM (Sao Paulo and Mexico City); ANZ; APAC (Singapore); Doha; and Federal
+- **Partner Deployed Engineer** (US, APAC India, APAC Tokyo, Europe) - partner-facing, aimed at global systems integrators, posting asks for 25-50% travel
 - **Applied AI Engineer**
 - **AI Support Engineer**
 - **DevOps Engineer, Federal**
@@ -51,7 +52,7 @@ Public information is **thin and uneven**. One element is confirmed on the recor
 | Onsite: coding | Live session | Production-grade code under time pressure, treating the model as an adversary: timeouts, idempotency, failure isolation (reported, varies) |
 | Onsite: systems / agent infrastructure | Whiteboard or discussion | Agent execution environments: isolating untrusted code, fast environment provisioning, state snapshots, long-running sessions, network policy (reported, varies) |
 | Onsite: judgement / behavioural | Mostly conversation | Decisions under ambiguity, past systems you owned, communication, comfort with pace and in-office intensity (reported, varies) |
-| Deployed Engineer variant | Take-home inside Devin, ~45 min project presentation to a panel, leadership one-on-ones, executive pitch plus a timed simulated customer call | Customer orientation, explaining technical work to non-experts, composure when pushed (reported, varies) |
+| Forward Deployed Engineer variant | Take-home inside Devin, ~45 min project presentation to a panel, leadership one-on-ones, executive pitch plus a timed simulated customer call | Customer orientation, explaining technical work to non-experts, composure when pushed (reported, varies) |
 
 No reliable public timeline exists. Assume the build day dominates your calendar and plan for it.
 
@@ -61,7 +62,7 @@ No reliable public timeline exists. Assume the build day dominates your calendar
 - **Context engineering over orchestration cleverness.** Their most-cited post argues against parallel multi-agent swarms: share full agent traces rather than single messages, because actions carry implicit decisions and conflicting decisions produce bad results. Their follow-up refines this to "one writer, augmented by other agents contributing intelligence."
 - **Long-horizon reliability.** Agents that run for hours hit context overflow, compounding errors, and asynchronous waits (CI, review). They solved the infrastructure half with hypervisor-level full-machine snapshots and their own disk snapshot format, blockdiff, so a session can sleep and resume exactly where it was.
 - **Benchmarks are a floor, not a target.** They state that coding benchmark performance is often unrepresentative of real-world experience, and they built an internal benchmark (cognition-golden) with real Linux machines, million-line codebases, simulated users, and evaluator agents whose precision and recall are themselves measured against human review.
-- **Speed and cost as product features.** SWE-grep-mini serves at around 2,800 tokens per second and SWE-1.5 at up to 950 tokens per second via Cerebras. Retrieval latency inside the first turn is treated as a UX problem worth a dedicated model. By September 2026 the framing had widened to cost: SWE-2 is pitched on a capability-versus-cost Pareto frontier and trained with a reward that penalises rollout cost per effort level.
+- **Speed and cost as product features.** SWE-grep-mini serves at around 2,800 tokens per second and SWE-1.5 at up to 950 tokens per second via Cerebras. Retrieval latency inside the first turn is treated as a UX problem worth a dedicated model. By September 2026 the framing had widened to cost: SWE-2 is pitched on a capability-versus-cost Pareto frontier and trained with a reward that penalises rollout cost per effort level. Fusion and SWE-2 Flash (about 3x SWE-2's speed at one-fifth the price) push the same argument into harness design.
 - **Founder energy and in-person intensity.** Wu's public framing of hiring is about decision-making, product intuition and self-ownership rather than syntax recall, and the team profile skews heavily to ex-founders.
 
 ## Representative questions
@@ -204,6 +205,8 @@ Benchmarks like SWE-bench are useful as a regression floor and terrible as a tar
 
 The alternative Cognition describes for their internal benchmark: realistic tasks on real Linux machines with root access and production-scale codebases, **simulated users** that can answer the agent's questions and reveal information mid-task, and **evaluator agents** with tool access that verify outcomes by running commands and checking dashboards rather than diffing against a golden patch. Critically, they measure the evaluators' own precision and recall against continuous human review, because an unvalidated LLM judge is just a new source of silent error.
 
+Grade mergeability, not just correctness. Cognition's FrontierCode 2.0 (October 2026) had open-source maintainers build tasks from their own repositories, spending over 40 hours on each, and graders check whether the output is something a maintainer would actually merge. Scores are a weighted aggregate of rubric items, and failing any blocking criterion scores zero; thoroughness blockers are the ones failed most often. Two findings worth quoting in an interview: in 80% of tasks the reference solution differs from the upstream PR, so diffing against the real patch would mark good work wrong, and models can score lower at higher reasoning effort.
+
 Add adversarial pressure on the grader. Their RL work describes reward hardening: experts deliberately try to fool the grader, and every successful cheat becomes a fix. Without that, your agent learns to satisfy the evaluator instead of the user.
 
 **Worth sketching.** The evaluation stack, with human review anchoring the judge rather than replacing it.
@@ -344,7 +347,7 @@ Trust the users. Cognition states directly that benchmark performance is often n
 
 </details>
 
-### 11. As a Deployed Engineer, you are rolling Devin into a 2,000-engineer organisation. What do the first ninety days look like?
+### 11. As a Forward Deployed Engineer, you are rolling Devin into a 2,000-engineer organisation. What do the first ninety days look like?
 
 <details><summary><b>Answer</b></summary>
 
@@ -412,6 +415,56 @@ Use success minus a linear cost penalty, `R = S - λ_e × C`, with one λ per ef
 
 </details>
 
+### 14. Why not just route each coding task to a cheap or expensive model up front? Design a harness that pairs a frontier "lead" model with a cheaper "sidekick", and say how you would prove it saves money.
+
+<details><summary><b>Answer</b></summary>
+
+Up-front routing looks like the obvious cost lever and mostly fails for coding agents, for two reasons Cognition gave when it shipped Fusion in September 2026: **difficulty is not visible from the prompt**, and **switching models mid-task breaks prompt caches**. A one-line bug report can hide a three-hour concurrency fix, and if you escalate halfway through, the new model must re-read the whole trajectory without a warm cache, which can cost more than running the big model from the start.
+
+**The split.** The lead (frontier) model plans, decomposes and reviews. The sidekick (cheaper, faster) model executes: reads files, runs commands, makes edits. They exchange only **briefs, results and feedback**, never full transcripts, and each keeps its own persistent context. That last property is the whole trick: both contexts grow append-only, so both stay cache-friendly, and the lead's context stays small because it sees summaries instead of tool output.
+
+**Design details that decide whether it works.**
+- **Brief quality.** The sidekick fails when the brief omits a constraint the lead knew. Make the brief structured: goal, files in scope, acceptance check, things not to touch.
+- **Result shape.** Results come back as a diff plus evidence (test output, commands run), not the sidekick's narrative of what it did, so the lead reviews facts.
+- **Escalation.** When the sidekick fails the acceptance check twice, the lead takes the step itself or rewrites the brief, rather than looping the cheap model forever.
+
+**Proving the saving.** Measure **cost per solved task**, not cost per token, on the same task set and harness, against lead-only and sidekick-only baselines, with confidence intervals across several seeds. Report the score change next to the cost change. Cognition's own table showed 11-46% lower cost per task across five benchmarks, but scores were sometimes lower (for example on Terminal-Bench 4.0 with one pairing), which is the honest framing: it moves you along the cost-quality frontier, and whether that is a win depends on the pairing and the workload. Also track wall-clock, since a cheap sidekick that needs three attempts can be slower.
+
+**Follow-ups:** How do you choose the sidekick model for a customer whose workload you have not seen? What telemetry tells you the briefs, not the sidekick model, are the bottleneck? When would you abandon the split and run the lead alone?
+
+</details>
+
+### 15. SWE-2 Flash added a mid-training stage before RL for the first time. What does mid-training buy a coding agent model, what data would you use, and how do you know it helped?
+
+<details><summary><b>Answer</b></summary>
+
+Mid-training sits between generic pretraining and RL: continued training on a few trillion tokens (the scale Cognition reported for SWE-2 Flash, built on Thinking Machines' Inkling-Small, 276B total and 12B active parameters) that shifts the base model's distribution towards the target domain before any reward is applied.
+
+**What it buys.** RL can only reinforce behaviour the policy already produces sometimes. If the base model rarely writes a correct multi-file refactor, reads a stack trace properly or uses a terminal fluently, RL has almost no positive rollouts to learn from and spends compute on near-zero reward. Mid-training raises that floor so RL starts from a policy with useful variance. It is also the cheaper place to add knowledge (new languages, frameworks, tool formats), since RL is sample-inefficient at teaching facts.
+
+**Data.** Code and repository-level context (whole files and their neighbours, not snippets), commit histories as before/after pairs, issue-to-PR threads, terminal sessions and build logs, and agent trajectories rendered in the exact tool format the harness uses. Mix in enough general text and math to avoid eroding reasoning. Decontaminate against every eval you plan to report, including private ones, because commit-mined data is the easiest place to leak benchmark fixes.
+
+**Risks.** Catastrophic forgetting of general ability, format overfitting (the model starts emitting tool calls in prose contexts), and a learning-rate schedule that destabilises a model that was already annealed. Mitigations: replay a slice of the original pretraining mix, keep the learning rate well below pretraining peak with warmup, and checkpoint often.
+
+**Proving it helped.** Run the same RL recipe from the base and from the mid-trained checkpoint and compare: pass@k before RL on held-out agent tasks (did the floor rise?), RL reward curves (faster climb?), final held-out scores, and general benchmarks for regression. The comparison that matters is the end-to-end one, since a mid-training gain that RL would have found anyway is wasted compute.
+
+**Release decision.** Cognition withheld SWE-2 Flash weights because of cyber-misuse risk and plans to share them with trusted partners. Be ready to discuss how a strong, cheap coding model changes that calculus.
+
+**Worth sketching.** Optional, but the stage order is easy to show.
+
+```mermaid
+flowchart LR
+    A["Base model<br/>(Inkling-Small)"] --> B["Mid-training<br/>code, commits, traces"]
+    B --> C["RL on sandboxed<br/>coding tasks"]
+    C --> D["Held-out evals"]
+    A --> E["RL only baseline"]
+    E --> D
+```
+
+**Follow-ups:** How would you size the mid-training token budget relative to RL compute? Which eval would first show forgetting? What would make you skip mid-training for the next model?
+
+</details>
+
 ## How to prepare
 
 **Repo topics, in priority order:**
@@ -424,19 +477,19 @@ Use success minus a linear cost penalty, `R = S - λ_e × C`, with one λ per ef
 - **[05-fine-tuning-and-alignment](../05-fine-tuning-and-alignment/)** - essential for the Research Engineer (Mid-Training / Post-Training) roles: multi-turn RL, reward design, reward hacking.
 - **[09-safety-security-and-responsible-ai](../09-safety-security-and-responsible-ai/)** - prompt injection and sandbox isolation are live product concerns here, not a compliance checkbox.
 - **[08-inference-and-production](../08-inference-and-production/)** - useful context for why they co-design serving with the harness and chase very high tokens-per-second.
-- **[13-interview-process-and-behavioral](../13-interview-process-and-behavioral/)** - one round is reportedly mostly conversation about judgement under ambiguity, and the Deployed Engineer loop is largely communication.
+- **[13-interview-process-and-behavioral](../13-interview-process-and-behavioral/)** - one round is reportedly mostly conversation about judgement under ambiguity, and the Forward Deployed Engineer loop is largely communication.
 
 **Company-specific moves:**
 
 1. **Rehearse the build day properly.** Do not read about it, do it. Book a full uninterrupted eight hours, pick a real open-source repository you have never touched, and build an agent that closes issues in it. Then do it a second time a week later. The second run is where you learn the real lesson: the win comes from cutting scope early, having a sandbox and a harness skeleton you can reproduce from memory in the first hour, and choosing a verifier before you choose an architecture. Practise the demo too, because you will be asked what you cut and why.
-2. **Read their blog end to end.** It is the best-documented public agent harness there is. Prioritise: Don't Build Multi-Agents, Multi-Agents: What's Actually Working, What We Learned Building Cloud Agents, blockdiff, SWE-grep, SWE-1.5, SWE-2 (for the cost-penalised reward), Introducing Devin Desktop & CLI, and their post on evaluating coding agents. Their interview material tracks this material closely.
+2. **Read their blog end to end.** It is the best-documented public agent harness there is. Prioritise: Don't Build Multi-Agents, Multi-Agents: What's Actually Working, What We Learned Building Cloud Agents, blockdiff, SWE-grep, SWE-1.5, SWE-2 (for the cost-penalised reward), SWE-2 Flash (for mid-training), Fusion, FrontierCode 2.0, Introducing Devin Desktop & CLI, and their post on evaluating coding agents. Their interview material tracks this material closely.
 3. **Use both surfaces for real work.** Run Devin as a cloud agent on an actual task and use Devin Desktop (formerly Windsurf) in your editor for a week, including handing work between local and cloud agents. Come with specific observations about where each one failed and what you would change in the harness. That is a much stronger signal than praise.
 4. **Have a long-horizon reliability story ready.** Any system you have run for hours that had to recover from partial failure - a data pipeline, a crawler, a job scheduler - transfers directly. Frame it in their language: state, checkpointing, resumption, blast radius.
-5. **For Deployed Engineer roles, prepare the customer half hard.** A 45-minute project presentation to a mixed panel and a timed simulated customer call are reported stages. Practise explaining a deep technical project in business terms to a non-expert, out loud, on a clock.
+5. **For Forward Deployed Engineer roles, prepare the customer half hard.** A 45-minute project presentation to a mixed panel and a timed simulated customer call are reported stages. Practise explaining a deep technical project in business terms to a non-expert, out loud, on a clock.
 
 ## Sources
 
-- [Cognition - Careers](https://cognition.com/careers) (role titles fetched August 2026, category counts checked October 2026)
+- [Cognition - Careers](https://cognition.com/careers) (role titles and category counts checked November 2026)
 - [Cognition - Ashby job board](https://jobs.ashbyhq.com/cognition)
 - [Cognition - Blog index](https://cognition.com/blog)
 - [Don't Build Multi-Agents](https://cognition.com/blog/dont-build-multi-agents) (context engineering principles)
@@ -447,11 +500,15 @@ Use success minus a linear cost penalty, `R = S - λ_e × C`, with one λ per ef
 - [SWE-grep and SWE-grep-mini: RL for Multi-Turn, Fast Context Retrieval](https://cognition.com/blog/swe-grep)
 - [SWE-1.7: Frontier Intelligence at a Fraction of the Cost](https://cognition.com/blog/swe-1-7) (July 2026)
 - [SWE-2: Pushing the Pareto Frontier](https://cognition.com/blog/swe-2) (September 2026; cost-penalised RL reward, effort levels)
+- [SWE-2 Flash](https://cognition.com/blog/swe-2-flash) (November 2026; Inkling-Small base, first mid-training stage, weights withheld)
+- [Fusion in Devin Desktop and CLI](https://cognition.com/blog/local-fusion) (September 2026; lead and sidekick models, cost per task)
+- [FrontierCode 2.0](https://cognition.com/blog/frontier-code-2.0) (October 2026; maintainer-built tasks, mergeability grading)
+- [Corridor joins Cognition](https://cognition.com/blog/corridor-joining-cognition) (October 2026; Devin Security)
 - [Introducing Devin Desktop & CLI](https://cognition.com/blog/introducing-devin-desktop) (June 2026; next generation of Windsurf, local and cloud agents, Agent Client Protocol)
 - [Do it all with Devin: Announcing our Series E](https://cognition.com/blog/series-e) (September 2026)
 - [Cognition Crosses $1B in Annualized Revenue Run Rate](https://cognition.com/blog/1b-run-rate) (September 2026)
 - [A review of OpenAI's o1 and how we evaluate coding agents](https://cognition.com/blog/evaluating-coding-agents) (cognition-golden, simulated users, evaluator agents)
 - [Cheeky Pint - Cognition CEO Scott Wu](https://cheekypint.substack.com/p/cognition-ceo-scott-wu-on-acquiring) (the eight-hour build-your-own-Devin quote, hiring philosophy, ex-founder team profile)
 - [techinterview.org - How Cognition hires the engineers behind Devin](https://www.techinterview.org/post/3233476023/cognition-devin-engineering-interview/) (third-party guide; stage shapes marked "reported" above)
-- [Exponent - Cognition Forward Deployed Engineer interview guide](https://www.tryexponent.com/guides/cognition-forward-deployed-engineer-interview) (third-party guide; Deployed Engineer stages)
+- [Exponent - Cognition Forward Deployed Engineer interview guide](https://www.tryexponent.com/guides/cognition-forward-deployed-engineer-interview) (third-party guide; Forward Deployed Engineer stages)
 - [Partner Deployed Engineer - US, Ashby posting](https://jobs.ashbyhq.com/cognition/6d539905-c75e-45e0-8c3e-db9831a5e6e6) (role scope, travel expectation)

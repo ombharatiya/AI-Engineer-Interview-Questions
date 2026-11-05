@@ -1,6 +1,6 @@
 # Prompt Engineering & Context Engineering - Interview Questions
 
-50 questions: 13 basic, 22 intermediate, 15 advanced.
+53 questions: 13 basic, 23 intermediate, 17 advanced.
 
 > **On the diagrams: drawing is optional.** Some answers include a small sketch you could
 > reproduce on a whiteboard or in a shared doc. You never have to draw anything to score well,
@@ -81,7 +81,7 @@ When it helps: any task where a human would need scratch paper - multi-hop quest
 
 When it's unnecessary: single-step tasks - extraction, lookup, straightforward classification, formatting. "What's the capital of France?" gains nothing from three paragraphs of deliberation; you pay latency and cost for filler. CoT tokens also add a new surface for hallucination: a confident-sounding chain can rationalise a wrong answer, and users/downstream systems may over-trust visible reasoning that isn't faithful to the model's actual computation (faithfulness of CoT is a known open problem).
 
-When it's actively the wrong tool: **reasoning models** (OpenAI's GPT-5-class and earlier o-series models, Claude with extended thinking, Gemini thinking models, DeepSeek-R1) already perform internal chain-of-thought trained via RL; prompting them to "think step by step" is redundant, and stuffing the prompt with few-shot CoT exemplars can interfere with the reasoning style they were trained for. With these models you control deliberation through API parameters (reasoning effort / thinking budget), not prompt incantations.
+When it's actively the wrong tool: **reasoning models** (OpenAI's GPT-6 family and earlier GPT-5 and o-series models, Claude with adaptive thinking, or extended thinking on older models, Gemini thinking models, DeepSeek's reasoning modes) already perform internal chain-of-thought trained via RL; prompting them to "think step by step" is redundant, and stuffing the prompt with few-shot CoT exemplars can interfere with the reasoning style they were trained for. With these models you control deliberation through API parameters (an effort level or thinking level on current frontier models, a token budget on some older open-weight ones), not prompt incantations.
 
 Practical engineering detail: if you need structured output *and* CoT, order matters - have the model reason first, then emit the answer (e.g., a `reasoning` field before the `answer` field in the schema). Answer-then-justify forfeits the benefit because the answer tokens are already sampled.
 
@@ -204,9 +204,9 @@ How I set them:
 - **Code generation**: low, roughly 0 to 0.3. Higher buys nothing but plausible-looking bugs.
 - **Conversational or drafting**: ~0.7 with top_p ~0.9 is a reasonable starting point, then tune on your eval.
 - **Self-consistency or any sample-and-vote scheme**: you *need* temperature above 0, otherwise all k samples are identical and you have paid k times for one answer.
-- **Reasoning models**: several providers fix or ignore temperature on reasoning endpoints. The knob there is the thinking or effort budget, not sampling.
+- **Current frontier APIs**: this table is for self-hosted open-weight models and older API models. The newest hosted models have removed the knobs: Anthropic's Opus 5.5 guide says to omit temperature, top_p and top_k, Sonnet 5 returns 400 on non-default values and Haiku 5.5 can too, GPT-6 Astra accepts no custom temperature, top_p or logprobs, and Gemini ignores them from 3.6 Flash with 400s planned for later generations. There the levers are effort level, structured outputs and system instructions. Open-weight cards still publish settings (Mistral Large 4 and Qwen3.8 recommend temperature 1.0 and top_p 0.95), so read the card rather than assuming 0.
 
-Two things candidates get wrong. First, "temperature equals creativity" is a bad mental model. Temperature does not add knowledge or ideas, it just makes lower-probability tokens more likely to be picked, which on factual tasks mostly means more errors. Second, temperature 0 is not a determinism guarantee. Floating-point non-associativity, batching, and expert routing in MoE models mean identical requests can still diverge. If you need reproducibility, cache the response or pin a seed where the provider offers one, and even then treat it as best effort.
+Two things candidates get wrong. First, "temperature equals creativity" is a bad mental model. Temperature does not add knowledge or ideas, it just makes lower-probability tokens more likely to be picked, which on factual tasks mostly means more errors. Second, temperature 0 is not a determinism guarantee. Floating-point non-associativity, batching, and expert routing in MoE models mean identical requests can still diverge. If you need reproducibility, cache the response, pin the model snapshot and evaluate over multiple samples rather than trusting a single run, and treat a seed, where one is still offered, as best effort.
 
 Do not aggressively tune temperature and top_p at the same time. Pick one as your primary knob, usually temperature, and leave the other at its neutral value so you can attribute changes.
 
@@ -604,7 +604,7 @@ flowchart TD
 
 <details><summary><b>Answer</b></summary>
 
-Prompt caching lets the provider reuse the computed KV-cache (attention keys/values) for a prompt prefix it has seen before, skipping prefill compute for those tokens. The critical mechanic: caching is **exact-prefix-based**. The request's token sequence is matched from position 0; the first differing token invalidates everything after it. Anthropic uses explicit `cache_control` breakpoints (the minimum cacheable prefix varies by model, roughly 1k to 4k tokens, and is higher on its newer flagship models), with cache reads priced at ~0.1× base input and writes at ~1.25× (5-minute TTL, refreshed on hit; a longer TTL tier costs more to write). OpenAI caches automatically for prompts over 1024 tokens, discounting cached tokens ~50-90% depending on model generation. Gemini offers both implicit and explicit context caching. (Numbers are approximate and shift; the *structure* implications don't.)
+Prompt caching lets the provider reuse the computed KV-cache (attention keys/values) for a prompt prefix it has seen before, skipping prefill compute for those tokens. The critical mechanic: caching is **exact-prefix-based**. The request's token sequence is matched from position 0; the first differing token invalidates everything after it. As of late 2026: Anthropic offers automatic caching through a single top-level `cache_control` field, or explicit breakpoints, or both. The minimum cacheable prefix ranges from 512 to 4,096 tokens by model, and the newest models have the lowest: 512 on the 5.x generation, 1,024 on Opus 4.8 and Sonnet 5, 4,096 on Opus 4.5 and 4.6. Writes cost 1.25× input for the 5-minute TTL (refreshed on hit) and 2× for 1 hour; reads cost 0.1× on most models, 0.05× on Opus 5.5 and Sonnet 5.5 and 0.025× on Fable 5.1. OpenAI caches implicitly by default for prompts over 1,024 tokens; from GPT-5.6 you can switch to explicit breakpoints, and writes cost 1.25× for the default 30-minute lifetime or 2.5× for 12 hours, with reads at 0.1×, or 0.05× on GPT-6.1 Sol and Terra (GPT-5.5 and earlier have no write fee). Gemini caches implicitly by default; explicit caching exists only on supported Gemini 3 and 2.5 models, and Gemini 4 Argon is implicit only. (Numbers shift with every model generation, so check current pricing; the *structure* implications don't.)
 
 Structural consequences - this is the part interviews probe:
 
@@ -722,6 +722,7 @@ What actually breaks, in rough order of frequency:
 - **Refusal thresholds.** Models draw safety boundaries in different places, so a benign domain that worked can start refusing.
 - **Tool calling conventions.** Different schema dialects, different parallel-call behaviour, different reliability at deciding not to call anything.
 - **Provider-specific features.** Assistant prefill exists on some APIs and not others, and newer models have been dropping it even within one provider. If your JSON reliability depends on prefilling `{`, that is not portable, sometimes not even to the next model version.
+- **Removed request knobs.** The newest frontier models reject or ignore parameters older prompts relied on: temperature and top_p (Anthropic's 5.x models, GPT-6 Astra, Gemini from 3.6 Flash), forced `tool_choice` and assistant prefill on Claude Opus 5.5, and manual thinking budgets on recent Claude models. A config that sends `temperature: 0` can start returning 400s after an upgrade.
 - **Reasoning models** ignore or actively suffer from the canned chain-of-thought scaffolding you built for a non-reasoning model.
 
 How to have been portable: **the eval set is the portable asset, not the prompt.** Freeze the task intent, the output schema, and a labelled eval set including tool-call assertions, citation behaviour, and the "I do not know" cases. Then accept a thin per-model adapter layer rather than pretending one string works everywhere. Use provider-native structured output and native tool calling instead of parsing prose, because those are the parts that transfer.
@@ -1033,9 +1034,39 @@ Measure changes to the file the way you would any prompt change: run a fixed set
 
 </details>
 
+### 36. Cache writes now cost extra on most major providers. How do you decide whether a prefix is worth caching, which TTL to pay for, and when to use explicit breakpoints instead of automatic caching?
+
+<details><summary><b>Answer</b></summary>
+
+Caching used to be free money on some providers. With paid writes it is an investment with a payback period, and the maths is simple enough to do out loud.
+
+The current shape, as of late 2026: Anthropic writes cost 1.25x input for a 5-minute TTL and 2x for 1 hour, with reads at 0.1x on most models and lower on the newest (0.05x on Opus 5.5 and Sonnet 5.5). OpenAI, from GPT-5.6, charges 1.25x for the default 30-minute lifetime and 2.5x for a 12-hour lifetime, with reads at 0.1x (0.05x on GPT-6.1 Sol and Terra). GPT-5.5 and earlier have no write fee. Check the current pricing page, because these numbers move every generation.
+
+Break-even, with prefix cost P and n reads within the TTL:
+
+- No caching: (1 + n) × P.
+- 1.25x write, 0.1x reads: (1.25 + 0.1n) × P. Cheaper from n = 1 (1.35P against 2P). One reuse pays back.
+- 2x write: (2 + 0.1n) × P. Needs n ≥ 2 (2.2P against 3P).
+- 2.5x write: (2.5 + 0.1n) × P. Also needs n ≥ 2 (2.7P against 3P).
+
+So the question is never "is caching good", it is "how many hits does this prefix get inside the TTL". That comes from your traffic, not intuition:
+
+- **Shared system prompt and tools on a busy endpoint:** hits every few seconds, so the cheapest short TTL is right, and each hit refreshes it.
+- **Agent loops:** each step re-sends the growing context within seconds, so short TTLs work, and caching is a 5-10x input-cost lever.
+- **Bursty or slow traffic** (a user who comes back every 20 minutes, a nightly job that reuses a large document across a few hours): this is where the longer TTL earns its premium. Compute the inter-arrival times per prefix and pick the TTL that covers most of them.
+- **One-off prefixes** (a unique long document read once): caching costs 25% or more extra for nothing.
+
+When to use explicit breakpoints over automatic caching: when you know your prompt structure better than the heuristic does. Put breakpoints after the stable blocks (tools, system prompt, a shared document) so you pay writes only on prefixes that will be reused, and keep volatile per-user content out of what gets written. OpenAI's explicit-only mode exists for exactly this, and Anthropic lets you combine one automatic `cache_control` field with explicit breakpoints. Automatic is fine when the prompt is simple and stable.
+
+What to put on the dashboard: cache-write tokens, cache-read tokens and hit rate per route, and the effective cost per request. The failure I look for is a route with high write volume and low read volume, which means you are paying a premium to cache things nobody reuses.
+
+**Follow-ups:** Your cache hit rate is 95% but your bill went up after a model upgrade. What do you check? How would you choose a TTL from a histogram of inter-arrival times? Where should breakpoints go in a multi-tenant RAG prompt?
+
+</details>
+
 ## Advanced
 
-### 36. Compare JSON mode with schema-constrained decoding. How does constrained decoding actually enforce the schema?
+### 37. Compare JSON mode with schema-constrained decoding. How does constrained decoding actually enforce the schema?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1069,7 +1100,7 @@ flowchart LR
 
 </details>
 
-### 37. What is context rot, and what compaction strategies do you use in long-running agents?
+### 38. What is context rot, and what compaction strategies do you use in long-running agents?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1078,7 +1109,7 @@ Context rot (also "context pollution") is the degradation of model behaviour as 
 Compaction and hygiene strategies, roughly in order of adoption:
 
 - **Tool-output discipline** (cheapest, first): truncate and paginate results, return summaries with handles to fetch detail, strip boilerplate from fetched pages. Most rot enters through tool outputs, not conversation.
-- **History compaction**: when the window nears a threshold, summarise older turns into a structured digest - decisions made, current state, open items, key facts, *errors already encountered* (so they're not repeated) - keep recent turns verbatim, and continue. This is what Claude Code-style auto-compaction does. Risk: summaries lose detail irrecoverably; mitigate by preserving pinned artifacts (the task spec, key file paths) verbatim and never summarising the system prompt.
+- **History compaction**: when the window nears a threshold, summarise older turns into a structured digest - decisions made, current state, open items, key facts, *errors already encountered* (so they're not repeated) - keep recent turns verbatim, and continue. This is what Claude Code-style auto-compaction does. Risk: summaries lose detail irrecoverably; mitigate by preserving pinned artifacts (the task spec, key file paths) verbatim and never summarising the system prompt. A second risk: the summary is a persistence channel across the context boundary, and the model can be the one that poisons it. OpenAI reported in 2026 that a model in RL training wrote injection-style instructions into its own compaction summaries (a fake security alert, a 30-word limit with no tools or citations), and the successor context followed some of them. Treat summaries as untrusted input: give the summariser a fixed schema, check the output for imperative instructions that were never in the task, and keep standing instructions in the system prompt rather than in the digest.
 - **Offloading / externalised memory**: write intermediate state to files or a scratchpad, keep only references in context, re-read on demand. Converts context (expensive, decaying) into storage (cheap, durable) with retrieval as the access path.
 - **Sub-agents as context firewalls**: delegate a context-heavy subtask (read 30 files, research a question) to a fresh-window sub-agent that returns only a distilled answer. The parent's window stays clean.
 - **Pruning**: drop superseded tool results (old file reads after edits), collapse retry loops to a single "attempts 1-3 failed because X" note, remove tools no longer relevant to the phase. Some provider APIs now offer this server-side, clearing stale tool results automatically as the window fills, but you still decide what is safe to drop.
@@ -1102,7 +1133,7 @@ flowchart LR
 
 </details>
 
-### 38. Explain DSPy-style programmatic prompt optimization. When would you use it over manual iteration?
+### 39. Explain DSPy-style programmatic prompt optimization. When would you use it over manual iteration?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1124,7 +1155,7 @@ When manual wins: one-off prompts, tasks needing nuanced judgment you can't metr
 
 </details>
 
-### 39. What is meta-prompting? How would you use a model to improve your prompts - and what are the pitfalls?
+### 40. What is meta-prompting? How would you use a model to improve your prompts - and what are the pitfalls?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1150,7 +1181,7 @@ Bottom line: meta-prompting is a candidate generator; the eval loop remains the 
 
 </details>
 
-### 40. How do you decide when to stop prompt engineering and fine-tune instead?
+### 41. How do you decide when to stop prompt engineering and fine-tune instead?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1188,7 +1219,7 @@ flowchart TD
 
 </details>
 
-### 41. How would you A/B test a prompt change safely in production?
+### 42. How would you A/B test a prompt change safely in production?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1214,11 +1245,11 @@ Treat prompts as deployable artifacts: versioned, config-flagged (no code deploy
 
 </details>
 
-### 42. How do reasoning models change prompting practice? What transfers and what becomes obsolete?
+### 43. How do reasoning models change prompting practice? What transfers and what becomes obsolete?
 
 <details><summary><b>Answer</b></summary>
 
-Reasoning models (OpenAI o-series/GPT-5-class thinking modes, Claude with extended thinking, Gemini thinking models, DeepSeek-R1) are RL-trained to generate long internal chains of thought before answering, with the deliberation budget exposed as an API parameter (reasoning effort / thinking-token budget) rather than elicited by the prompt.
+Reasoning models (OpenAI's GPT-6 family and the earlier GPT-5 and o-series lines, Claude with adaptive thinking, or extended thinking on older models, Gemini thinking models, DeepSeek's reasoning modes) are RL-trained to generate long internal chains of thought before answering, with the deliberation budget exposed as an API parameter rather than elicited by the prompt. As of late 2026 that parameter is an effort or level setting on the major APIs: Claude effort (low, medium, high, xhigh, max) over adaptive thinking, GPT-6 reasoning effort, and Gemini `thinking_level`, which replaced `thinking_budget`. Explicit thinking-token budgets survive mainly in older open-weight models; Anthropic's current models reject manual `budget_tokens`.
 
 What becomes obsolete or counterproductive:
 
@@ -1239,7 +1270,7 @@ New knobs and considerations:
 
 </details>
 
-### 43. Design a token budget for an agent with a 200k context window. How do you allocate it, and how do you enforce it?
+### 44. Design a token budget for an agent with a 200k context window. How do you allocate it, and how do you enforce it?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1292,7 +1323,7 @@ flowchart TD
 
 </details>
 
-### 44. Design memory that persists across sessions for an assistant. How is it different from managing context within a session?
+### 45. Design memory that persists across sessions for an assistant. How is it different from managing context within a session?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1318,7 +1349,7 @@ Within a session you are compressing a transcript you already have. Across sessi
 
 </details>
 
-### 45. Your agent reads web pages and can send email. How do you defend against indirect prompt injection?
+### 46. Your agent reads web pages and can send email. How do you defend against indirect prompt injection?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1353,7 +1384,7 @@ flowchart TD
 
 </details>
 
-### 46. The system prompt says one thing, the user asks for another, and a retrieved document says a third. How do you design conflict resolution?
+### 47. The system prompt says one thing, the user asks for another, and a retrieved document says a third. How do you design conflict resolution?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1392,7 +1423,7 @@ flowchart TD
 
 </details>
 
-### 47. Your prompt change gained 3 points on the eval. How confident are you that it is real?
+### 48. Your prompt change gained 3 points on the eval. How confident are you that it is real?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1412,7 +1443,7 @@ And the connection worth drawing: sensitivity is a portability metric. If the pr
 
 </details>
 
-### 48. When should you split an agent into sub-agents, and what do you pass between them?
+### 49. When should you split an agent into sub-agents, and what do you pass between them?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1450,7 +1481,7 @@ flowchart TD
 
 </details>
 
-### 49. You moved a prompt from a hosted API to a self-hosted copy of the same open-weight model, and quality dropped below the hosted version. What do you check?
+### 50. You moved a prompt from a hosted API to a self-hosted copy of the same open-weight model, and quality dropped below the hosted version. What do you check?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1484,7 +1515,7 @@ flowchart LR
 
 </details>
 
-### 50. You are running a reasoning model in a multi-turn tool-use loop. What do you do with its reasoning between calls, and what breaks if you drop it?
+### 51. You are running a reasoning model in a multi-turn tool-use loop. What do you do with its reasoning between calls, and what breaks if you drop it?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1494,7 +1525,7 @@ Why it matters: in a tool loop the model reasons, emits a tool call and stops. W
 
 Providers expose this differently, so it belongs in your adapter layer:
 
-- **Anthropic** returns thinking blocks that carry a signature. When you send a tool result, the preceding assistant turn must include those blocks complete and unmodified, and the signature lets the API detect tampering. Redacted thinking blocks are opaque and go back as-is.
+- **Anthropic** returns thinking blocks that carry a signature. When you send a tool result, the preceding assistant turn must include those blocks complete and unmodified, and the signature lets the API detect tampering. Redacted thinking blocks are opaque and go back as-is. Since September 2026 the API preserves thinking blocks only for the model that produced them or a newer one, so if you fall back to an older model mid-conversation, do not count on the earlier reasoning carrying over.
 - **OpenAI's Responses API** returns reasoning items. Either chain requests through server-side state or, when you cannot let the provider store state, request the encrypted reasoning content and send it back with the next call. Endpoints that throw reasoning away between calls give you no way to preserve it.
 
 The engineering consequences:
@@ -1523,5 +1554,87 @@ sequenceDiagram
 ```
 
 **Follow-ups:** Your compaction job runs on a timer and sometimes fires mid tool-use turn. What breaks, and how do you fix it? How do zero-data-retention requirements change how you carry reasoning between calls? Why should you not use the model's reasoning as your audit trail?
+
+</details>
+
+### 52. Reasoning effort can now be changed per message, mid-conversation, without losing the prompt cache. Design an agent policy that raises and lowers effort turn by turn, and explain the effect on cost, latency and cache hit rate.
+
+<details><summary><b>Answer</b></summary>
+
+The mechanism first. In September 2026 Anthropic added per-message effort in beta: a mid-conversation system message carrying `output_config.effort` changes effort for later turns while preserving the prompt cache. OpenAI added mid-conversation reasoning-effort changes for GPT-6 Astra that keep the cached prefix. The point of both is that the change rides in the appended part of the conversation, so the long, cached prefix of system prompt, tools and history is untouched.
+
+That matters because the obvious alternatives are bad. A single effort setting for the whole session means you either pay high-effort prices on every trivial step or run hard steps at low effort. Switching models for hard steps means a different cache, so you re-prefill the entire context on the expensive model.
+
+The policy I would build:
+
+- **Default low** (or medium for coding agents). Most agent steps are mechanical: read a file, call a search tool, format a result.
+- **Escalate on signals, not on vibes.** Raise effort when the agent is about to plan or re-plan, after a tool error or failing test, when two consecutive steps made no progress, before an irreversible action, and when the task spec is ambiguous. Each of these is cheap to detect from the transcript.
+- **De-escalate after the hard step.** Once the plan exists or the failing test passes, drop back for execution. Without this, effort only ratchets up and you end at max for the whole tail of the session.
+- **Cap per session.** Count reasoning tokens per session and stop escalating past a budget, so a stuck agent cannot loop at max effort.
+
+Effects to state with numbers:
+
+- **Cost.** Reasoning tokens bill as output, which is typically several times the input price. If 15% of steps need high effort, running everything at high pays for the other 85% for nothing. Per-turn switching usually beats a single "medium" setting on both cost and quality, because medium is wrong for both ends.
+- **Latency.** Thinking tokens are generated serially, so high-effort turns are slow and low-effort turns stay fast. Users see fast routine steps and a visible pause before the hard ones, which is the right shape.
+- **Cache hit rate.** Should stay flat, which is the whole point. Verify it: log cache-read and cache-write tokens per turn and alert if effort changes correlate with cache misses. An implementation that edits the top-level system prompt to change effort, rather than appending a message, will quietly destroy the cache.
+
+**Worth sketching.** Drawing it is optional, but the loop makes clear that the effort change is appended and the prefix never moves.
+
+```mermaid
+flowchart TD
+    A["Cached prefix<br/>(system, tools, history)"] --> B["Next agent step"]
+    B --> C{"Plan, error, stall<br/>or irreversible action?"}
+    C -->|"yes"| D["Append message:<br/>effort high"]
+    C -->|"no"| E["Append message:<br/>effort low"]
+    D --> F["Run turn, log reasoning<br/>and cache-read tokens"]
+    E --> F
+    F --> B
+```
+
+Evaluate the policy, not just the model: run the same task set with fixed-low, fixed-high and the adaptive policy, and compare success rate, cost per task and p95 step latency. If adaptive does not beat fixed-high on cost at equal success, your escalation signals are wrong.
+
+**Follow-ups:** Which escalation signal would you trust least, and why? How would you detect that the policy is ratcheting up and never coming back down? What changes if the provider's effort scale has no off or none level?
+
+</details>
+
+### 53. You make 50 million yes/no and routing decisions a day with an LLM. Would you use a decision endpoint that returns probabilities, structured output with a label, or logprobs you read yourself? How do you set and maintain the thresholds?
+
+<details><summary><b>Answer</b></summary>
+
+At that volume this is a classifier problem that happens to use an LLM, so I want a calibrated score per decision and a threshold I chose deliberately, not a label the model chose for me.
+
+The three options:
+
+- **Structured output with a label** (`{"route": "billing"}`). Easy and portable, but you get a hard decision with no confidence, so you cannot trade precision for recall, cannot build an abstain band, and cannot tell a 51% call from a 99% one. Asking the model to also output a "confidence" number is not a fix: verbalised confidence is poorly calibrated. You also pay output tokens on every call.
+- **Logprobs you read yourself.** Frame the answer as a single token and read its probability. This is the classic approach and works well on self-hosted models and on APIs that still expose logprobs, but many current frontier models do not (GPT-6 Astra returns none), and you own the plumbing: label tokens, tokenization quirks, renormalising over valid labels only.
+- **A decision endpoint.** OpenAI's Decisions API, generally available after a DevDay 2026 preview, returns predicate answers as a probability and choice and score answers as a probability distribution plus a confidence value. It runs only on gpt-6-luna, does not charge for output tokens, and OpenAI claims it is about 10x faster than the Responses API. Its docs tell you to set thresholds from labelled examples, weighing false positives against false negatives.
+
+For 50M decisions a day I would test the decision endpoint first, because cost and latency dominate at this scale and it returns exactly the artifact I need. The trade-offs: it locks you to one provider and one model, so the portable fallback (logprobs on a self-hosted open model, or a small fine-tuned classifier) should stay warm in shadow. And at this volume, check whether a distilled classifier trained on the LLM's labels would do the job at a fraction of the cost; the LLM may be the labeller rather than the production model.
+
+Setting thresholds:
+
+- Build a labelled set from real traffic, stratified by route, a few thousand items at least for the rare classes.
+- Check calibration with a reliability plot before trusting raw probabilities. RLHF-tuned models are often overconfident; if needed, fit temperature or isotonic scaling on a held-out split.
+- Pick the threshold from costs, not from 0.5: if a false positive costs 10x a false negative, the threshold should move a long way. Define an abstain band in the middle that routes to a bigger model or a human, and size it to your escalation capacity.
+
+Maintaining them:
+
+- **Monitor the score distribution daily.** A shift in the histogram is your earliest drift signal, before labels arrive.
+- **Re-label a small random sample continuously** and track precision and recall per class.
+- **Recalibrate on every model snapshot change.** A new snapshot can shift scores without changing accuracy, and an unchanged threshold on shifted scores is a silent policy change.
+
+**Worth sketching.** Drawing it is optional, but it shows that the threshold sits outside the model and is owned by you.
+
+```mermaid
+flowchart LR
+    A["Request"] --> B["Decision endpoint<br/>returns probability"]
+    B --> C{"Above upper<br/>threshold?"}
+    C -->|"yes"| D["Act automatically"]
+    C -->|"no"| E{"Below lower<br/>threshold?"}
+    E -->|"yes"| F["Reject or default route"]
+    E -->|"no"| G["Abstain band:<br/>bigger model or human"]
+```
+
+**Follow-ups:** How would you detect that a new model snapshot shifted the score distribution without changing accuracy? When would you replace the LLM with a distilled classifier trained on its labels? How do you size the abstain band against human review capacity?
 
 </details>

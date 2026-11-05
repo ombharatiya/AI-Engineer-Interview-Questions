@@ -15,16 +15,16 @@ Every guide follows the same shape:
 
 | Role | Guide | What the loop tests | Questions |
 |---|---|---|---|
-| Backend Engineer | [backend-engineer.md](backend-engineer.md) | Building reliable systems around a slow, expensive, rate-limited, non-deterministic dependency: streaming, timeouts, token-based rate limits, cost per call | 13 |
-| Frontend Engineer | [frontend-engineer.md](frontend-engineer.md) | Making a slow, occasionally wrong backend feel fast, trustworthy and safe: streaming UI, partial state, citation and error affordances | 14 |
-| Product / Full-stack Engineer | [product-engineer.md](product-engineer.md) | Shipping a working LLM feature end to end in days, knowing when not to use AI, and proving it works with scrappy but real evals | 13 |
-| Forward Deployed Engineer | [forward-deployed-engineer.md](forward-deployed-engineer.md) | The two-halves loop: full-stack plus AI application depth, and the decomp interview where you carve a vague business problem into a buildable v1 | 13 |
-| Data Engineer | [data-engineer.md](data-engineer.md) | RAG ingestion as an ETL problem: parsing, chunking, embedding, incremental sync, delete propagation, re-index migrations | 13 |
-| DevOps / Platform / MLOps Engineer | [devops-platform-engineer.md](devops-platform-engineer.md) | Running GPU fleets, minutes-long cold starts, 140 GB deploy artifacts, and a dependency whose failures look like wrong answers rather than 500s | 13 |
-| QA / SDET Engineer | [qa-sdet-engineer.md](qa-sdet-engineer.md) | Testing rebuilt around distributions instead of exact values: eval harnesses as test suites, judge calibration, red-team regression, CI gates | 13 |
-| Mobile Engineer | [mobile-engineer.md](mobile-engineer.md) | On-device versus cloud, streaming over a flaky radio, shipping gigabytes of weights without wrecking battery life or app size | 13 |
-| Security Engineer | [security-engineer.md](security-engineer.md) | Threat-modelling a system where instructions and data share one channel: injection, tool scopes, OWASP LLM Top 10, agent blast radius | 12 |
-| "Am I an ML Engineer or an AI Engineer?" | [ml-engineer-vs-ai-engineer.md](ml-engineer-vs-ai-engineer.md) | Decoding the four titles, mapping each to a loop, transition paths in both directions, and the boundary questions both roles get | 12 |
+| Backend Engineer | [backend-engineer.md](backend-engineer.md) | Building reliable systems around a slow, expensive, rate-limited, non-deterministic dependency: streaming, timeouts, token-based rate limits, cost per call | 15 |
+| Frontend Engineer | [frontend-engineer.md](frontend-engineer.md) | Making a slow, occasionally wrong backend feel fast, trustworthy and safe: streaming UI, partial state, citation and error affordances | 16 |
+| Product / Full-stack Engineer | [product-engineer.md](product-engineer.md) | Shipping a working LLM feature end to end in days, knowing when not to use AI, and proving it works with scrappy but real evals | 15 |
+| Forward Deployed Engineer | [forward-deployed-engineer.md](forward-deployed-engineer.md) | The two-halves loop: full-stack plus AI application depth, and the decomp interview where you carve a vague business problem into a buildable v1 | 17 |
+| Data Engineer | [data-engineer.md](data-engineer.md) | RAG ingestion as an ETL problem: parsing, chunking, embedding, incremental sync, delete propagation, re-index migrations | 15 |
+| DevOps / Platform / MLOps Engineer | [devops-platform-engineer.md](devops-platform-engineer.md) | Running GPU fleets, minutes-long cold starts, 140 GB deploy artifacts, and a dependency whose failures look like wrong answers rather than 500s | 17 |
+| QA / SDET Engineer | [qa-sdet-engineer.md](qa-sdet-engineer.md) | Testing rebuilt around distributions instead of exact values: eval harnesses as test suites, judge calibration, red-team regression, CI gates | 15 |
+| Mobile Engineer | [mobile-engineer.md](mobile-engineer.md) | On-device versus cloud, streaming over a flaky radio, shipping gigabytes of weights without wrecking battery life or app size | 15 |
+| Security Engineer | [security-engineer.md](security-engineer.md) | Threat-modelling a system where instructions and data share one channel: injection, tool scopes, OWASP LLM Top 10, agent blast radius | 16 |
+| "Am I an ML Engineer or an AI Engineer?" | [ml-engineer-vs-ai-engineer.md](ml-engineer-vs-ai-engineer.md) | Decoding the four titles, mapping each to a loop, transition paths in both directions, and the boundary questions both roles get | 15 |
 
 ## How to use these
 

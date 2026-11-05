@@ -26,8 +26,8 @@ This is not a replacement for the full repo. It is the floor, not the ceiling: i
 - [ ] 🟡 [What is the KV cache and why does it make generation fast?](02-llm-fundamentals/questions.md#13-what-is-the-kv-cache-and-why-does-it-make-generation-fast)
 - [ ] 🟡 [Explain RoPE. What's the rotation intuition and why did it become the default?](02-llm-fundamentals/questions.md#27-explain-rope-whats-the-rotation-intuition-and-why-did-it-become-the-default)
 - [ ] 🟢 [Describe the modern LLM training pipeline: pretraining → mid-training → SFT → RL.](02-llm-fundamentals/questions.md#34-describe-the-modern-llm-training-pipeline-pretraining--mid-training--sft--rl)
-- [ ] 🟡 [Compare Kaplan and Chinchilla scaling laws. What did Chinchilla change?](02-llm-fundamentals/questions.md#45-compare-kaplan-and-chinchilla-scaling-laws-what-did-chinchilla-change)
-- [ ] 🔴 [Explain Mixture-of-Experts: the router, top-k experts, total vs active parameters. Why does it win?](02-llm-fundamentals/questions.md#48-explain-mixture-of-experts-the-router-top-k-experts-total-vs-active-parameters-why-does-it-win)
+- [ ] 🟡 [Compare Kaplan and Chinchilla scaling laws. What did Chinchilla change?](02-llm-fundamentals/questions.md#47-compare-kaplan-and-chinchilla-scaling-laws-what-did-chinchilla-change)
+- [ ] 🔴 [Explain Mixture-of-Experts: the router, top-k experts, total vs active parameters. Why does it win?](02-llm-fundamentals/questions.md#50-explain-mixture-of-experts-the-router-top-k-experts-total-vs-active-parameters-why-does-it-win)
 
 ## 🧭 Prompt & Context Engineering
 
@@ -56,7 +56,7 @@ This is not a replacement for the full repo. It is the floor, not the ceiling: i
 - [ ] 🟢 [Walk me through the classic RLHF pipeline end to end.](05-fine-tuning-and-alignment/questions.md#10-walk-me-through-the-classic-rlhf-pipeline-end-to-end)
 - [ ] 🟡 [What is reward hacking? Give concrete examples and mitigations.](05-fine-tuning-and-alignment/questions.md#19-what-is-reward-hacking-give-concrete-examples-and-mitigations)
 - [ ] 🟡 [Explain DPO. What's the key insight that lets it skip the reward model and the RL loop?](05-fine-tuning-and-alignment/questions.md#20-explain-dpo-whats-the-key-insight-that-lets-it-skip-the-reward-model-and-the-rl-loop)
-- [ ] 🔴 [Explain GRPO. Why has it displaced PPO for reasoning RL?](05-fine-tuning-and-alignment/questions.md#37-explain-grpo-why-has-it-displaced-ppo-for-reasoning-rl)
+- [ ] 🔴 [Explain GRPO. Why has it displaced PPO for reasoning RL?](05-fine-tuning-and-alignment/questions.md#39-explain-grpo-why-has-it-displaced-ppo-for-reasoning-rl)
 
 ## 🤖 Agents, Tool Use & MCP
 
@@ -67,8 +67,8 @@ This is not a replacement for the full repo. It is the floor, not the ceiling: i
 - [ ] 🟡 [What makes a good tool definition? Give concrete design rules.](06-agents-and-tool-use/questions.md#10-what-makes-a-good-tool-definition-give-concrete-design-rules)
 - [ ] 🟡 [When does multi-agent beat single-agent, and when does it make things worse?](06-agents-and-tool-use/questions.md#24-when-does-multi-agent-beat-single-agent-and-when-does-it-make-things-worse)
 - [ ] 🟡 [How do you evaluate an agent? Compare trajectory evals and final-outcome evals.](06-agents-and-tool-use/questions.md#28-how-do-you-evaluate-an-agent-compare-trajectory-evals-and-final-outcome-evals)
-- [ ] 🔴 [How does prompt injection work against agents via tool results, and what actually mitigates it?](06-agents-and-tool-use/questions.md#43-how-does-prompt-injection-work-against-agents-via-tool-results-and-what-actually-mitigates-it)
-- [ ] 🔴 [What is the "lethal trifecta," and how do you design agent systems around it?](06-agents-and-tool-use/questions.md#44-what-is-the-lethal-trifecta-and-how-do-you-design-agent-systems-around-it)
+- [ ] 🔴 [How does prompt injection work against agents via tool results, and what actually mitigates it?](06-agents-and-tool-use/questions.md#44-how-does-prompt-injection-work-against-agents-via-tool-results-and-what-actually-mitigates-it)
+- [ ] 🔴 [What is the "lethal trifecta," and how do you design agent systems around it?](06-agents-and-tool-use/questions.md#45-what-is-the-lethal-trifecta-and-how-do-you-design-agent-systems-around-it)
 
 ## 🧪 Evals & Observability
 
@@ -77,8 +77,8 @@ This is not a replacement for the full repo. It is the floor, not the ceiling: i
 - [ ] 🟡 [What are the known biases of LLM judges, and how do you mitigate each?](07-evaluation-and-observability/questions.md#16-what-are-the-known-biases-of-llm-judges-and-how-do-you-mitigate-each)
 - [ ] 🟡 [How do you evaluate a RAG pipeline? Why evaluate components separately from the end-to-end system?](07-evaluation-and-observability/questions.md#22-how-do-you-evaluate-a-rag-pipeline-why-evaluate-components-separately-from-the-end-to-end-system)
 - [ ] 🟡 [You have 500 production transcripts flagged as failures. Walk me through your error-analysis process.](07-evaluation-and-observability/questions.md#27-you-have-500-production-transcripts-flagged-as-failures-walk-me-through-your-error-analysis-process)
-- [ ] 🔴 [Your new prompt scores 78% vs the old prompt's 74% on a 100-example eval. Do you ship it?](07-evaluation-and-observability/questions.md#41-your-new-prompt-scores-78-vs-the-old-prompts-74-on-a-100-example-eval-do-you-ship-it)
-- [ ] 🟡 [Design the observability stack for a production LLM application. What does a good trace look like?](07-evaluation-and-observability/questions.md#42-design-the-observability-stack-for-a-production-llm-application-what-does-a-good-trace-look-like)
+- [ ] 🔴 [Your new prompt scores 78% vs the old prompt's 74% on a 100-example eval. Do you ship it?](07-evaluation-and-observability/questions.md#43-your-new-prompt-scores-78-vs-the-old-prompts-74-on-a-100-example-eval-do-you-ship-it)
+- [ ] 🟡 [Design the observability stack for a production LLM application. What does a good trace look like?](07-evaluation-and-observability/questions.md#44-design-the-observability-stack-for-a-production-llm-application-what-does-a-good-trace-look-like)
 
 ## ⚡ Inference & Production
 
@@ -88,7 +88,7 @@ This is not a replacement for the full repo. It is the floor, not the ceiling: i
 - [ ] 🟡 [What's the difference between static and continuous batching, and why did continuous batching become universal?](08-inference-and-production/questions.md#8-whats-the-difference-between-static-and-continuous-batching-and-why-did-continuous-batching-become-universal)
 - [ ] 🟡 [What is prompt (prefix) caching, and why is it one of the biggest cost levers available?](08-inference-and-production/questions.md#9-what-is-prompt-prefix-caching-and-why-is-it-one-of-the-biggest-cost-levers-available)
 - [ ] 🟡 [Self-host an open-weights model or call a provider API - walk me through the decision.](08-inference-and-production/questions.md#25-self-host-an-open-weights-model-or-call-a-provider-api---walk-me-through-the-decision)
-- [ ] 🟡 [Design the reliability layer for calls to an LLM provider: timeouts, retries, circuit breakers, idempotency.](08-inference-and-production/questions.md#42-design-the-reliability-layer-for-calls-to-an-llm-provider-timeouts-retries-circuit-breakers-idempotency)
+- [ ] 🟡 [Design the reliability layer for calls to an LLM provider: timeouts, retries, circuit breakers, idempotency.](08-inference-and-production/questions.md#43-design-the-reliability-layer-for-calls-to-an-llm-provider-timeouts-retries-circuit-breakers-idempotency)
 
 ## 🛡️ Safety, Security & Responsible AI
 
@@ -97,7 +97,7 @@ This is not a replacement for the full repo. It is the floor, not the ceiling: i
 - [ ] 🟡 [What is the lethal trifecta, and how do you use it to secure an agent?](09-safety-security-and-responsible-ai/questions.md#6-what-is-the-lethal-trifecta-and-how-do-you-use-it-to-secure-an-agent)
 - [ ] 🟡 [How do you handle PII in an LLM pipeline end to end?](09-safety-security-and-responsible-ai/questions.md#18-how-do-you-handle-pii-in-an-llm-pipeline-end-to-end)
 - [ ] 🟡 [What do RLHF, DPO, and Constitutional AI/RLAIF actually do for safety, and why can't a system prompt replace them?](09-safety-security-and-responsible-ai/questions.md#22-what-do-rlhf-dpo-and-constitutional-airlaif-actually-do-for-safety-and-why-cant-a-system-prompt-replace-them)
-- [ ] 🔴 [Design a secure architecture for an agent that reads untrusted web/email content AND has access to a user's private data. How do you defeat prompt injection by construction?](09-safety-security-and-responsible-ai/questions.md#34-design-a-secure-architecture-for-an-agent-that-reads-untrusted-webemail-content-and-has-access-to-a-users-private-data-how-do-you-defeat-prompt-injection-by-construction)
+- [ ] 🔴 [Design a secure architecture for an agent that reads untrusted web/email content AND has access to a user's private data. How do you defeat prompt injection by construction?](09-safety-security-and-responsible-ai/questions.md#36-design-a-secure-architecture-for-an-agent-that-reads-untrusted-webemail-content-and-has-access-to-a-users-private-data-how-do-you-defeat-prompt-injection-by-construction)
 
 ## 🖼️ Multimodal Models
 

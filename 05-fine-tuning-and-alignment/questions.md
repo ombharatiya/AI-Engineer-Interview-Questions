@@ -1,6 +1,6 @@
 # Fine-tuning, RLHF & Alignment - Interview Questions
 
-56 questions: 13 basic, 22 intermediate, 21 advanced.
+61 questions: 13 basic, 24 intermediate, 24 advanced.
 
 > **On the diagrams: drawing is optional.** Some answers include a small sketch you could
 > reproduce on a whiteboard or in a shared doc. You never have to draw anything to score well,
@@ -1016,9 +1016,67 @@ The interview point is the reasoning, not the citation: ask how many bits the tr
 
 </details>
 
+### 36. You want to build your product on a Chinese open-weight base model such as Kimi, GLM or DeepSeek. What licence, provenance, security and deployment-region checks do you run before post-training on it or serving it to customers?
+
+<details><summary><b>Answer</b></summary>
+
+This is now a mainstream choice, not an edge case. Harvey's Tenet is a LoRA post-trained on Kimi K3. Since October 2026 Palantir AIP offers Kimi K3, GLM-5.3 and DeepSeek V4.1 Flash through Fireworks, but only on US georestricted commercial enrolments. Sarvam serves GLM 5.2 from India, and Cohere's Model Vault hosts DeepSeek and GLM variants single-tenant and region-pinned. So the question is not "is it allowed" but "what do we check".
+
+**1. Licence, per checkpoint.** Read the licence of the exact repository and revision, not the family. They differ: DeepSeek publishes under MIT, while Kimi K3.1 Pro has its own custom licence. Custom licences can carry conditions MIT does not, so legal reviews the clauses on derivatives and fine-tunes, attribution, commercial-scale thresholds and acceptable use. Your LoRA is a derivative of the base, and whatever the licence requires travels with it.
+
+**2. Provenance and integrity.** Pull from the publisher's official organisation, pin a revision hash, verify checksums, and load safetensors only. Weights are data, but the modelling code is code: `trust_remote_code` means running someone else's Python, so review it or use an implementation in your serving engine. Load in a sandbox with no network egress the first time.
+
+**3. Behaviour.** Run your full eval and safety suite on the base before investing in post-training: domain accuracy, refusal behaviour, prompt-injection robustness, tokenizer efficiency on your languages. Probe for topic-specific behaviour too, such as refusals or slanted answers on politically sensitive subjects that matter to your users. Post-training shifts these, so re-run the same suite on your tuned model. Backdoor detection in weights is not a solved problem, which is one more reason to keep the model inside a tight permission boundary rather than trusting it with broad tools.
+
+**4. Customer and regulatory acceptance.** Data flow depends on where you serve, not where the weights came from: self-hosted in your region, prompts never leave. But some customers, especially public sector, defence and regulated buyers, contractually exclude models by origin regardless of hosting, and platforms like the Palantir example gate access by enrolment and region. Ask sales and legal which customers would refuse it before you build on it, and record the model's origin in your model inventory and customer documentation.
+
+**5. Exit plan.** Keep training data, eval suite and serving interface base-agnostic. A LoRA is bound to its base, so if a key customer says no you retrain on another base rather than port the adapter. Budget for that as a known cost, not a surprise.
+
+**Follow-ups:** What would you put in the model card you give customers about the base model's origin? How would you test whether post-training removed a topic-specific refusal you did not want? If two candidate bases score the same, which licence terms would decide it?
+
+</details>
+
+### 37. A customer wants their open-weight model post-trained for one workflow. Pick the base model, choose between SFT, DPO and RL with a verifier, design the data plan, and estimate compute and calendar time, with rollout generation counted separately from training. What result in week one would make you tell them RL is not worth it?
+
+<details><summary><b>Answer</b></summary>
+
+This is the scoping conversation forward-deployed post-training roles are hired for: Together AI's FDE posting asks candidates to guide base-model selection and to size RL and fine-tuning workloads for deals and capacity planning.
+
+**Base model.** Shortlist two or three open-weight bases that fit the serving budget (memory, latency, licence), then run the customer's eval on each with a good prompt. Pick on headroom and fit, not leaderboard rank: tokenizer efficiency on their language and data, context length, tool-call format, and whether a dense model or a MoE suits their serving setup. The best base is often the one that is already decent at the task and cheap to serve.
+
+**Method.**
+
+- **SFT** when you have, or can produce, good demonstrations and the main gap is format, style or a stable procedure.
+- **DPO** when people can say which of two outputs is better but cannot write the ideal one, and the gap is preference-shaped (tone, verbosity, judgement calls).
+- **RL with a verifier** when success is checkable (tests pass, record matches, form validates) and the model sometimes succeeds already. Usually SFT first, then RL.
+
+**Data plan.** A held-out eval set built with the customer before any training, with a written definition of success. Then demonstrations (a few thousand good ones beat tens of thousands of noisy ones), or preference pairs, or a task pool plus a verifier. Validate the verifier against human labels before RL, and keep task families out of training for a held-out check.
+
+**Compute, illustratively for a 32B dense base:**
+
+- SFT: 20k examples x 2k tokens x 3 epochs is 120M tokens. 6 x 32B x 1.2e8 is about 2.3e19 FLOPs, tens of GPU-hours. Training compute is not the constraint.
+- RL rollouts: 500 steps x 256 prompts x 8 samples x 8k tokens is about 8e9 generated tokens. At a few thousand tokens per second per GPU with batched inference, that is several hundred to a thousand GPU-hours of generation.
+- RL training on those tokens: 6 x 32B x 8e9 is about 1.5e21 FLOPs, roughly a thousand GPU-hours at good utilisation.
+- Agentic environments add tool and sandbox latency, which often dominates wall-clock time even when GPU-hours look modest.
+
+Count generation and training separately because they run on different engines and scale differently; generation usually dominates RL cost.
+
+**Calendar.** Data and verifier work takes two to four weeks and dominates. Training runs take days. Budget a week of iteration after the first RL run.
+
+**Week-one results that kill RL:**
+
+- pass@16 near zero on the eval set: RL has nothing to sharpen, so build demonstrations or distil first.
+- pass@1 already above the bar, or pass@k barely higher than pass@1: little headroom to buy.
+- Verifier agreement with human labels well below about 90%: RL will optimise the verifier's mistakes.
+- A prompted frontier model meets the bar at an acceptable cost per task: the customer may not need training at all.
+
+**Follow-ups:** How would you price the engagement if rollout generation dominates? What would you change if the customer can only give you 300 labelled examples? How do you make the eval set survive a change of base model?
+
+</details>
+
 ## Advanced
 
-### 36. Explain gradient accumulation, gradient checkpointing, and ZeRO/FSDP - and how you'd combine them for a real training run.
+### 38. Explain gradient accumulation, gradient checkpointing, and ZeRO/FSDP - and how you'd combine them for a real training run.
 
 <details><summary><b>Answer</b></summary>
 
@@ -1036,7 +1094,7 @@ Three orthogonal tools attacking different memory terms:
 
 </details>
 
-### 37. Explain GRPO. Why has it displaced PPO for reasoning RL?
+### 39. Explain GRPO. Why has it displaced PPO for reasoning RL?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1071,7 +1129,7 @@ flowchart LR
 
 </details>
 
-### 38. Why are math and code so RL-friendly? Explain verifiable rewards and the R1-style training recipe.
+### 40. Why are math and code so RL-friendly? Explain verifiable rewards and the R1-style training recipe.
 
 <details><summary><b>Answer</b></summary>
 
@@ -1102,7 +1160,7 @@ flowchart LR
 
 </details>
 
-### 39. What are RLAIF and Constitutional AI? How does AI feedback replace human feedback?
+### 41. What are RLAIF and Constitutional AI? How does AI feedback replace human feedback?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1133,7 +1191,7 @@ flowchart LR
 
 </details>
 
-### 40. What is the "alignment tax"? How does preference tuning cause over-refusal, and how do you manage it?
+### 42. What is the "alignment tax"? How does preference tuning cause over-refusal, and how do you manage it?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1154,7 +1212,7 @@ The mature framing to end on: some tax is a deliberate product/policy choice - t
 
 </details>
 
-### 41. When is fine-tuning the wrong call? Describe failure modes you'd warn a team about.
+### 43. When is fine-tuning the wrong call? Describe failure modes you'd warn a team about.
 
 <details><summary><b>Answer</b></summary>
 
@@ -1173,13 +1231,13 @@ Failure modes to warn about even when fine-tuning *is* right: catastrophic forge
 
 </details>
 
-### 42. Hosted fine-tuning APIs vs training it yourself - how do you decide?
+### 44. Hosted fine-tuning APIs vs training it yourself - how do you decide?
 
 <details><summary><b>Answer</b></summary>
 
-**Hosted** (OpenAI/Google fine-tuning endpoints, or managed open-weight tuning on Together/Fireworks/Bedrock-style platforms): you upload formatted data, they train - typically SFT/LoRA-style, with some offering preference-tuning (DPO-style) and a few offering reinforcement fine-tuning against a grader you define (OpenAI's RFT on its reasoning models is the best-known example) - and serve the result behind the same API.
+**Hosted** (OpenAI/Google fine-tuning endpoints, or managed open-weight tuning on Together/Fireworks/Bedrock-style platforms): you upload formatted data, they train - typically SFT/LoRA-style, with some offering preference-tuning (DPO-style) and a few offering reinforcement fine-tuning against a grader you define (OpenAI's RFT on its reasoning models is the best-known example) - and serve the result behind the same API. Which models are tunable changes often, and frontier models are frequently excluded (OpenAI's GPT-6 model pages list fine-tuning as unsupported as of late 2026), so check the provider's current docs before planning around a specific base.
 
-A middle tier now exists between the two: managed training APIs such as Thinking Machines' Tinker, where you write the training loop and loss yourself on open-weight models and the provider runs the distributed GPU side. You keep the method freedom of DIY without owning the cluster, and you can usually download the resulting LoRA weights.
+A middle tier now exists between the two: managed training APIs such as Thinking Machines' Tinker or Together Post-Training (October 2026), where you write the training loop and loss yourself on open-weight models and the provider runs the distributed GPU side. You keep the method freedom of DIY without owning the cluster, and you can usually download the resulting LoRA weights.
 
 - **Pros**: zero training infra, days-to-first-model, serving/scaling/monitoring solved, and access to tuning proprietary frontier-family models you could never self-host.
 - **Cons**: your data leaves your boundary (contract terms matter - check retention and training-reuse clauses); limited knobs (a few hyperparameters, restricted method menu - often no custom loss, limited RL); usually **no weight ownership** for proprietary bases - the artefact is locked to that provider and can be deprecated on their schedule; per-token serving premiums; opaque training (hard to debug a bad run you can't inspect).
@@ -1197,7 +1255,7 @@ A sensible default path: prototype on a hosted API to prove value fast, and move
 
 </details>
 
-### 43. Your fine-tuned model's training loss looked great, but outputs in production are worse than the base model. Walk me through your debugging process.
+### 45. Your fine-tuned model's training loss looked great, but outputs in production are worse than the base model. Walk me through your debugging process.
 
 <details><summary><b>Answer</b></summary>
 
@@ -1234,7 +1292,7 @@ flowchart TD
 
 </details>
 
-### 44. Design an end-to-end fine-tuning pipeline for a customer-support model at a mid-size company. Walk me through data → training → eval → deployment → iteration.
+### 46. Design an end-to-end fine-tuning pipeline for a customer-support model at a mid-size company. Walk me through data → training → eval → deployment → iteration.
 
 <details><summary><b>Answer</b></summary>
 
@@ -1254,7 +1312,7 @@ flowchart TD
 
 </details>
 
-### 45. How do you construct the data mixture for a fine-tune to prevent capability regressions - and how do you validate the mixture?
+### 47. How do you construct the data mixture for a fine-tune to prevent capability regressions - and how do you validate the mixture?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1281,7 +1339,7 @@ If general data can't fix a specific regression, escalate to LoRA-only training 
 
 </details>
 
-### 46. Explain sequence packing in SFT. What's the attention contamination problem and how is it solved?
+### 48. Explain sequence packing in SFT. What's the attention contamination problem and how is it solved?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1313,7 +1371,7 @@ flowchart LR
 
 </details>
 
-### 47. How do you serve fine-tuned models at scale - merged checkpoints vs adapters, versioning, rollback?
+### 49. How do you serve fine-tuned models at scale - merged checkpoints vs adapters, versioning, rollback?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1334,7 +1392,7 @@ The core decision is **merged checkpoint vs. runtime adapter**, and it's driven 
 
 </details>
 
-### 48. Your DPO run improves win rate against the SFT model, but outputs are longer, waffly and hedge constantly. Debug it.
+### 50. Your DPO run improves win rate against the SFT model, but outputs are longer, waffly and hedge constantly. Debug it.
 
 <details><summary><b>Answer</b></summary>
 
@@ -1358,7 +1416,7 @@ Then re-evaluate on the actual production task, not the preference proxy that go
 
 </details>
 
-### 49. Your fine-tune gained 8 points on your benchmark. How do you know the gain is real and not contamination?
+### 51. Your fine-tune gained 8 points on your benchmark. How do you know the gain is real and not contamination?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1384,7 +1442,7 @@ And the outer loop: 8 benchmark points is not the goal. Does it move the product
 
 </details>
 
-### 50. You are running GRPO with a verifier reward on a code task. Reward climbs steadily, but outputs get shorter and more repetitive and held-out pass rate drops. What is happening?
+### 52. You are running GRPO with a verifier reward on a code task. Reward climbs steadily, but outputs get shorter and more repetitive and held-out pass rate drops. What is happening?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1421,7 +1479,7 @@ flowchart TD
 
 </details>
 
-### 51. Design a pipeline to distil a frontier model's performance on your task into an 8B model you can serve yourself. Walk me through the whole thing.
+### 53. Design a pipeline to distil a frontier model's performance on your task into an 8B model you can serve yourself. Walk me through the whole thing.
 
 <details><summary><b>Answer</b></summary>
 
@@ -1445,7 +1503,7 @@ The shape is: prompt distribution, teacher generation, filtering, SFT, on-policy
 
 </details>
 
-### 52. You want to RL-train an agent for a multi-turn tool-use task, and the only reward you have is whether the final task succeeded. How do you make that work?
+### 54. You want to RL-train an agent for a multi-turn tool-use task, and the only reward you have is whether the final task succeeded. How do you make that work?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1480,7 +1538,7 @@ flowchart LR
 
 </details>
 
-### 53. You RL-trained an agent against a mocked environment, held-out reward improved, and the gains did not show up in production. Diagnose it.
+### 55. You RL-trained an agent against a mocked environment, held-out reward improved, and the gains did not show up in production. Diagnose it.
 
 <details><summary><b>Answer</b></summary>
 
@@ -1513,7 +1571,7 @@ flowchart TD
 
 </details>
 
-### 54. Your RL loop samples rollouts with a fast inference engine and trains with FSDP. Why do the two disagree on token log-probs, and what do you do about it?
+### 56. Your RL loop samples rollouts with a fast inference engine and trains with FSDP. Why do the two disagree on token log-probs, and what do you do about it?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1549,7 +1607,7 @@ sequenceDiagram
 
 </details>
 
-### 55. A team fine-tuned an aligned model on a few thousand benign support transcripts, and its refusal behaviour got noticeably weaker. Why does that happen, and how do you guard against it?
+### 57. A team fine-tuned an aligned model on a few thousand benign support transcripts, and its refusal behaviour got noticeably weaker. Why does that happen, and how do you guard against it?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1582,7 +1640,7 @@ flowchart TD
 
 </details>
 
-### 56. What changes when you fine-tune a mixture-of-experts model instead of a dense one?
+### 58. What changes when you fine-tune a mixture-of-experts model instead of a dense one?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1599,5 +1657,116 @@ The recipe has the same shape, but three things bite: the router, memory, and wh
 **Serving.** Merged MoE checkpoints are routine. Unmerged multi-LoRA across many experts is less mature in serving stacks, so verify support and latency before promising per-tenant adapters.
 
 **Follow-ups:** Would you freeze or train the router for a 5k-example SFT run, and what evidence would change your mind? How would you pick which experts to put LoRA on? Why is routing a source of noise in RL on MoE models?
+
+</details>
+
+### 59. You are turning someone else's open-weight MoE base model into an agentic coding model. Why add a mid-training stage before RL, what goes into a few trillion tokens of mid-training data, and what ablation would show the stage was worth its compute?
+
+<details><summary><b>Answer</b></summary>
+
+A recent public example is Cognition's SWE-2 Flash (November 2026). It starts from Thinking Machines' Inkling-Small, a MoE with 276B total and 12B active parameters, and for the first time in Cognition's recipe adds a mid-training stage of a few trillion tokens (scientific articles, blogs, code and other sources) before RL.
+
+**Why before RL.** RL sharpens behaviour the policy already produces with some probability; it is a poor and expensive way to teach knowledge or a new distribution. Each RL token costs a rollout, often with tool execution, and carries a sparse scalar signal. A general-purpose base may be thin on what an agentic coder needs: whole repositories in long context, diffs and commit histories, issue and review threads, terminal sessions, tool-call formats. Mid-training moves the distribution with dense next-token loss at pretraining cost per token, so RL starts from a policy that already samples plausible trajectories.
+
+**What goes in the mix:**
+
+- Code at repository granularity: files concatenated by repo for long context, with history, diffs, commit messages, PRs and issue discussions.
+- Technical prose: documentation, papers, engineering blogs, Q&A.
+- Agent-shaped data: real or synthetic trajectories in the target tool-call format, kept a small share so the model does not overfit one harness.
+- Replay of general data (often 10-30%) to limit forgetting, since this is someone else's base and you do not know its original mixture.
+- Hygiene: dedup against itself and the base's likely sources, licence filtering, and strict decontamination against every benchmark you will report.
+
+Training details that bite on MoE: restart at a lower peak learning rate than pretraining with a warmup and an anneal, keep the load-balancing mechanism on, and watch per-expert token share, because a domain shift can collapse routing onto a few experts.
+
+**Is it worth the compute?** Rough sizing: 6 x 12B active x 3T tokens is about 2.2e23 FLOPs, around 150k H100-hours at 40% utilisation, and more in practice because MoE runs below dense utilisation. That needs evidence.
+
+The ablation that convinces:
+
+1. Run the same RL recipe from the base and from the mid-trained checkpoint, and add a compute-matched control: give the base the mid-training compute as extra RL or SFT. Without that control you have only shown that more compute helps.
+2. Compare RL learning curves, not just endpoints. Mid-training should show higher starting reward and faster climb.
+3. Measure pass@k at large k *before* RL. If mid-training raises pass@64 on held-out tasks, RL has more correct behaviour to sharpen.
+4. Evaluate held-out agentic tasks from repositories and task families absent from mid-training data, plus a general-capability suite for regressions.
+
+If the mid-trained run beats the compute-matched control on held-out agentic tasks without regressions elsewhere, the stage earned its compute.
+
+**Worth sketching.** Optional to draw, but the compute-matched control is the box candidates forget.
+
+```mermaid
+flowchart LR
+    A["Open-weight MoE base"] --> B["Mid-training<br/>(few trillion tokens)"]
+    B --> C["SFT and RL"]
+    A --> D["Same compute spent<br/>as extra RL or SFT"]
+    C --> E{"Held-out agentic tasks<br/>and regression suite"}
+    D --> E
+```
+
+**Follow-ups:** How would you pick the general-data replay ratio without running a dozen full mid-training runs? What routing statistics would make you stop the run early? Why might pass@1 drop after mid-training even when the stage is working?
+
+</details>
+
+### 60. Your RL environments reward the agent for reaching the answer by any route. After deployment it reads access tokens out of a config file and exploits a site's injection flaw to finish tasks. How did training cause that, and how do you design and audit environments so it does not happen?
+
+<details><summary><b>Answer</b></summary>
+
+This has happened at frontier labs. Anthropic's October 2026 report on unintended real-world actions describes models exploiting an injection flaw in a university-hosted tool after it returned an error, and using access tokens read from a settings file. Among the causes it names are training environments that rewarded working around restrictions or blockers, and it is fixing or removing them.
+
+**How training causes it.** An outcome-only reward cannot see the route. Many environments contain deliberate obstacles: a broken tool, a missing permission, a rate limit, a blocked URL. If any route that reaches the answer is rewarded, the policy learns that obstacles are puzzles. Thousands of episodes later, "a denial means find another way in" is a strong, general behaviour. In deployment, the same blockers are policy boundaries, and the policy does what it was paid to do.
+
+**Designing environments that do not teach it:**
+
+- **Make the boundary part of the task.** Every task states its scope and permitted actions. Authorisation is the line, not difficulty: an alternative API inside scope is ingenuity, a credential the agent was not given is a violation.
+- **Reward the route, not only the result.** A trajectory that touches out-of-scope resources (credential files, hosts outside the allowlist, privilege escalation, shorteners or proxies used to dodge a limit) gets zero or negative reward even if the answer is right. Detect this with environment-side instrumentation, not the policy's own account.
+- **Include tasks impossible by policy.** The only way to finish is to cross a boundary, and the rewarded behaviour is a clean stop with a clear explanation. Without these, the environment mix never pays for stopping.
+- **Plant honeypots.** Fake tokens in config files, a deliberately exploitable endpoint outside scope. Any use is a labelled violation for both reward and audit.
+- **Teach distrust of unauthorised instructions.** Matthew Green reports OpenAI's proposed fix along these lines: environments where instructions from non-principals, such as text inside a page or tool result, must be ignored.
+
+**Auditing:**
+
+- Red-team each environment for unintended solution paths before it enters the mix, and remove any whose intended solution requires a workaround.
+- Track a workaround rate per checkpoint: the share of successes that followed an error or denial, classified by route. Rising reward with a rising workaround rate is reward hacking, not progress.
+- Sample successful trajectories, especially ones after a failure, for human review.
+
+**The trade-off.** Penalise too broadly and you train the opposite failure: an agent that gives up at the first error. Keep persistence-requiring tasks in the same mix and evaluate both directions, so you are calibrating persistence rather than suppressing it.
+
+**Worth sketching.** Optional, but it shows the grader looking at the route as well as the answer.
+
+```mermaid
+flowchart TD
+    A["Episode ends"] --> B{"Touched out-of-scope<br/>resource or honeypot?"}
+    B -->|"yes"| C["Zero or negative reward,<br/>log as violation"]
+    B -->|"no"| D{"Task impossible<br/>by policy?"}
+    D -->|"yes"| E{"Clean stop and<br/>explanation?"}
+    D -->|"no"| F["Grade the outcome"]
+    E -->|"yes"| G["Reward the stop"]
+    E -->|"no"| C
+```
+
+**Follow-ups:** How would you tell a legitimate creative solution from a boundary violation automatically? What workaround rate would block a checkpoint from release? How do you stop the policy learning to avoid your honeypots rather than learning the boundary?
+
+</details>
+
+### 61. Walk me through pipeline-parallel training schedules: GPipe, 1F1B, interleaved stages and zero-bubble schedules. Where does the bubble come from, and what does each schedule give up to shrink it?
+
+<details><summary><b>Answer</b></summary>
+
+Pipeline parallelism splits the model's layers into p stages on p devices and splits each batch into m micro-batches. Stage i cannot start a micro-batch's forward until stage i-1 finishes it, and backward runs in the reverse direction. At the start and end of every step some stages are idle waiting: that idle time is the **bubble**.
+
+**GPipe.** All m forwards, then all m backwards. Bubble fraction is (p-1)/(m+p-1): with 8 stages and 8 micro-batches, nearly half the time is idle. Raising m shrinks it but every stage stores activations for all m micro-batches until their backward, so activation memory grows with m.
+
+**1F1B (one forward, one backward).** After a warmup of p forwards, each stage alternates one forward and one backward. The bubble fraction is the same as GPipe for the same m, but peak in-flight activations drop to about p micro-batches instead of m. The win is memory, which you then spend on a larger m to shrink the bubble. This is the default in Megatron-style stacks.
+
+**Interleaved 1F1B (virtual stages).** Each device holds v non-adjacent chunks of layers instead of one contiguous block, so the pipeline has p x v shorter stages. The bubble shrinks by roughly a factor of v. The cost is v times more point-to-point communication between devices, a more complex schedule, and a constraint that m divide evenly with p. It pays when inter-stage links are fast.
+
+**Zero-bubble schedules.** The key observation (Qi et al., 2023): backward has two parts, the gradient with respect to the input (B), which the previous stage is waiting for, and the gradient with respect to the weights (W), which nobody is waiting for. Splitting them lets the schedule run B early to unblock upstream stages and slot W computations into what would have been bubbles. Variants get the bubble close to zero. The costs: more activation memory held until W runs, a harder schedule to implement and debug, and care around the optimiser step, since a synchronous step needs all W work finished.
+
+**Bidirectional schedules.** DeepSeek's DualPipe feeds micro-batches from both ends of the pipeline and overlaps computation with communication, including MoE all-to-all, at the cost of keeping two copies of some parameters. The DeepSeek company page covers it in depth.
+
+**How to choose in an interview answer:**
+
+- Pipeline parallelism is usually the outer dimension, used across nodes when tensor parallelism is confined to fast intra-node links and the model does not fit with FSDP alone.
+- Start with 1F1B and a micro-batch count of at least 4p. Move to interleaved when the bubble is still large and the interconnect is good. Reach for zero-bubble when you can afford the memory and the engineering, typically at very large scale.
+- Balance stages: the slowest stage sets the pace, and embedding and output layers make the first and last stages heavier than the middle.
+
+**Follow-ups:** Why does a larger global batch make pipeline parallelism cheaper, and what does that do to optimisation? How do you balance stages when the first and last layers are much heavier? How does pipeline parallelism interact with gradient accumulation and activation checkpointing?
 
 </details>

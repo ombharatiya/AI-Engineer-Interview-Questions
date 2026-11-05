@@ -59,7 +59,7 @@ Most AI systems assemble the same ~10 blocks. Naming these fluently signals expe
 | **Guardrails layer** | Input/output/action checks: injection, PII, schema validation, moderation, policy engine for tool calls | Fail closed on actions, fail open (with logging) on style |
 | **Eval harness** | Runs golden sets against any prompt/model/retrieval config; scores, diffs, gates CI | Version everything: prompts, datasets, judge prompts |
 | **Tracing & observability** | Per-request trace of every model call, tool call, retrieval, with tokens/cost/latency/feedback attached | The raw material for eval sets and debugging |
-| **Caches** | Exact-match response cache, semantic cache, provider prompt caching for shared prefixes | Prompt caching often cuts input cost 50-90% on long shared contexts |
+| **Caches** | Exact-match response cache, semantic cache, provider prompt caching for shared prefixes | Prompt caching often cuts input cost 50-90% or more on long shared contexts; some providers now charge for cache writes, so count those too |
 | **Feedback store** | Thumbs, edits, acceptances, escalations, linked to traces | Feeds the quality flywheel and fine-tuning data |
 | **Human-in-the-loop queue** | Review UI for low-confidence outputs and high-risk actions | Design the escalation path before the model is trusted |
 
@@ -100,7 +100,7 @@ Practice the 8-step skeleton on these until it's reflexive (one-liners on purpos
 11. Design an AI feature flag: roll out a new model to 5% of traffic safely.
 12. Design a batch pipeline to classify and tag 500M legacy documents.
 13. Design a voice agent for restaurant reservations end-to-end.
-14. Design a code review bot for a 2,000-engineer monorepo.
+14. Design the AI code review system for a 2,000-engineer monorepo where agents now draft most pull requests: keep findings high-precision, decide which changes still need a human, and prove it isn't raising the revert rate.
 15. Design an LLM gateway for a company with 40 teams calling 5 model providers.
 
 ## Case studies

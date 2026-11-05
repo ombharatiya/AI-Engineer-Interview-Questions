@@ -1,6 +1,6 @@
 # 🍁 Cohere - AI Engineer Interview Questions
 
-> **Last reviewed: October 2026.** Based only on public information - official pages, engineering blogs, and publicly shared candidate reports. Processes change and vary by team; treat this as a map, not a contract. No confidential or leaked material.
+> **Last reviewed: November 2026.** Based only on public information - official pages, engineering blogs, and publicly shared candidate reports. Processes change and vary by team; treat this as a map, not a contract. No confidential or leaked material.
 
 ## TL;DR
 
@@ -8,11 +8,22 @@
 - The take-home is the load-bearing stage where it appears: publicly described as a multi-hour **applied problem close to real work** (build/analyse something, write it up), not a puzzle. Treat it like a short sprint - tests, a README, and honest tradeoff notes matter.
 - Interviews skew **applied and production-flavoured**: retrieval/RAG depth (they sell Embed and Rerank as standalone products), agentic workflows (their North platform), evaluation methodology, and serving models inside customer VPCs/on-prem. Pure LeetCode grinding is the wrong prep.
 - **Forward Deployed Engineer** loops (per a public first-hand write-up) feature a distinctive **system-design debugging round**: you get an architecture diagram plus a vague failure and must drive the investigation - ask for logs, metrics, traces, and reason about failure domains out loud.
+- **The company is getting bigger and more European.** Cohere signed a merger agreement with Germany's Aleph Alpha in September 2026 (pending regulatory clearance; dual Berlin and Toronto headquarters under the Cohere brand) and announced a proposed acquisition of the vulnerability-discovery start-up AISLE in October. Autumn 2026 launches (Embed 5, Rerank 5, North 2, Parse, confidential computing and open models on Model Vault) are fair game in retrieval and deployment rounds.
 - Culture screen maps to their published values - **momentum, openness, autonomy** - and a remote-first, Toronto-anchored, globally dispersed org. Expect "why enterprise AI?" and evidence you can own ambiguous work end-to-end without hand-holding.
 
 ## Company context
 
-Cohere builds LLMs for enterprises that can't or won't ship their data to a consumer AI lab: the Command generation-model family (including the openly-released Command A line and Command A+, a sparse-MoE flagship released in May 2026), North Mini Code (June 2026, an Apache 2.0 open-weight MoE coding model and its first aimed at individual developers), Embed and Rerank models for retrieval, Model Vault for managed private inference, and **North**, an agentic AI workspace platform deployed with customers like banks and telcos - frequently in private VPCs or fully on-prem. Headquartered in Toronto with offices in New York, London, San Francisco, Montreal, Paris, and Seoul, and an explicitly remote-supportive culture, it's one of the few frontier-adjacent labs anchored in Canada. "AI engineer" at Cohere usually means applied work close to customers and production - RAG pipelines, agents, evals, and secure deployment - rather than pretraining research (that lives with Members of Technical Staff and Cohere Labs, their research arm).
+Cohere builds LLMs for enterprises that can't or won't ship their data to a consumer AI lab: the Command generation-model family (including the openly-released Command A line and Command A+, a sparse-MoE flagship released in May 2026), North Mini Code (June 2026, an Apache 2.0 open-weight MoE coding model and its first aimed at individual developers), Embed and Rerank models for retrieval, Parse for enterprise document intelligence, Model Vault for managed private inference, and **North**, an agentic AI workspace platform deployed with customers like banks and telcos - frequently in private VPCs or fully on-prem. Headquartered in Toronto with offices in New York, London, San Francisco, Montreal, Paris, and Seoul, and an explicitly remote-supportive culture, it's one of the few frontier-adjacent labs anchored in Canada.
+
+The footprint is changing. Reuters first reported the Aleph Alpha deal in April 2026, and the two companies signed a merger agreement on 16 September 2026. Once regulators clear it, the combined company operates under the Cohere brand with dual headquarters in Berlin and Toronto, and Aleph Alpha's Heidelberg headquarters becomes an AI research centre, which strengthens the European sovereign and regulated-market focus. On 15 October 2026 Cohere also announced a proposed acquisition of AISLE, a start-up that finds and fixes unknown vulnerabilities in production software, framed as cyber-resilient sovereign AI.
+
+The product line moved quickly in autumn 2026:
+
+- **Embed 5** (September): Pro and Fast tiers share one embedding space, so either can query an index built by the other (Cohere recommends indexing with Pro and querying with Fast). It supports Matryoshka output dimensions from 2048 down to 256 in float, int8 or binary, a 128K context, and text, image and fused inputs.
+- **North 2** (October): redesigned agent orchestration, reusable skills, memory across sessions, model-agnostic, deployable on-prem, in a VPC or air-gapped, with admin cost controls and quotas.
+- **Rerank 5** (October): Pro and Fast tiers, better calibration (vendor-reported expected calibration error of about 0.06), and Context Focus, which returns scored text spans as well as document scores.
+- **Confidential computing on Model Vault** (October, public beta): inference in a hardware-backed confidential environment across CPU and GPU, with client-side attestation checks before any request is sent.
+- **Model Vault for open models** (November): single-tenant, region-pinned hosting of third-party open-weight models, with an Encrypted tier for a narrower model list (US only at launch). "AI engineer" at Cohere usually means applied work close to customers and production - RAG pipelines, agents, evals, and secure deployment - rather than pretraining research (that lives with Members of Technical Staff and Cohere Labs, their research arm).
 
 ## Roles & titles they hire
 
@@ -70,7 +81,7 @@ The pipeline: ANN retrieval (optionally hybrid with BM25) pulls the top 100-200 
 
 The reranker earns that latency when: (a) precision at small k matters because context is limited and every distractor chunk degrades generation; (b) the corpus has near-duplicates or domain jargon where single-vector similarity saturates; (c) you need to fuse lexical + semantic candidates into one calibrated ranking. Skip or shrink it for autocomplete-grade latency budgets, tiny corpora where recall@10 is already near-perfect, or when the LLM is robust to noisy context and cost dominates.
 
-**Follow-ups:** How would you pick the candidate depth (top-100 vs top-1000) empirically? What breaks if documents exceed the reranker's max sequence length?
+**Follow-ups:** How would you pick the candidate depth (top-100 vs top-1000) empirically? What breaks if documents exceed the reranker's max sequence length? Rerank 5 claims better-calibrated scores and returns scored spans: how would you use a calibrated score as an answer/abstain threshold, and when is passing spans instead of whole chunks a bad trade?
 
 </details>
 
@@ -215,10 +226,11 @@ Almost everything operational:
 - **Support without visibility.** You can't tail their logs. You need diagnostics designed for this: structured error taxonomies, a redacted diagnostic bundle the customer can export and clear through their security team, and reproduction harnesses that run on synthetic data.
 - **Security posture is a deliverable:** SBOMs, CVE patch cadence commitments, signed images, pen-test findings - reviewed by their security org before go-live.
 - **Evals and monitoring live on-site:** dashboards, drift detection, and the golden-question suite all run within the perimeter, with humans on their side trained to read them.
+- **Know the middle options.** Not every regulated customer needs full air-gap. Single-tenant, region-pinned hosting (Model Vault) or confidential computing, where the client verifies remote attestation before sending an encrypted request, can meet many data-protection requirements with far less operational burden. Be clear about what each does and does not protect against: confidential computing narrows who can see data in use, but it does not remove all risk.
 
 The mindset shift interviewers look for: you're shipping a *product that operates itself in hostile-to-you conditions*, not running a service.
 
-**Follow-ups:** The customer reports a quality regression after an update and can't share any prompts - how do you debug? How do you handle model deprecation across dozens of air-gapped installs?
+**Follow-ups:** The customer reports a quality regression after an update and can't share any prompts - how do you debug? How do you handle model deprecation across dozens of air-gapped installs? When would you recommend attested confidential inference instead of an on-prem install?
 
 </details>
 
@@ -249,7 +261,8 @@ Options, in order of aggression:
 
 - **int8 scalar quantization:** 4x smaller (~100 GB). With per-dimension calibration, retrieval quality is near-lossless for well-trained embeddings. Usually the free lunch.
 - **Binary quantization:** 1 bit/dim → 128 bytes/vector → **~12.8 GB** for the whole corpus - fits in RAM on one box, and Hamming distance is absurdly fast (XOR + popcount). Standalone quality drops meaningfully, so pair it with **rescoring**: retrieve a generous candidate set (say top-1000) with binary vectors, rescore those candidates with int8/float vectors fetched from disk. This two-phase scheme recovers most of the full-precision quality at ~3% of the memory. Modern embedding models are increasingly trained with compression-aware objectives so int8/binary degrade gracefully - worth checking the model card rather than assuming.
-- **Dimension truncation (Matryoshka-style):** if the model was trained for it, truncating 1024→256 dims gives 4x savings composable with the above.
+- **Dimension truncation (Matryoshka-style):** if the model was trained for it, truncating 1024→256 dims gives 4x savings composable with the above. Embed 5 is built for this: it emits 2048 down to 256 dimensions in float, int8 or binary. A 256-dim binary vector is 32 bytes, so 100M chunks fall to about 3.2 GB of raw vectors (Cohere's own estimate is about 819 GB to 3.2 GB from its largest float setting).
+- **Asymmetric tiers:** a shared embedding space across a large and a small model lets you index once with the stronger model and query with the cheaper one, cutting query latency and cost without re-indexing. Cohere reports small average losses for this cross-model setup (1.6-2.7%), which you would verify on the customer's data.
 
 Also on the table: product quantization inside the ANN library (IVF-PQ), and the honest question of whether they need 100M embedded *chunks* or better ingest filtering. The interview signal is doing the arithmetic unprompted and proposing the rescoring pipeline instead of treating quantization as a binary quality sacrifice.
 
@@ -337,7 +350,7 @@ Repo directories to prioritise for Cohere specifically:
 Company-specific moves:
 
 1. **Build a two-stage RAG pipeline with their actual stack** - Embed + Rerank + Command via their API (they have a free trial tier; docs.cohere.com is good). Being able to say "here's where the reranker helped and here's where it didn't, with numbers" is exactly the applied signal they screen for.
-2. **Read the Command A / Command A+ and North Mini Code model pages and Cohere's blog** - architecture choices (open weights, long context, sparse MoE, single-GPU or small-GPU-footprint serving) are deliberate sovereign-deployment positioning; interviews reward knowing *why*.
+2. **Read the Command A / Command A+ and North Mini Code model pages and Cohere's blog**, including the autumn 2026 Embed 5, Rerank 5, North 2 and Model Vault posts and the Aleph Alpha announcement - architecture choices (open weights, long context, sparse MoE, single-GPU or small-GPU-footprint serving) are deliberate sovereign-deployment positioning; interviews reward knowing *why*.
 3. **Study North's public materials** and think through one concrete enterprise agent workflow end-to-end (auth, HITL, audit, eval) - most open engineering roles orbit this product.
 4. **Prepare an architecture presentation** of a real system you built, with reliability/security tradeoffs - a reported FDE round, and a strong asset for any hiring-manager conversation.
 5. **Practise take-home hygiene:** timebox a realistic 4-8 hour applied problem, ship it with tests, a README, an eval, and a half-page of tradeoffs. Reports consistently describe the take-home as the big filter.
@@ -353,6 +366,9 @@ Company-specific moves:
 - [Cohere docs - model overview (Command, Embed, Rerank)](https://docs.cohere.com/docs/models)
 - [Cohere blog - Introducing Command A+](https://cohere.com/blog/command-a-plus)
 - [Cohere blog - North Mini Code, open-weight agentic coding model (June 2026)](https://cohere.com/blog/north-mini-code)
+- [SiliconANGLE - Cohere and Aleph Alpha agree to merge (September 2026)](https://siliconangle.com/2026/09/16/cohere-and-aleph-alpha-agree-to-merge-in-reported-20b-deal/) - merger agreement, dual headquarters, Heidelberg research centre
+- [Cohere blog - Cohere and AISLE sign letter of intent (October 2026)](https://cohere.com/blog/cohere-and-aisle-sign-letter-of-intent-to-advance-cyber-resilient-sovereign-ai)
+- [Cohere blog - Embed 5](https://cohere.com/blog/embed-5), [Rerank 5](https://cohere.com/blog/rerank-5), [Introducing North 2](https://cohere.com/blog/introducing-north-2), [Confidential computing on Model Vault](https://cohere.com/blog/introducing-confidential-computing-on-cohere-model-vault) and [Open models on Model Vault](https://cohere.com/blog/open-source-model-vault) (August to November 2026)
 - [techinterview.org - Cohere interview process 2026](https://www.techinterview.org/post/3233474931/cohere-interview-process-2026/) - third-party; loop shape and timeline reports
 
 ---

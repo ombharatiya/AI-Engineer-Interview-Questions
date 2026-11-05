@@ -52,7 +52,7 @@ def run_agent(user_msg: str, tools: list, max_iters: int = 15):
 - The model doesn't execute anything. It emits a **structured message**: tool name + JSON arguments + a call ID. Models are post-trained (SFT + RL) to produce this format; providers can additionally use **constrained decoding** (e.g., `strict: true` tool definitions on the OpenAI and Anthropic APIs) to guarantee schema-valid arguments. Valid is not the same as correct: a well-formed call can still carry a fabricated ID.
 - Your code executes the call and appends a **tool result message** keyed by the call ID. The loop continues.
 - **Parallel tool calls:** the model can emit several independent calls in one turn (fetch three URLs); execute them concurrently and return all results.
-- **Tool choice forcing:** `auto` (model decides), `required`/`any` (must call *some* tool), a specific named tool (classic trick for guaranteed structured extraction), or `none`.
+- **Tool choice forcing:** `auto` (model decides), `required`/`any` (must call *some* tool), a specific named tool, or `none`. Support is provider- and model-dependent: Anthropic's newest models reject forced tool choice and recommend `auto` with strict tool use, so guaranteed schema-valid output now comes from structured outputs or strict schemas rather than from forcing an `extract_*` tool.
 
 ### Tool design
 
@@ -86,7 +86,7 @@ Connect six MCP servers and you can have 100+ tool definitions and tens of thous
 
 ### A2A (agent-to-agent)
 
-MCP is the **vertical** axis: agent down to tools and data you control. **A2A** is the **horizontal** axis: agent across to a *peer agent*, usually over a team or company boundary. It reached **v1.0**, is hosted by the Linux Foundation, and passed 150 supporting organisations in its first year (AWS, Cisco, Google, IBM, Microsoft, Salesforce, SAP, ServiceNow). "MCP vs A2A, and how do they compose" is now a standard agent-infra screening question.
+MCP is the **vertical** axis: agent down to tools and data you control. **A2A** is the **horizontal** axis: agent across to a *peer agent*, usually over a team or company boundary. It reached **v1.0** (still the latest release) and in August 2026 joined the **Agentic AI Foundation** as a Growth Stage project, so A2A and MCP now share one Linux Foundation home. It is backed by more than 150 organisations (AWS, Cisco, Google, IBM, Microsoft, Salesforce, SAP and ServiceNow among them). "MCP vs A2A, and how do they compose" is now a standard agent-infra screening question.
 
 - **Agent Card:** JSON metadata published at a well-known URI declaring identity, skills, endpoint, authentication requirements, and optional capabilities (streaming, push notifications). Can be signed with **JWS** so a caller can verify it.
 - **Tasks, not calls:** a task has a lifecycle - submitted, working, completed, failed, canceled, rejected, plus the interrupted states **input-required** and **auth-required**. Updates arrive by polling, streaming, or push to a webhook, because a peer's task may run for minutes.
@@ -97,7 +97,7 @@ They compose: your agent uses MCP for your systems and A2A to reach a vendor's a
 
 ### Agent Skills (SKILL.md)
 
-A **skill** is a folder with a `SKILL.md` (YAML frontmatter - at minimum `name` and `description` - plus Markdown instructions), optionally bundling `scripts/`, `references/`, and `assets/`. Loaded by **three-stage progressive disclosure**: name and description at startup, full instructions when a task matches, bundled files on demand. Released by Anthropic as an open standard and now loaded by Claude Code, ChatGPT/Codex, Cursor, VS Code, GitHub Copilot, Gemini CLI, Goose, Kiro, Databricks, Snowflake, JetBrains Junie, and others.
+A **skill** is a folder with a `SKILL.md` (YAML frontmatter - at minimum `name` and `description` - plus Markdown instructions), optionally bundling `scripts/`, `references/`, and `assets/`. Loaded by **three-stage progressive disclosure**: name and description at startup, full instructions when a task matches, bundled files on demand. Published by Anthropic as an open standard in December 2025, donated to the **Agentic AI Foundation** on 22 October 2026, and now used by more than 70 agent platforms according to Anthropic, including Claude Code, ChatGPT/Codex, Cursor, VS Code, GitHub Copilot, Gemini CLI, Goose, Kiro, Databricks, Snowflake and JetBrains Junie. MCP servers can also serve skills through the official **Skills extension** (SEP-2640, Beta), which binds a user's approval to the SHA-256 digests of every file in the skill, so a changed file revokes it.
 
 **The decision rule:** tools and MCP servers give an agent a *capability or connection* it lacks; skills give it *procedural knowledge* about work it can already technically do; RAG gives it *facts*. Skills are also a **supply-chain artifact** - executable instructions plus scripts, loaded into a context holding your credentials - so review, pin, and provenance apply exactly as they do to a dependency.
 
@@ -138,7 +138,7 @@ LangGraph, OpenAI Agents SDK, Claude Agent SDK, Google ADK, Microsoft Agent Fram
 
 ## Interview questions
 
-See [questions.md](questions.md) - **65 questions** with answers, from basic mechanics to advanced production design.
+See [questions.md](questions.md) - **71 questions** with answers, from basic mechanics to advanced production design.
 
 ## Red flags interviewers watch for
 

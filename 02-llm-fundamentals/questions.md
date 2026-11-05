@@ -1,6 +1,6 @@
 # LLM & Transformer Fundamentals - Interview Questions
 
-65 questions: 18 basic, 25 intermediate, 22 advanced.
+68 questions: 18 basic, 27 intermediate, 23 advanced.
 
 > **On the diagrams: drawing is optional.** Some answers include a small sketch you could
 > reproduce on a whiteboard or in a shared doc. You never have to draw anything to score well,
@@ -305,7 +305,7 @@ p_i = exp(z_i / T) / Σ_j exp(z_j / T)
 
 Key properties worth stating: temperature is a *monotonic* transform - it never reorders tokens, only sharpens or flattens the distribution, so greedy decoding is unaffected by it. It operates per generation step on the conditional distribution, and its effects compound over a long generation: small increases in per-token entropy produce noticeably more divergent completions.
 
-Practical guidance a strong candidate gives: use T = 0 (or near it) for extraction, classification, structured output, and code where there's a correct answer - you want the mode. Use T ≈ 0.7-1.0 for creative writing and brainstorming where diversity is the point. Note that T = 0 does not guarantee bit-identical outputs across API calls in practice (batching non-determinism, floating-point non-associativity across kernels, infrastructure changes), a common misconception worth flagging. Also note temperature interacts with truncation samplers: it's applied with top-p/top-k/min-p, and the order of operations (typically temperature first, then truncation, though implementations vary) changes behaviour at high T - min-p in particular was designed to stay robust at T > 1.
+Practical guidance a strong candidate gives: use T = 0 (or near it) for extraction, classification, structured output, and code where there's a correct answer - you want the mode. Use T ≈ 0.7-1.0 for creative writing and brainstorming where diversity is the point. Note that T = 0 does not guarantee bit-identical outputs across API calls in practice (batching non-determinism, floating-point non-associativity across kernels, infrastructure changes), a common misconception worth flagging. And check whether you can set it at all: as of late 2026 the newest closed frontier models have removed sampling parameters (Anthropic's 5.x models reject or ignore them, GPT-6 Astra accepts no custom temperature, Gemini ignores them from 3.6 Flash and Google recommends system instructions for determinism). This guidance applies to self-hosted open-weight models and older API models; on current frontier APIs you steer behaviour through effort level, structured outputs and prompting instead. Also note temperature interacts with truncation samplers: it's applied with top-p/top-k/min-p, and the order of operations (typically temperature first, then truncation, though implementations vary) changes behaviour at high T - min-p in particular was designed to stay robust at T > 1.
 
 One more useful framing: temperature trades off exploitation of the model's confidence against exploration of its uncertainty - the same knob as in softmax exploration in RL.
 
@@ -447,7 +447,7 @@ What a strong answer adds:
 
 - It stops helping when the batch is large. At high batch you are already compute-bound and there are no spare FLOPs to spend, so the speculative overhead can make things worse. It is a low-latency, low-batch technique.
 - Acceptance rate is everything, and it depends on distribution match, not draft quality in the abstract. The best drafts are distilled from the specific target model, so the KL between them is small. A generically good 1B model drafting for an unrelated 70B can accept badly.
-- Variants avoid the second model entirely: Medusa and EAGLE add draft heads on the target's own trunk, n-gram or prompt-lookup drafting works well for copy-heavy work like RAG and code edits, and DeepSeek-V3 reuses its multi-token-prediction module as the draft.
+- Variants avoid the second model entirely: Medusa and EAGLE add draft heads on the target's own trunk, n-gram or prompt-lookup drafting works well for copy-heavy work like RAG and code edits, and DeepSeek-V3 reuses its multi-token-prediction module as the draft. The newer family is parallel drafters: block-diffusion drafters such as DFlash produce a whole block of draft tokens in one forward pass conditioned on target-model features, and DeepSeek's DSpark pairs a parallel backbone with a small sequential module and picks each request's verification length from estimated acceptance. Draft cost then barely grows with block length, so the limit becomes how quickly acceptance decays along the block. vLLM, SGLang and TensorRT-LLM support both, and vLLM dropped Medusa in late 2026.
 
 **Worth sketching.** The branch at the acceptance test is what proves you understand this is rejection sampling, not an approximation.
 
@@ -917,7 +917,7 @@ Production uses:
 - **Debugging.** When output goes weird at a specific point, per-token logprobs show exactly where the model got uncertain, and top-k alternatives show what it almost did - invaluable for prompt debugging and for spotting tokenizer artifacts.
 - **Distillation/data work.** Soft targets for training smaller models; confidence-based filtering of synthetic data.
 
-Caveats a strong candidate raises: RLHF-tuned models are notoriously **miscalibrated** relative to base models (alignment sharpens distributions), so treat logprobs as relative signals, tune thresholds on your own data; sequence-level probability ≠ answer correctness (many phrasings share the same answer - its true probability is spread across paraphrases); and closed APIs may not expose logprobs on all endpoints/models, sometimes for distillation-prevention reasons.
+Caveats a strong candidate raises: RLHF-tuned models are notoriously **miscalibrated** relative to base models (alignment sharpens distributions), so treat logprobs as relative signals, tune thresholds on your own data; sequence-level probability ≠ answer correctness (many phrasings share the same answer - its true probability is spread across paraphrases); and closed APIs may not expose logprobs on all endpoints/models, sometimes for distillation-prevention reasons (GPT-6 Astra, for example, returns none). Some providers now offer a purpose-built alternative for the classification use case: OpenAI's Decisions API, on gpt-6-luna only, returns a probability for yes/no predicates and a distribution over choices, without you reading token logprobs yourself.
 
 **Follow-ups:** Why does RLHF hurt calibration? Design a confidence-thresholded router using logprobs - what would you validate? Why is the probability of an *answer* not the same as the probability of a *sequence*?
 
@@ -1167,6 +1167,8 @@ First, know which control you have, because they behave differently:
 - A trained control token or effort level the model was RL'd to respect, which is a soft budget it plans around and degrades gracefully.
 - A prompt hint like "think briefly", which models follow unreliably.
 
+As of late 2026 the major APIs have converged on the second kind. Claude uses adaptive thinking steered by effort (low to max) and rejects manual `budget_tokens` on recent models; Gemini replaced `thinking_budget` with `thinking_level`; GPT-6 uses reasoning effort. "Off" is not always on the menu either: thinking is always on for Claude Opus 5.5 and Fable 5.1, and GPT-6 Astra's effort starts at low, so the fast path for trivial traffic may have to be a different model rather than the same model with thinking disabled. Explicit token budgets survive mainly on older open-weight models.
+
 What I do:
 
 - Build a task-level eval, sweep the budget, plot accuracy and p95 latency together, and pick the knee. Different tasks have wildly different knees. Extraction and classification usually want zero.
@@ -1216,9 +1218,67 @@ It is also a useful antidote to anthropomorphising. A person who learns "A is B"
 
 </details>
 
+### 44. You are migrating to a model whose tokenizer produces about 30% more tokens for the same text. What breaks, and how do you find out before your users do?
+
+<details><summary><b>Answer</b></summary>
+
+This is a real migration, not a thought experiment: Anthropic says the tokenizer introduced with Claude Opus 4.7, and used by later models, produces about 30% more tokens for the same text, so a 1M-token window now holds roughly 555k words instead of roughly 750k. The model may be better, but every number in your system that is denominated in tokens just changed meaning.
+
+What breaks, roughly in order of how often it bites:
+
+- **Output caps.** A `max_tokens` of 1,000 now buys about 770 old-tokens of text (1 / 1.3). Summaries, JSON objects and code blocks that used to fit now truncate, and a truncated JSON object is a parse failure, not a shorter answer. This usually shows up first as a spike in `max_tokens` stop reasons.
+- **Context budgets and truncation logic.** If you allocate 120k tokens for history and retrieval, you now fit about 23% less text. Truncation and compaction fire earlier, so an agent that compacted at step 60 now compacts at step 45, with different behaviour.
+- **Chunking.** Chunks sized in the generation model's tokens hold less text, so retrieval returns smaller units. Chunks sized for an embedding model's tokenizer are unaffected, which is a reason to keep those two budgets separate in config.
+- **Cost forecasts.** Same per-token price, about 30% more tokens, so the bill goes up even if the price sheet did not change. Compare cost per task, not price per million tokens.
+- **Rate limits.** A tokens-per-minute quota now carries less traffic. Capacity plans built on TPM need redoing.
+- **Client-side token counting.** Any local tokenizer library you use for pre-flight budget checks is now wrong for the new model. Use the provider's counting endpoint or the usage fields in responses.
+- **Latency.** More output tokens for the same answer means more decode steps, so TPOT times output length grows even if per-token speed is unchanged.
+- **Eval thresholds.** Anything with a token threshold (length penalties, "answer under 200 tokens" checks, compression ratios) silently shifts.
+
+How to catch it: replay a sample of production traffic through both models and diff the usage fields per request, not just quality scores. Plot input and output token ratios per route, because the inflation is not uniform: code, non-English text and numbers can move differently from English prose. Then re-derive every token-denominated constant from that ratio, ideally from one config value rather than a dozen hard-coded numbers.
+
+**Worth sketching.** Drawing it is optional, but it shows that one ratio fans out into every budget in the system.
+
+```mermaid
+flowchart LR
+    A["Replay traffic<br/>on both models"] --> B["Per-route token ratio<br/>(about 1.3x)"]
+    B --> C["max_tokens caps"]
+    B --> D["Context and<br/>compaction budgets"]
+    B --> E["Chunk sizes"]
+    B --> F["Cost and TPM<br/>forecasts"]
+    B --> G["Eval length<br/>thresholds"]
+```
+
+The senior framing: tokens are a unit of account that the vendor controls. Store budgets in config keyed by model, measure them per model, and treat a tokenizer change like a currency change.
+
+**Follow-ups:** Which of these would you expect to surface first in production monitoring, and on which metric? Why might the inflation ratio differ between English prose, code and Japanese text? How would you make your budgets survive the next tokenizer change without a code release?
+
+</details>
+
+### 45. The newest closed frontier models reject or ignore temperature and top_p. How do you get diversity, determinism and reproducible evals without them?
+
+<details><summary><b>Answer</b></summary>
+
+First, the facts as of late 2026. Anthropic's Opus 5.5 guide says to omit temperature, top_p and top_k, Sonnet 5 returns 400 on non-default values, Haiku 5.5 can return 400, and the Python SDK v1.0 removed them from the Messages methods. OpenAI's GPT-6 Astra accepts no custom temperature, top_p or logprobs. Google deprecated them in July 2026: from Gemini 3.6 Flash they are ignored, later generations will return 400, and Google recommends system instructions for determinism. Open-weight models still publish recommended settings (Mistral Large 4 and Qwen3.8 recommend temperature 1.0 and top_p 0.95), so the knobs now mostly live in self-hosted serving.
+
+Why a provider would do this is partly inference on my part, but the plausible reasons are sound: reasoning models are RL-trained under one sampling configuration and can degrade outside it, adaptive thinking already sets how much the model explores, and fewer knobs means fewer ways for customers to break quality and then blame the model.
+
+What I do instead, by goal:
+
+- **Determinism for a given input.** Cache the response keyed on the full request and model snapshot. That is the only real guarantee, and it was true even when temperature 0 existed, because batching and floating-point effects meant temperature 0 never guaranteed identical outputs. For behavioural consistency rather than byte equality, tighten the task: structured outputs with enums, explicit decision rules in the system prompt, and fewer degrees of freedom in the answer.
+- **Diversity.** Default sampling is already stochastic, so k independent calls still give k different samples and self-consistency still works. When I need guaranteed variety (brainstorming, test-case generation), I ask for N distinct candidates in one structured call with an explicit "must differ on X" constraint, or vary the prompt framing across calls. That gives more controllable diversity than temperature ever did.
+- **Reproducible evals.** Pin the model snapshot, run each item several times and report the mean and the spread, and use paired comparisons on the same items. A single run at temperature 0 was always a fragile basis for a ship decision; now it is not even available. For LLM judges, sample the judge more than once and take the majority, and calibrate it against human labels.
+- **When you genuinely need the knobs** (logprob-based confidence, min-p sampling for creative work, exact greedy decoding for a regression harness), that is an argument for an open-weight model you serve yourself, or for a purpose-built endpoint that returns probabilities.
+
+Operationally, strip sampling parameters in the gateway per model, so an old config that sends `temperature: 0` does not start throwing 400s the day you upgrade.
+
+**Follow-ups:** Why did temperature 0 never guarantee identical outputs, even when it was supported? How would you run self-consistency on a model that ignores temperature? Where in your stack would you enforce per-model parameter rules?
+
+</details>
+
 ## Advanced
 
-### 44. What is "lost in the middle," and why doesn't a long context window equal reliable retrieval?
+### 46. What is "lost in the middle," and why doesn't a long context window equal reliable retrieval?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1238,7 +1298,7 @@ Nuance for 2026: frontier models have substantially improved mid-context recall 
 
 </details>
 
-### 45. Compare Kaplan and Chinchilla scaling laws. What did Chinchilla change?
+### 47. Compare Kaplan and Chinchilla scaling laws. What did Chinchilla change?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1256,7 +1316,7 @@ Sharp caveats that distinguish a strong answer: Chinchilla-optimal minimises los
 
 </details>
 
-### 46. Why do modern models train far past Chinchilla-optimal?
+### 48. Why do modern models train far past Chinchilla-optimal?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1274,7 +1334,7 @@ Crisp summary line: Chinchilla tells you the cheapest way to *reach* a loss; inf
 
 </details>
 
-### 47. What are "emergent abilities," and what is the mirage critique? Where does that debate land practically?
+### 49. What are "emergent abilities," and what is the mirage critique? Where does that debate land practically?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1292,7 +1352,7 @@ Crisp summary line: Chinchilla tells you the cheapest way to *reach* a loss; inf
 
 </details>
 
-### 48. Explain Mixture-of-Experts: the router, top-k experts, total vs active parameters. Why does it win?
+### 50. Explain Mixture-of-Experts: the router, top-k experts, total vs active parameters. Why does it win?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1322,7 +1382,7 @@ flowchart LR
 
 </details>
 
-### 49. What goes wrong when training MoE models, and what's the inference memory caveat?
+### 51. What goes wrong when training MoE models, and what's the inference memory caveat?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1351,7 +1411,7 @@ flowchart LR
 
 </details>
 
-### 50. What are the root causes of hallucination, and what actually mitigates it?
+### 52. What are the root causes of hallucination, and what actually mitigates it?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1375,7 +1435,7 @@ Honest framing: mitigations reduce rate and blast radius; nothing eliminates it 
 
 </details>
 
-### 51. What are reasoning models, and how does test-time compute change the picture? When would you use one versus a standard model?
+### 53. What are reasoning models, and how does test-time compute change the picture? When would you use one versus a standard model?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1387,13 +1447,13 @@ The conceptual shift is **test-time compute as a scaling axis**: accuracy on har
 
 **When not to**: extraction, classification, summarisation, routine formatting - thinking adds cost and latency, not accuracy; latency-sensitive UX (thinking can add seconds-to-minutes before the first visible answer token); high-volume cheap paths. The tradeoff is stark: 10-100× more output tokens, output tokens priced above input, and you pay for thinking tokens you may never display. Overthinking is a real failure mode - simple questions answered slowly, occasionally *worse* through second-guessing.
 
-The 2026 production pattern is routing and budgeting: hybrid models expose thinking as a dial (off / bounded budget / high effort); systems route easy traffic to fast paths and reserve deliberation for queries that earn it. Treat reasoning as a resource to allocate, not a model to default to.
+The 2026 production pattern is routing and budgeting: hybrid models expose thinking as a dial, now mostly named effort levels rather than token budgets, and on some flagships the dial has no off position; systems route easy traffic to fast paths and reserve deliberation for queries that earn it. Treat reasoning as a resource to allocate, not a model to default to.
 
 **Follow-ups:** Why do verifiable rewards matter so much - what goes wrong RL-training reasoning against a learned preference reward? How does GRPO differ from PPO? How would you decide a thinking budget per request class in production?
 
 </details>
 
-### 52. What is distillation, and how is it used in the LLM ecosystem?
+### 54. What is distillation, and how is it used in the LLM ecosystem?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1412,7 +1472,7 @@ Limits and caveats: the student inherits the teacher's errors, biases, and style
 
 </details>
 
-### 53. Beam search is standard in machine translation. Why is it rarely used for open-ended LLM generation?
+### 55. Beam search is standard in machine translation. Why is it rarely used for open-ended LLM generation?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1430,7 +1490,7 @@ Where beam-shaped ideas persist: constrained decoding (forcing outputs into a gr
 
 </details>
 
-### 54. Where do the parameters and FLOPs actually live in a transformer? Walk me through the budget.
+### 56. Where do the parameters and FLOPs actually live in a transformer? Walk me through the budget.
 
 <details><summary><b>Answer</b></summary>
 
@@ -1463,7 +1523,7 @@ flowchart TD
 
 </details>
 
-### 55. Open-weights vs closed-weights models: how do you think about the tradeoff as an engineer in 2026?
+### 57. Open-weights vs closed-weights models: how do you think about the tradeoff as an engineer in 2026?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1483,7 +1543,7 @@ Frame it as an engineering decision with several axes, not an ideology question.
 
 </details>
 
-### 56. Walk me through training a reasoning model with RLVR. Why GRPO instead of PPO, and what breaks in practice?
+### 58. Walk me through training a reasoning model with RLVR. Why GRPO instead of PPO, and what breaks in practice?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1519,7 +1579,7 @@ flowchart LR
 
 </details>
 
-### 57. There's a line of work claiming in-context learning is implicit gradient descent. What's the claim, what's the evidence, and does it change what you do?
+### 59. There's a line of work claiming in-context learning is implicit gradient descent. What's the claim, what's the evidence, and does it change what you do?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1537,7 +1597,7 @@ Why it matters practically, which is the part interviewers are fishing for. If d
 
 </details>
 
-### 58. What is grokking, and does it have any bearing on how you actually train models?
+### 60. What is grokking, and does it have any bearing on how you actually train models?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1560,7 +1620,7 @@ If someone tells you they are waiting for their 70B to grok, they have misread t
 
 </details>
 
-### 59. When does model merging work, and what's actually going on underneath?
+### 61. When does model merging work, and what's actually going on underneath?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1582,7 +1642,7 @@ My honest framing: merging is an empirical search, not a technique. You merge, y
 
 </details>
 
-### 60. A stakeholder wants to "just edit the fact into the model's weights" instead of maintaining a RAG pipeline. Talk me through it.
+### 62. A stakeholder wants to "just edit the fact into the model's weights" instead of maintaining a RAG pipeline. Talk me through it.
 
 <details><summary><b>Answer</b></summary>
 
@@ -1606,7 +1666,7 @@ The stakeholder's instinct is not stupid, though. It comes from a mental model o
 
 </details>
 
-### 61. What's the case for tokenizer-free models, and why hasn't the tokenizer died yet?
+### 63. What's the case for tokenizer-free models, and why hasn't the tokenizer died yet?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1627,7 +1687,7 @@ Why the tokenizer is still here in 2026: nothing has yet shown a decisive win at
 
 </details>
 
-### 62. Your team extended a model from 32k to 256k with YaRN plus a short fine-tune. Long-context evals improved, but users say it got worse on ordinary short prompts and it's noticeably more verbose. Debug it.
+### 64. Your team extended a model from 32k to 256k with YaRN plus a short fine-tune. Long-context evals improved, but users say it got worse on ordinary short prompts and it's noticeably more verbose. Debug it.
 
 <details><summary><b>Answer</b></summary>
 
@@ -1660,7 +1720,7 @@ flowchart TD
 
 </details>
 
-### 63. What is superposition, and what have sparse autoencoders actually shown about what a model represents?
+### 65. What is superposition, and what have sparse autoencoders actually shown about what a model represents?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1694,7 +1754,7 @@ flowchart LR
 
 </details>
 
-### 64. How do diffusion language models generate text, and why haven't they displaced autoregressive models?
+### 66. How do diffusion language models generate text, and why haven't they displaced autoregressive models?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1730,7 +1790,7 @@ flowchart LR
 
 </details>
 
-### 65. Linear attention was written off for years. What do gated delta-rule layers like Gated DeltaNet change, and why are they showing up in hybrid models?
+### 67. Linear attention was written off for years. What do gated delta-rule layers like Gated DeltaNet change, and why are they showing up in hybrid models?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1750,5 +1810,39 @@ Where it shipped: Qwen3-Next interleaves Gated DeltaNet with full attention at a
 The framing interviewers like: the delta rule turns a recurrent layer into a test-time learner, a fast-weight memory trained online during the forward pass. That links it to test-time training work and explains why the update rule, not the state size, became the design frontier.
 
 **Follow-ups:** Show that the delta-rule update is one gradient step on ||S k - v||^2. Why does gating alone not fix associative recall? What does a recurrent state, rather than a KV cache, do to prefix caching in an agent workload?
+
+</details>
+
+### 68. Mistral Large 4 and the largest Qwen3.8 model ship open weights under custom licences that restrict model-as-a-service use, while their smaller siblings are Apache 2.0. Can you serve them inside your paid API product, and how does that change your open-versus-closed decision?
+
+<details><summary><b>Answer</b></summary>
+
+The short answer is "maybe, and it is a legal question before it is an engineering one". The useful answer is knowing what to check and how licence terms feed into architecture.
+
+What the terms actually say, at the level an engineer should know:
+
+- **Mistral Large 4** uses a modified MIT licence that requires a separate commercial licence if you run a model-as-a-service business on it.
+- **The Qwen3.8 flagship** ships under the Qwen3.8-Max License, which allows internal use but requires a separate licence for model-as-a-service or AI work-assistant businesses above US$50M revenue in a 12-month period.
+- **Kimi K3.1 Pro** has its own bespoke licence.
+- **Qwen3.8-27B** and other smaller siblings stay Apache 2.0.
+
+So "open weights" now spans a range from permissive to source-available-with-conditions, and the flagship is usually the restricted one.
+
+The questions I would put to legal, framed by how we actually use the model:
+
+- **Are we a model-as-a-service business under their definition?** Exposing a general completion endpoint to customers is very different from using the model behind a narrow feature (classifying tickets inside our helpdesk product). The definitions matter and I would not guess at them.
+- **Where are we relative to the thresholds,** today and in 18 months? A licence that is fine at US$20M revenue becomes a renegotiation at US$60M, and that is a bad time to discover it.
+- **What do the terms say about derivatives:** fine-tunes, merges, distilled students and quantized copies? If we plan to distil the flagship into a small model, the student's status matters as much as the teacher's.
+
+How it changes the decision:
+
+- **Licence becomes a model-selection axis** next to quality, cost and latency. Put the licence class in the model registry and have the gateway refuse to route customer-facing MaaS traffic to a restricted model.
+- **The Apache sibling is often the real candidate.** If a 27B Apache model, fine-tuned for your task, gets within your quality bar, you avoid the question entirely and serve far more cheaply. Run that comparison before negotiating a commercial licence.
+- **A commercial licence turns open weights back into a vendor relationship.** You still get on-prem deployment, pinned versions and logits access, but you have reintroduced pricing and contract risk, which was half the reason to go open. Price that honestly against a closed API.
+- **Keep the model layer swappable.** If the licence changes on the next release, or you cross a threshold, you want to move to a sibling or a closed API without rewriting prompts and evals.
+
+The failure mode interviewers are probing for is "it is on Hugging Face, so we can use it". Weights being downloadable says nothing about what you are allowed to sell with them.
+
+**Follow-ups:** How would you encode licence constraints in a model gateway so a restricted model never serves the wrong traffic? Does fine-tuning or distilling a restricted model change the licence status of the result? At what point would you pay for a commercial licence rather than move to the Apache sibling?
 
 </details>

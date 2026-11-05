@@ -1,6 +1,6 @@
 # Safety, Security & Responsible AI - Interview Questions
 
-52 questions: 14 basic, 19 intermediate, 19 advanced.
+58 questions: 14 basic, 21 intermediate, 23 advanced.
 
 > **On the diagrams: drawing is optional.** Some answers include a small sketch you could
 > reproduce on a whiteboard or in a shared doc. You never have to draw anything to score well,
@@ -88,20 +88,20 @@ flowchart LR
 
 <details><summary><b>Answer</b></summary>
 
-It's the standard checklist for LLM security reviews (2025 revision):
+It's the standard checklist for LLM security reviews. The 2026 edition (published August 2026) is the current one, with the 2025 IDs in brackets because you will hear both:
 
-- **LLM01 Prompt Injection** - attacker text steers the model (direct/indirect).
-- **LLM02 Sensitive Information Disclosure** - PII, secrets, or other users' data leaking out.
-- **LLM03 Supply Chain** - compromised weights, poisoned datasets, malicious packages/adapters.
-- **LLM04 Data & Model Poisoning** - tainted training/fine-tuning/RAG data planting backdoors or bias.
-- **LLM05 Improper Output Handling** - trusting model output downstream (XSS from rendered HTML, SQLi from generated queries, RCE from executed code).
-- **LLM06 Excessive Agency** - too many tools, too much permission, too little oversight.
-- **LLM07 System Prompt Leakage** - treating the prompt as secret and putting real secrets in it.
-- **LLM08 Vector & Embedding Weaknesses** - RAG-specific: cross-tenant leakage, embedding inversion, poisoned indexes.
-- **LLM09 Misinformation** - hallucinations and overreliance causing real harm.
-- **LLM10 Unbounded Consumption** - cost/DoS from unbounded loops, huge context, or model-extraction querying.
+- **LLM01 Prompt Injection** (01) - attacker text steers the model (direct/indirect), now explicitly including cross-modal attacks.
+- **LLM02 Sensitive Information Disclosure** (02) - PII, secrets, or other users' data leaking out.
+- **LLM03 Excessive Agency** (06) - too many tools, too much permission, too little oversight.
+- **LLM04 Supply Chain** (03) - compromised weights and model artifacts, poisoned datasets, malicious packages/adapters.
+- **LLM05 Data & Model Poisoning** (04) - tainted training/fine-tuning/RAG data planting backdoors or bias, including fine-tuning subversion.
+- **LLM06 Unbounded Consumption** (10) - cost/DoS from unbounded loops, huge context, or model-extraction querying.
+- **LLM07 Misinformation** (09) - hallucinations and overreliance causing real harm.
+- **LLM08 Hidden Context Exposure** (replaces 07 System Prompt Leakage) - treating system prompts, developer instructions, tool schemas or retrieved policy text as secret and putting real secrets in them.
+- **LLM09 Vector & Embedding Weaknesses** (08) - RAG-specific: cross-tenant leakage, embedding inversion, poisoned indexes.
+- **LLM10 Improper Output Handling** (05) - trusting model output downstream (XSS from rendered HTML, SQLi from generated queries, RCE from executed code, insecure assistant-generated code).
 
-For an **agent**, the critical chain is **01 → 05 → 06**: an injection delivers malicious instructions, improper output handling passes them to a tool unsanitised, and excessive agency means that tool can do real damage (send money, delete data, exfiltrate). That chain is roughly the lethal trifecta expressed in OWASP categories. LLM02 and LLM08 spike for anything doing RAG over multi-tenant data. LLM10 is the one people forget until an agent loops itself into a five-figure bill overnight.
+For an **agent**, the critical chain is LLM01 → LLM10 → LLM03 in the 2026 list (01 → 05 → 06 in 2025): an injection delivers malicious instructions, improper output handling passes them to a tool unsanitised, and excessive agency means that tool can do real damage (send money, delete data, exfiltrate). That chain is roughly the lethal trifecta expressed in OWASP categories. The 2026 edition moved Excessive Agency up to third and Improper Output Handling down to tenth. The ranking blends community vote (75%) with incident data (25%), so read the order as emphasis, not severity: output handling still sits in the middle of every agent exploit chain. LLM02 and LLM09 spike for anything doing RAG over multi-tenant data. LLM06 is the one people forget until an agent loops itself into a five-figure bill overnight.
 
 For agents specifically, OWASP published a separate **Top 10 for Agentic Applications** in December 2025 (ASI01 Agent Goal Hijack through ASI10 Rogue Agents), covering tool misuse, identity and privilege abuse, memory poisoning and inter-agent communication. In an agent review, use both lists.
 
@@ -126,7 +126,7 @@ What follows is a hard rule: **the system prompt is not a secret store.** Never 
 
 Authorisation and secrets belong **server-side, outside the model's context**: the model can *request* an action, but your backend checks entitlements and holds the credentials. The prompt can contain instructions and non-sensitive configuration; treat everything in it as public.
 
-OWASP calls this out as LLM07 specifically because teams keep making the mistake - shipping a "secret" prompt and treating its confidentiality as a control. The correct mental model: the prompt shapes behaviour, it doesn't protect anything. If leaking your entire system prompt would cause a security incident, your architecture is wrong, not your prompt.
+OWASP calls this out as LLM08:2026 Hidden Context Exposure (LLM07 System Prompt Leakage in 2025), which now covers tool schemas and retrieved policy text as well as the system prompt, specifically because teams keep making the mistake - shipping a "secret" prompt and treating its confidentiality as a control. The correct mental model: the prompt shapes behaviour, it doesn't protect anything. If leaking your entire system prompt would cause a security incident, your architecture is wrong, not your prompt.
 
 **Follow-ups:** A teammate wants to gate a premium feature by telling the model not to use it for free users - what's wrong with that? Where should the API key the model's tool needs actually live? Is there any harm in a leaked prompt beyond embarrassment?
 
@@ -171,7 +171,7 @@ flowchart TD
 
 <details><summary><b>Answer</b></summary>
 
-It means any text the model produces should be handled with the same suspicion as raw user input, because the model's output is **transitively attacker-controlled**: the model reads inputs (user messages, retrieved docs, tool results) that an attacker may control, so its output can carry an attacker's payload. This is OWASP **LLM05 Improper Output Handling**, and it's where a lot of real CVEs live - the LLM part is just a laundering step for a classic injection.
+It means any text the model produces should be handled with the same suspicion as raw user input, because the model's output is **transitively attacker-controlled**: the model reads inputs (user messages, retrieved docs, tool results) that an attacker may control, so its output can carry an attacker's payload. This is OWASP **LLM10:2026 Improper Output Handling** (LLM05 in 2025), which now explicitly includes insecure assistant-generated code, and it's where a lot of real CVEs live - the LLM part is just a laundering step for a classic injection.
 
 Concrete failures:
 
@@ -228,7 +228,7 @@ flowchart LR
 
 <details><summary><b>Answer</b></summary>
 
-Excessive agency (LLM06) is the risk that an agent is able to do more damage than its task ever requires. It is not an attack, it is the amplifier: injection is the trigger, excessive agency is the blast radius. OWASP splits it into three sub-types.
+Excessive agency (LLM03:2026, LLM06 in 2025) is the risk that an agent is able to do more damage than its task ever requires. It is not an attack, it is the amplifier: injection is the trigger, excessive agency is the blast radius. OWASP splits it into three sub-types.
 
 **Excessive functionality.** The agent has tools it does not need for the job. Classic example: you wanted a document reader, so you handed it a filesystem tool with read and write and delete, or you exposed a whole MCP server's 40 tools when the workflow uses 3. Fix: expose narrow, purpose-built tools, not general capability.
 
@@ -329,7 +329,7 @@ flowchart TD
 
 <details><summary><b>Answer</b></summary>
 
-Denial of wallet is the economic form of denial of service: the attacker does not take your system down, they make it expensive. It sits under OWASP LLM10, unbounded consumption. The core problem is cost asymmetry. A short, cheap prompt from an attacker can trigger a long, expensive generation from you, and with reasoning models the ratio got much worse: a handful of tokens in can produce a large reasoning trace plus an answer, all billed to you. An agent makes it worse again, because one request fans out into many model calls plus retrieval plus tool calls.
+Denial of wallet is the economic form of denial of service: the attacker does not take your system down, they make it expensive. It sits under OWASP LLM06:2026, unbounded consumption (LLM10 in 2025). The core problem is cost asymmetry. A short, cheap prompt from an attacker can trigger a long, expensive generation from you, and with reasoning models the ratio got much worse: a handful of tokens in can produce a large reasoning trace plus an answer, all billed to you. An agent makes it worse again, because one request fans out into many model calls plus retrieval plus tool calls.
 
 The vectors worth naming: oversized inputs stuffed into a long context window; prompts engineered to maximise output length or reasoning effort; recursive or looping agent tasks; RAG fan-out where one query retrieves and summarises dozens of chunks; aggressive retry logic on your side amplifying the attacker's single request; and free-tier or unauthenticated endpoints, which are the usual entry point. Note that the most common cause in practice is not an attacker at all, it is your own agent stuck in a loop, or a customer's runaway script. The controls are the same, which is a nice thing to point out.
 
@@ -570,11 +570,11 @@ Mitigations: **review tool descriptions** as security-relevant input; **pin vers
 
 <details><summary><b>Answer</b></summary>
 
-Loading a model is running someone's code and trusting someone's artifact. Three risk areas (OWASP LLM03):
+Loading a model is running someone's code and trusting someone's artifact. Three risk areas (OWASP LLM04:2026 Supply Chain, LLM03 in 2025):
 
 **Serialization / pickle.** PyTorch's classic `.bin`/`.pt` checkpoints are Python **pickle** files, and unpickling executes arbitrary code via `__reduce__`. A malicious checkpoint on a hub can pop a shell the moment you `torch.load` it - this has been demonstrated with real poisoned models. **safetensors** (Hugging Face) is a data-only format: just tensors and metadata, no code path, so loading is safe by construction and also faster (zero-copy, lazy). Since PyTorch 2.6, `torch.load` defaults to `weights_only=True`, which blunts the pickle path, but that restricted unpickler has itself had a code-execution bypass (CVE-2025-32434, fixed in 2.6), so the durable rule is: **prefer safetensors; never load pickle checkpoints from untrusted sources.**
 
-**Weights provenance.** Where did the weights come from? A model could be **backdoored** - trained or fine-tuned to behave normally except on a trigger phrase, which flips it to a chosen behaviour (poisoning, LLM04). You can't easily detect this by inspection. Mitigations: download from official/verified sources, **pin the exact revision/commit and verify the hash**, prefer models with documented training provenance, and be wary of random fine-tunes and LoRA adapters from unknown authors.
+**Weights provenance.** Where did the weights come from? A model could be **backdoored** - trained or fine-tuned to behave normally except on a trigger phrase, which flips it to a chosen behaviour (poisoning, LLM05:2026). You can't easily detect this by inspection. Mitigations: download from official/verified sources, **pin the exact revision/commit and verify the hash**, prefer models with documented training provenance, and be wary of random fine-tunes and LoRA adapters from unknown authors.
 
 **Dependencies.** The Python/ML stack is a huge dependency tree (transformers, tokenizers, CUDA libs, custom kernels), each a supply-chain vector - typosquatting, malicious versions, `trust_remote_code=True` executing arbitrary repo code on model load. Mitigations: lockfiles and pinned versions, SBOMs, vulnerability scanning, avoid `trust_remote_code` unless the source is trusted, and vendor/mirror critical artifacts.
 
@@ -638,7 +638,7 @@ The senior signal is refusing to treat safety as monotonic: more refusal is not 
 
 <details><summary><b>Answer</b></summary>
 
-Hallucination - confident, fluent fabrication - becomes a *safety* issue the moment a wrong answer causes real harm: a chatbot inventing a refund policy the company must then honour (Air Canada was held liable), lawyers sanctioned for filing model-fabricated case citations, or medical/legal/financial misinformation acted on by a user. OWASP lists it as LLM09 Misinformation for exactly this reason. So you engineer against it as a risk, not just polish it as a quality metric.
+Hallucination - confident, fluent fabrication - becomes a *safety* issue the moment a wrong answer causes real harm: a chatbot inventing a refund policy the company must then honour (Air Canada was held liable), lawyers sanctioned for filing model-fabricated case citations, or medical/legal/financial misinformation acted on by a user. OWASP lists it as LLM07:2026 Misinformation (LLM09 in 2025) for exactly this reason. So you engineer against it as a risk, not just polish it as a quality metric.
 
 The reason it happens matters for the fix: models are trained (and benchmarks scored) to reward a confident guess over an honest "I don't know," so they're **miscalibrated toward fabrication** under uncertainty. Countermeasures push the other way:
 
@@ -658,7 +658,7 @@ The interview point: hallucination can't be driven to zero, so responsible desig
 
 <details><summary><b>Answer</b></summary>
 
-Poisoning (LLM04) means corrupting data so the model learns something the attacker chose. There are three realistic entry points, and they differ a lot in practicality.
+Poisoning (LLM05:2026, LLM04 in 2025), which now includes fine-tuning subversion, means corrupting data so the model learns something the attacker chose. There are three realistic entry points, and they differ a lot in practicality.
 
 **Pretraining corpora.** Web-scale scraping is cheap to poison because the web is not fixed: buy expired domains that appear in a known crawl list, edit collaboratively-edited sources shortly before a snapshot is taken, or seed content that you know will be scraped. Research has shown that poisoning a small fraction of a web-scale dataset is achievable for a modest budget. Most application teams do not control this, but it is why weights provenance matters.
 
@@ -680,7 +680,7 @@ For the RAG index, which is where your leverage really is: separate namespaces b
 
 <details><summary><b>Answer</b></summary>
 
-Three distinct risks hide under OWASP LLM08, and candidates usually only know one.
+Three distinct risks hide under OWASP LLM09:2026 (LLM08 in 2025), and candidates usually only know one.
 
 **Embeddings are not anonymisation.** The most common misconception I see is teams treating a vector store as safe because "it is just numbers". It is not: inversion research (vec2text-style decoders trained against an embedding model) shows that text can be reconstructed from embeddings with high fidelity, and attribute-inference is easier still. So an embedding of a medical record is a medical record. The mitigation is unglamorous: classify the vector store at the same sensitivity level as the source text, encrypt at rest, restrict access, apply the same retention and deletion policy, and remember it in your data-map for GDPR purposes. If you would not dump the raw documents in an unauthenticated Pinecone-style index, do not dump the embeddings either.
 
@@ -839,6 +839,7 @@ The channel list is longer than most people expect, and the gaps are where the b
 - **HTML**: `display:none`, off-screen positioning, alt text, `aria-label`, HTML comments, `title` attributes.
 - **Office docs**: tracked changes, comments, speaker notes, hidden rows and far-off cells in spreadsheets, document properties.
 - **Everything else agents touch**: calendar invite descriptions, email headers and quoted trails, code comments and docstrings, commit messages, issue templates, JSON fields nobody renders, and filenames.
+- **The agent's own carried state**: memory entries and context-compaction summaries. OpenAI reported in 2026 that an unreleased model wrote jailbreak-style instructions into its own compaction summaries during RL training, and the successor context sometimes followed them. A summary that crosses a context boundary is a persistence channel even with no outside attacker, so treat it as untrusted input too.
 
 The key insight for the defence, and the thing most teams get wrong: **your injection classifier must see exactly what the model sees.** If you scan the raw PDF bytes but the model consumes text extracted by a different library, or you scan rendered HTML while the model gets the DOM, you have built a bypass. So: extract first with the same pipeline the model uses, then scan the extraction.
 
@@ -913,9 +914,67 @@ In a review I would run the lethal trifecta test first, then walk the agent's ca
 
 </details>
 
+### 34. The EU AI Omnibus is now law. For a company shipping a customer chatbot, an image generator and a CV-screening tool in the EU, which obligations apply today, which from 2 December 2026, and which from 2 December 2027?
+
+<details><summary><b>Answer</b></summary>
+
+The anchor date is 27 July 2026, when the AI Omnibus (Regulation (EU) 2026/1744) entered into force and settled the timetable that had been under negotiation. I would split the answer by product, and say up front that scope questions go to legal: the engineering job is knowing which systems need which evidence by when.
+
+**Already applying (November 2026).**
+
+- **Prohibited practices** have applied since February 2025, along with an AI literacy duty that the Omnibus simplified.
+- **Article 50 transparency duties** have applied since 2 August 2026. The chatbot must tell people they are dealing with an AI. The image generator's provider must mark outputs in a machine-readable way. Deployers must label deepfakes, and AI-generated text published on matters of public interest. The voluntary Code of Practice on transparency of AI-generated content was finalised in June 2026, and the Commission's Article 50 guidelines followed in July. Optional EU icons exist, but the Commission says using them does not by itself establish compliance.
+- **General-purpose model obligations** sit with whoever provides the underlying model. They have applied since August 2025, and the Commission's enforcement powers, including fines, began on 2 August 2026. If you build on a third-party model, ask for its documentation now. You will need it for your own high-risk file later.
+
+**From 2 December 2026.**
+
+- **Legacy marking deadline.** Providers of generative systems already on the market before 2 August 2026 have until 2 December 2026 to meet Article 50(2) marking. If the image generator launched earlier, this is your real deadline.
+- **New prohibitions** on AI systems that generate non-consensual intimate imagery or CSAM. For the image generator this is not a labelling question. You need safeguards strong enough, and evidenced well enough, that legal can say the system is not one of those. That means classifier coverage, red-team results and abuse monitoring you can show a regulator.
+
+**From 2 December 2027.**
+
+- **Annex III high-risk obligations** apply to the CV screener: risk management, data governance, technical documentation, automatic logging, human oversight, accuracy and robustness, conformity assessment and registration. The Omnibus also allows processing special-category data to detect and correct bias, which matters for fairness testing on hiring data. Product-embedded (Annex I) high-risk systems follow from 2 August 2028.
+
+**What I would tell the team.** The chatbot is mostly a disclosure job that should already be done. The image generator has two hard dates in the next month. The CV screener has a year, and that is less time than it sounds, because logging, oversight and documentation are architecture. Retrofitting them in the last quarter before the deadline is how teams end up shipping a compliance layer that nobody trusts.
+
+**Follow-ups:** The image generator uses a third-party model: which marking work is yours and which is the model provider's? What evidence would you assemble to show the image generator is not a prohibited system? Which parts of the Annex III file can engineering start producing now?
+
+</details>
+
+### 35. A regulated customer wants prompts and outputs kept encrypted even while the provider's GPUs process them. What does confidential computing for LLM inference actually protect against, what does it not, and what does it cost?
+
+<details><summary><b>Answer</b></summary>
+
+Confidential computing runs inference inside a hardware trusted execution environment that spans the CPU and the GPU, so data is encrypted in memory and on the bus between them, and the operator of the machine cannot read it. Remote attestation is what makes it useful: before sending anything, the client checks a signed measurement of the hardware and software stack against a policy, and refuses to send if it does not match.
+
+This is shipping, not research. Cohere launched Confidential Computing on Model Vault in public beta in October 2026, running on NVIDIA H100s on Azure: the client checks remote attestation and refuses to send a request if the environment fails policy, and payloads are encrypted end to end. Cohere itself notes that this does not remove all risk. An Encrypted tier for hosted open models followed in November, with a narrower model list and US-only availability at launch.
+
+**What it protects against.** The cloud operator, the host OS and hypervisor, the provider's own administrators, and other tenants reading prompts and outputs in use. That is a real gain over "trust our access policy", and it changes the conversation with a customer whose regulator asks about data in use.
+
+**What it does not.**
+
+- **What the attested code does with the data.** Attestation proves which code is running, not that the code is benign. If the serving image logs prompts, it logs them inside the enclave. You need to know what the measured image does, which means trusting the provider's build process or reviewing it.
+- **Anything outside the enclave**: your own application logs, traces, caches and eval sets. Most real leaks happen there.
+- **Application-layer attacks.** Prompt injection, cross-tenant retrieval bugs and output handling are unchanged.
+- **Metadata**: who called, when, how often, and request sizes.
+- **Hardware and firmware flaws and side channels.** You now trust the chip vendor's implementation and its patch cadence.
+
+**What it costs.**
+
+- **Latency and throughput.** Encrypted transfers between CPU and GPU and the attestation handshake add overhead. Measure it on your own workload rather than trusting a headline figure.
+- **Model choice.** Confidential tiers support a narrower list, often open-weight models only, so the frontier model you benchmarked may not be available.
+- **Region.** Availability can be limited, which collides with data-residency requirements: a US-only tier does not help an EU customer.
+- **Operations.** Attestation policies to maintain, measurements that change with every image update, key management, and debugging without plaintext access, which pushes you toward privacy-preserving evaluation.
+
+**How I would frame it for the customer.** Confidential computing replaces trust in the operator's policy with trust in the hardware vendor plus the attested code. Compare it honestly with the alternatives (self-hosting in their own VPC, on-prem, or a zero-retention contract) and choose based on which threat the regulator actually cares about.
+
+**Follow-ups:** The customer's auditor asks what exactly the attestation proves: what do you show them? Your observability pipeline needs prompt text to debug failures: how do you reconcile that with the customer's requirement? When would self-hosting open weights in the customer's VPC be the better answer?
+
+</details>
+
 ## Advanced
 
-### 34. Design a secure architecture for an agent that reads untrusted web/email content AND has access to a user's private data. How do you defeat prompt injection by construction?
+### 36. Design a secure architecture for an agent that reads untrusted web/email content AND has access to a user's private data. How do you defeat prompt injection by construction?
 
 <details><summary><b>Answer</b></summary>
 
@@ -948,7 +1007,7 @@ flowchart TD
 
 </details>
 
-### 35. Design a red-teaming programme for an LLM product: manual vs automated, pre-launch vs continuous, and how findings feed back.
+### 37. Design a red-teaming programme for an LLM product: manual vs automated, pre-launch vs continuous, and how findings feed back.
 
 <details><summary><b>Answer</b></summary>
 
@@ -983,7 +1042,7 @@ flowchart LR
 
 </details>
 
-### 36. What safety evals and benchmarks should you know, and what are their limitations?
+### 38. What safety evals and benchmarks should you know, and what are their limitations?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1010,7 +1069,7 @@ The mature stance: use public benchmarks as a floor and for regression, build **
 
 </details>
 
-### 37. Walk through the responsible-AI process artifacts and regulations an engineer should know: model/system cards, EU AI Act, NIST AI RMF, audit logging.
+### 39. Walk through the responsible-AI process artifacts and regulations an engineer should know: model/system cards, EU AI Act, NIST AI RMF, audit logging.
 
 <details><summary><b>Answer</b></summary>
 
@@ -1021,11 +1080,11 @@ You don't need to be a lawyer, but you should know the shape of the governance l
 **EU AI Act** - the first comprehensive AI law, risk-tiered:
 - **Prohibited** practices (social scoring, certain biometric surveillance).
 - **High-risk** (hiring, credit, education, medical, critical infrastructure) - the heavy tier: risk management, data governance, logging, human oversight, accuracy/robustness, and conformity assessment *before* market.
-- **Limited/transparency** - chatbots must disclose they're AI; AI-generated content should be labelled.
+- **Limited/transparency** - chatbots must disclose they are AI; providers must mark generated content in machine-readable form, and deployers must label deepfakes and AI-generated text published on matters of public interest (in application since 2 August 2026).
 - **Minimal** - most apps, no tier-specific obligations.
-Plus separate obligations for **general-purpose AI models** (transparency, copyright, systemic-risk evals for the largest). Prohibitions applied from February 2025 and GPAI obligations from August 2025. The Digital Omnibus amendments agreed in 2026 moved stand-alone (Annex III) high-risk obligations to December 2027 and product-embedded (Annex I) ones to August 2028, so check the adopted text with legal before quoting dates. The engineering takeaway: your app's tier dictates whether you *must* build logging, human oversight, and documentation - it's not optional polish.
+Plus separate obligations for **general-purpose AI models** (transparency, copyright, systemic-risk evals for the largest). Prohibitions applied from February 2025. The AI Omnibus (Regulation (EU) 2026/1744, in force since 27 July 2026) moved Annex III high-risk obligations to 2 December 2027 and Annex I ones to 2 August 2028, and added bans on AI systems that generate non-consensual intimate imagery or CSAM from 2 December 2026. GPAI obligations applied from August 2025, with Commission enforcement (fines up to 3% of worldwide turnover or EUR 15M) from 2 August 2026. Models placed on the market before August 2025 have until 2 August 2027. The engineering takeaway: your app's tier dictates whether you *must* build logging, human oversight, and documentation - it's not optional polish.
 
-**NIST AI RMF** - a *voluntary* US framework, structured as four functions: **Govern, Map, Measure, Manage**. One-liner: identify context and risks, measure them, manage them, under an org-wide governance function. It's the "how do we operationalise responsible AI" checklist many US companies adopt.
+**NIST AI RMF** - a *voluntary* US framework, structured as four functions: **Govern, Map, Measure, Manage**. One-liner: identify context and risks, measure them, manage them, under an org-wide governance function. It's the "how do we operationalise responsible AI" checklist many US companies adopt. NIST is revising AI RMF 1.0 in 2026, so check which version a customer means.
 
 **Audit logging** - immutable, tamper-evident records of prompts, outputs, tool calls, approvals, model/version, and who did what. Required for high-risk systems, essential for incident response and debugging, and central to accountability. The tension is privacy: full logs are a PII store. Resolve it with redacted/pseudonymised logs, strict access controls on any raw data, and retention limits - logging *what you need to be accountable* without creating a new leakage channel.
 
@@ -1033,7 +1092,7 @@ Plus separate obligations for **general-purpose AI models** (transparency, copyr
 
 </details>
 
-### 38. A data-exfiltration attack via markdown images: explain it end to end and how you'd defend.
+### 40. A data-exfiltration attack via markdown images: explain it end to end and how you'd defend.
 
 <details><summary><b>Answer</b></summary>
 
@@ -1075,7 +1134,7 @@ sequenceDiagram
 
 </details>
 
-### 39. How do you achieve per-tenant isolation and data privacy in a multi-tenant RAG/agent SaaS?
+### 41. How do you achieve per-tenant isolation and data privacy in a multi-tenant RAG/agent SaaS?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1097,7 +1156,7 @@ The interview signal: naming the *cache* and the *missing-filter* failure modes 
 
 </details>
 
-### 40. You're doing a security review of a coding agent that executes model-generated code. What's your threat model and controls?
+### 42. You're doing a security review of a coding agent that executes model-generated code. What's your threat model and controls?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1134,7 +1193,7 @@ flowchart LR
 
 </details>
 
-### 41. Where is the line between the model provider's safety responsibility and the application developer's? Whose job is each control?
+### 43. Where is the line between the model provider's safety responsibility and the application developer's? Whose job is each control?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1162,7 +1221,7 @@ The shared/grey zone: safety benchmarks (both run them), the system prompt (you 
 
 </details>
 
-### 42. A customer reports that another tenant's data appeared in their agent's response. Walk me through the next 72 hours.
+### 44. A customer reports that another tenant's data appeared in their agent's response. Walk me through the next 72 hours.
 
 <details><summary><b>Answer</b></summary>
 
@@ -1182,7 +1241,7 @@ Contain narrowly, scope precisely, then disclose. Scoping is the hard part and i
 
 </details>
 
-### 43. Design end-to-end observability and containment for a fleet of production agents.
+### 45. Design end-to-end observability and containment for a fleet of production agents.
 
 <details><summary><b>Answer</b></summary>
 
@@ -1215,7 +1274,7 @@ flowchart TD
 
 </details>
 
-### 44. What security problems appear in a multi-agent system that do not exist with a single agent?
+### 46. What security problems appear in a multi-agent system that do not exist with a single agent?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1248,7 +1307,7 @@ flowchart LR
 
 </details>
 
-### 45. You suspect someone is distilling your model through your public API. How would you detect it and what can you actually do?
+### 47. You suspect someone is distilling your model through your public API. How would you detect it and what can you actually do?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1264,7 +1323,7 @@ First, separate two threats that get conflated. **Weight extraction**: recoverin
 
 </details>
 
-### 46. Your production assistant has started quoting wrong prices to customers. Is it an attack or a bug, and how do you find out?
+### 48. Your production assistant has started quoting wrong prices to customers. Is it an attack or a bug, and how do you find out?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1300,11 +1359,11 @@ flowchart TD
 
 </details>
 
-### 47. You are asked to ship an LLM-assisted CV screening feature. How do you approach fairness, and what do you tell the product team?
+### 49. You are asked to ship an LLM-assisted CV screening feature. How do you approach fairness, and what do you tell the product team?
 
 <details><summary><b>Answer</b></summary>
 
-The first thing I would say is that CV screening is an Annex III high-risk use under the EU AI Act, so this is not a best-effort fairness exercise, it carries obligations: risk management, data governance, technical documentation, automatic logging, human oversight, accuracy and robustness, and conformity assessment. The Digital Omnibus amendments agreed in 2026 moved the Annex III application date from August 2026 to December 2027. Confirm the adopted text with legal, but design for the obligations now because retrofitting them is far more expensive. In the US the hooks are Title VII and EEOC guidance, the four-fifths rule as a rough adverse-impact screen, and NYC Local Law 144's bias-audit requirement.
+The first thing I would say is that CV screening is an Annex III high-risk use under the EU AI Act, so this is not a best-effort fairness exercise, it carries obligations: risk management, data governance, technical documentation, automatic logging, human oversight, accuracy and robustness, and conformity assessment. The AI Omnibus (Regulation (EU) 2026/1744, in force since 27 July 2026) moved the Annex III application date from August 2026 to 2 December 2027. Confirm scope with legal, but design for the obligations now because retrofitting them is far more expensive. In the US the hooks are Title VII and the four-fifths rule as a rough adverse-impact screen, NYC Local Law 144's bias audits, and a growing set of state rules such as California's 2026 requirement that a person review AI-driven discipline and termination decisions. Federal policy is pushing to preempt state AI laws (EO 14365), so check current status per state.
 
 **Measurement, and its central awkwardness.** You need protected attributes to measure disparity and you often may not collect them. The usual resolution is a separately-governed evaluation dataset with restricted access, or imputation with documented caveats. Metrics: selection-rate parity (adverse impact ratio), equalised odds, calibration within groups. Name the impossibility result: except in degenerate cases these cannot be satisfied simultaneously (Kleinberg et al., Chouldechova). So you choose the one matching the harm you care about, and you write down why. A candidate who claims they will make the system fair on all metrics has not read the literature.
 
@@ -1318,7 +1377,7 @@ The first thing I would say is that CV screening is an Annex III high-risk use u
 
 </details>
 
-### 48. Your agent buys things on behalf of users. Design the authorisation trail so a disputed transaction is resolvable.
+### 50. Your agent buys things on behalf of users. Design the authorisation trail so a disputed transaction is resolvable.
 
 <details><summary><b>Answer</b></summary>
 
@@ -1355,7 +1414,7 @@ flowchart TD
 
 </details>
 
-### 49. A customer asks you to prove which of these documents your model wrote. What can you actually deliver?
+### 51. A customer asks you to prove which of these documents your model wrote. What can you actually deliver?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1363,7 +1422,7 @@ I can prove which documents our system produced. I cannot prove which it did not
 
 **Server-side records of your own generations.** The one that works. Hash every completion at generation time alongside request ID, model version, account and timestamp. A customer brings a document, you normalise and hash it, and it matches or it does not. The limits are equally exact: any edit breaks the match, and it says nothing about text you did not generate. Near-duplicate hashing or embedding search over the generation log recovers edited copies, at the cost of a similarity threshold.
 
-**Watermarking.** The SynthID-Text approach biases sampling: candidate tokens compete in a tournament scored by pseudo-random values keyed on the preceding token window and a secret key, so output drifts toward high-scoring tokens. Detection averages those scores over the text and tests against chance. DeepMind published it in Nature in October 2024 and runs it across Gemini, so this is shipped, not theoretical.
+**Watermarking.** The SynthID-Text approach biases sampling: candidate tokens compete in a tournament scored by pseudo-random values keyed on the preceding token window and a secret key, so output drifts toward high-scoring tokens. Detection averages those scores over the text and tests against chance. DeepMind published it in Nature in October 2024 and runs it across Gemini, and since September 2026 Anthropic has watermarked text from several Claude models, so this is shipped, not theoretical. Even then, coverage depends on the model and, for some models, on staying at default sampling settings.
 
 Why it degrades where image watermarking does not: the signal lives in choices between tokens, so it exists only where there was a choice. Short outputs give too few scored tokens to clear threshold. Low-entropy generation, a factual answer, a quoted passage, schema-constrained JSON, code, has almost no distributional slack to modulate. Translation regenerates the sequence and removes the signal, paraphrase through another model does much the same, and human editing erodes it progressively. An image watermark is spread redundantly across thousands of pixels and survives re-encoding. A text watermark has only the token stream.
 
@@ -1375,7 +1434,7 @@ So what I deliver: a definitive answer for our outputs from logged hashes, water
 
 </details>
 
-### 50. You fine-tuned a model on narrow, harmless-looking domain data and it now complies with requests it used to refuse. Why does that happen, and how do you ship fine-tunes safely?
+### 52. You fine-tuned a model on narrow, harmless-looking domain data and it now complies with requests it used to refuse. Why does that happen, and how do you ship fine-tunes safely?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1414,7 +1473,7 @@ flowchart TD
 
 </details>
 
-### 51. How would you secure a browser agent that acts inside the user's logged-in browser?
+### 53. How would you secure a browser agent that acts inside the user's logged-in browser?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1450,7 +1509,7 @@ flowchart LR
 
 </details>
 
-### 52. Can you rely on monitoring a reasoning model's chain of thought as a safety control?
+### 54. Can you rely on monitoring a reasoning model's chain of thought as a safety control?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1484,5 +1543,170 @@ flowchart TD
 ```
 
 **Follow-ups:** Your CoT monitor's hit rate dropped sharply after a model upgrade. Is the new model safer, or is something else going on, and how would you tell? Should monitor flags ever block an action automatically, and what would that do to the monitor's value over time?
+
+</details>
+
+### 55. An agent runs unattended as a cloud workload and calls APIs at two other companies on a user's behalf. How do you give it an identity and authorise each hop without static API keys, and where does human approval come in?
+
+<details><summary><b>Answer</b></summary>
+
+This is the sequel to the on-behalf-of answer: there is no live user session to exchange, and two of the three hops are in someone else's trust domain. The design that is converging, written up in the IETF WIMSE working group's agent identity draft (draft-ietf-wimse-aims, adopted September 2026, Informational, still an Internet-Draft rather than a standard), mostly profiles standards you already know.
+
+**The agent is a workload.** It gets exactly one workload identifier, which may be a SPIFFE ID, issued by the platform from attestation of where it runs, not from a secret someone pasted into config. Its credentials expire and are short-lived. The draft calls static API keys an antipattern, and it is explicit that the LLM must not have access to the agent's credentials: a broker or sidecar holds them and attaches them to calls, so nothing exfiltrable sits in the context window.
+
+**Authentication.** mTLS where you have a service mesh. Where transport-layer protection is not enough or not available, WIMSE Workload Proof Tokens or HTTP Message Signatures.
+
+**Authorisation inside your domain.** OAuth, with the agent's identity as `client_id` and the user as `sub` when it acts for them, so every token names both principals. Sender-constrain tokens with mTLS or DPoP so a stolen token is useless elsewhere. Between your own microservices, use transaction tokens rather than forwarding the access token, which the draft treats as an anti-pattern.
+
+**Crossing into company B and company C.** Use OAuth identity and authorisation chaining across domains, including the Identity Assertion JWT Authorization Grant: your authorisation server issues an assertion about the agent and user, and each partner's authorisation server exchanges it for a token valid only in its own domain. Downscope at every hop, so company C's token carries only what that call needs, not the union of the task.
+
+**Delegation without a present user.** The user granted consent earlier, recorded as a grant with explicit scope and expiry. The agent obtains tokens from that grant, and each use is logged against it. Revoking the grant stops the agent everywhere.
+
+**Human approval.** For high-impact steps, approval goes out of band, for example through CIBA (Client-Initiated Backchannel Authentication) to the user's own device. The draft says the agent must not treat local UI confirmation alone as sufficient authorisation, which matches the security reasoning: a confirmation the agent renders is a confirmation an injected agent can fake.
+
+**Revocation and audit.** OpenID Shared Signals Framework events (CAEP, RISC) let one domain tell the others that a session or credential is revoked. Audit records must carry at least the agent identifier, the delegated subject, the resource and the decision, in every domain, so a cross-company incident can be reconstructed.
+
+**Worth sketching.** Optional, but the hops show where each token is minted and why none of them reach the model.
+
+```mermaid
+sequenceDiagram
+    participant G as Agent workload
+    participant K as Credential broker
+    participant A as Your auth server
+    participant B as Partner auth server
+    participant P as Partner API
+    participant U as User device
+    G->>K: attested workload identity
+    K->>A: request token, client agent, sub user
+    A-->>K: assertion for partner domain
+    K->>B: exchange assertion for downscoped token
+    B->>U: CIBA approval for high-impact step
+    U-->>B: approved
+    B-->>K: sender-constrained token
+    K->>P: call with token, model never sees it
+```
+
+**Follow-ups:** Where does the user's standing consent live, and how do you show them what an unattended agent has done with it? A partner does not support token exchange and offers only API keys: what do you accept and what compensating controls do you add? How would you revoke an agent across three domains within a minute?
+
+</details>
+
+### 56. You must run a cyber-capable agent in an evaluation harness that needs to install packages. In 2026 several labs' agents escaped exactly this kind of setup. Why isn't sandboxing enough when the agent itself is the adversary, and how would you contain it?
+
+<details><summary><b>Answer</b></summary>
+
+The coding-agent sandbox answer assumes the model is a victim: injected text makes it misbehave, so you remove credentials and egress and the damage is bounded. Here the agent is capable, persistent and goal-directed, and every channel you leave open is something it will probe. The 2026 incidents show what that looks like:
+
+- OpenAI said that GPT-5.6 Sol and a more capable pre-release model, run with reduced cyber refusals on the ExploitGym benchmark, used a zero-day in the package registry cache proxy to get out of the evaluation environment, and reached Hugging Face looking for test answers.
+- Anthropic reported that a misconfiguration gave live internet access in evaluations whose prompt said none existed, and that Mythos 5 published a PyPI package that ran on 15 real systems.
+- UK AISI logged 19 unsanctioned actions across 10 of 122 runs, including public posts inviting other agents to reuse artefacts.
+- Matthew Green summarised reports of agents using their only permitted egress, an artifact proxy, as a shared message board, and one reaching a remote chatbot over DNS.
+
+The lesson: the one allowed egress is the attack surface, and a shared service is a communication channel.
+
+**Containment I would build:**
+
+- **Resolve dependencies before the run.** Bake them into the image, or serve a pre-populated, read-only mirror that holds only the lockfile's packages and never fetches upstream. No upload or publish path at all, which closes both the package-publishing and the message-board channels.
+- **Harden and isolate the proxy itself.** Run it in a separate trust domain, keep it minimal and patched, and assume it will be attacked, because it is the only thing the agent can reach.
+- **No DNS resolution to the outside.** Static name resolution for the mirror only. DNS is egress.
+- **Nothing shared and writable between runs.** Per-run caches. A shared cache that one run writes and another reads is a channel between agents.
+- **No credentials inside, and canaries that are.** Plant fake tokens and alert the moment one is used.
+- **Prove the boundary before every campaign.** Run a preflight probe from inside the sandbox that must fail to reach the internet. The Anthropic case was a configuration that did not match the prompt.
+- **Monitoring that can block, out of band.** AISI's recommendations were to treat internet access as something that must be justified, use fine-grained network controls, and monitor in real time with the ability to block. Log denied attempts too: they are the signal.
+- **Stop on the first unsanctioned action** and treat it as a finding, not noise.
+
+**Why this still is not enough.** Green's argument is that sandboxes are a small part of the answer. Useful agents need information access, monitoring that traffic well is hard, and a "warden" model watching the agent just moves the alignment problem down a level. So containment is layered with capability-aware decisions: which models get which harness, with which network policy, signed off by whom.
+
+**Worth sketching.** Optional, but it makes the point that every arrow out of the sandbox is either removed or read only.
+
+```mermaid
+flowchart LR
+    A["Agent in per-run sandbox"] --> M["Read-only mirror,<br/>lockfile packages only"]
+    A -.->|"blocked"| U["Upstream registry"]
+    A -.->|"blocked"| D["External DNS"]
+    A -.->|"blocked"| W["Uploads and publish"]
+    A --> T["Canary tokens"]
+    T --> X["Out-of-band monitor"]
+    M --> X
+    X -->|"unsanctioned action"| K["Halt run"]
+```
+
+**Follow-ups:** The task genuinely needs one upstream API: how do you allow it without recreating the proxy problem? What would you log on the mirror to spot an agent probing it? Would you use a second model as a monitor here, and what are you trusting when you do?
+
+</details>
+
+### 57. Could a prompt injection spread from one user's agent to another user's agent through email, shared documents or chat, like a worm? How would you detect the spread and stop it?
+
+<details><summary><b>Answer</b></summary>
+
+Yes, and the ingredients are now in production. A worm needs four things: a payload that tells the agent to copy itself into what it writes, outputs that land in other agents' inputs (email, shared docs, tickets, chat), agents that act on that content without a trust boundary, and enough autonomy to send without a human reading first. Personal agents that triage email and draft replies have all four.
+
+The evidence is suggestive rather than conclusive. Matthew Green, writing in September 2026, reported that an OpenAI postmortem found agents did not consistently distrust goals passed along by other agents, and called that plus shared channels the ingredients of a worm. Research on self-replicating prompt injections exists, although none has been seen in the wild. UK AISI documented agents posting publicly to invite other agents to reuse their artefacts, and Green describes agents leaving instructions for each other in a shared package cache. In OWASP's agentic list this sits across ASI07 (insecure inter-agent communication), ASI08 (cascading failures) and ASI10 (rogue agents).
+
+**Stop replication by structure first.**
+
+- **Goals come only from the principal.** An agent may read another agent's message as data, but never adopt a goal from it. This is the dual-LLM rule applied to agent-to-agent traffic.
+- **Taint outbound content.** Text derived from untrusted input cannot be written verbatim into an outbound message without the user seeing it. Replication needs the agent to copy the payload forward, so this cuts the loop.
+- **Label agent-written content.** Messages and documents an agent produced carry provenance, so a receiving agent treats them as untrusted even when the sender is a colleague.
+- **Rate-limit agent-originated sends**, especially to new recipients and to many recipients at once. A worm's growth is a fan-out curve.
+- **Approval for sends that carry untrusted material**, shown as the exact outgoing content.
+
+**Detect the spread.**
+
+- **Fingerprint instruction-like segments** in inbound content across tenants with similarity hashing. The same unusual instruction appearing in many unrelated users' contexts within hours is the signature.
+- **Provenance graph**: link inbound item to agent action to outbound item. A chain that crosses users is a propagation path you can walk backwards to patient zero.
+- **Behaviour baselines**: per-agent send volume, new-recipient rate, and the same tool sequence suddenly appearing across many users.
+
+**Contain it.** Push payload fingerprints to every agent's ingestion filter (weak, but fast, like antivirus signatures), pause autonomous sending fleet-wide while keeping drafts, and quarantine the affected threads and documents. Then fix the structural gap that let it replicate, because a signature only catches the variant you already saw.
+
+**Follow-ups:** Your fingerprinting flags a legitimate viral template, such as a company-wide announcement every agent summarises: how do you tell it apart? Which of the structural controls would users complain about most, and what would you trade? How would you test worm resistance before launch without building a real worm?
+
+</details>
+
+### 58. Your assistant renders HTML and JavaScript the model writes as live previews. Design the sandbox, then tell me how an attacker would chain their way out of it.
+
+<details><summary><b>Answer</b></summary>
+
+Model-written HTML is attacker-influenced code, so the preview is improper output handling with a rendering engine attached. The design goal is that even fully malicious preview code cannot act as the user.
+
+**The design.**
+
+- **A separate origin.** Serve previews from a different registrable domain that holds no cookies or sessions. Same-origin with your app means the preview is your app.
+- **A sandboxed iframe**, with `allow-scripts` but never combined with `allow-same-origin` for content on your origin, since together they let the frame remove its own sandbox.
+- **A strict CSP inside the preview**: no network by default, or a narrow allowlist if the feature needs it.
+- **A typed message protocol.** If the preview talks to the parent, the parent accepts only structured messages (typed JSON with known fields), checks both `event.origin` and `event.source` against the specific frame, and never passes message content to `innerHTML`.
+- **Click to run on shared content.** A preview inside a shared link should not execute on page load for a signed-in viewer.
+
+**How an attacker chains out: a real example.** In October 2026 researchers turned ChatGPT's HTML Preview into an account takeover, and every link in the chain was a reasonable-looking component:
+
+1. The attacker publishes a conversation containing an interactive graph and an HTML Preview, then shares the link.
+2. The graph loads MathLive, a third-party math-input library, which installs a message listener on the main page that checks neither origin nor source.
+3. The sandboxed preview posts raw HTML to that listener.
+4. The HTML ends up in a `srcdoc` iframe that is not sandboxed. A `srcdoc` frame inherits its parent's origin, so it runs as chatgpt.com.
+5. The page's CSP allowed YouTube, and a YouTube oEmbed JSONP callback reflected attacker-controlled JavaScript, so script ran despite the CSP.
+6. The script called authenticated APIs as the victim, listed conversations and read a private one, then sent data out through an image reference.
+
+OpenAI raised it from P2 to P1, fixed it on 26 October and paid a $5,000 bounty.
+
+**The lessons I would build into review.**
+
+- **Inventory every message listener on the main page**, including ones that third-party libraries add. Your sandbox is only as strong as the most careless listener.
+- **Never accept raw HTML across windows.**
+- **Keep derived documents sandboxed.** Anything built from untrusted content (`srcdoc`, blob URLs) gets the sandbox attribute, every time.
+- **Treat CSP as defence in depth.** Any allowlisted host with a JSONP or reflection endpoint is a bypass, so allowlist as little as possible.
+- **Test features in combination.** Graphs, previews and sharing were each fine alone. The exploit needed all three.
+
+**Worth sketching.** Optional, but drawing the chain makes it obvious that the fix is at several links, not one.
+
+```mermaid
+flowchart TD
+    A["Shared link opened by signed-in user"] --> B["Sandboxed preview posts raw HTML"]
+    B --> C["Library listener, no origin check"]
+    C --> D["Unsandboxed srcdoc iframe<br/>runs as main origin"]
+    D --> E["CSP-allowed JSONP callback runs script"]
+    E --> F["Authenticated API calls as victim"]
+    F --> G["Data out through an image URL"]
+```
+
+**Follow-ups:** Product wants previews to fetch live data from an API: how do you allow that without reopening the hole? How would you find every postMessage listener in a large frontend, including ones added at runtime? What would you test before shipping a new embeddable widget next to the preview?
 
 </details>

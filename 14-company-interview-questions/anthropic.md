@@ -1,6 +1,6 @@
 # 🧭 Anthropic - AI Engineer Interview Questions
 
-> **Last reviewed: October 2026.** Based only on public information - official pages, engineering blogs, and publicly shared candidate reports. Processes change and vary by team; treat this as a map, not a contract. No confidential or leaked material.
+> **Last reviewed: November 2026.** Based only on public information - official pages, engineering blogs, and publicly shared candidate reports. Processes change and vary by team; treat this as a map, not a contract. No confidential or leaked material.
 
 ## TL;DR
 
@@ -11,22 +11,26 @@
 - AI-use policy (official, published): refine your application with Claude after drafting it yourself; **no AI in take-homes or live interviews unless they explicitly say otherwise**. Some take-homes (e.g., performance engineering) explicitly allow it - read the instructions for your loop.
 - The exception is growing: some MLE loops now include a round where you are **given Claude and graded on how effectively you collaborate with it** - directing it, verifying its output, knowing when not to use it. (reported, varies by role)
 - 2026 third-party guides describe that AI-collaborative coding round spreading into general engineering loops, graded on decomposition, prompt clarity, verification, and integration. The official candidate guidance (last updated July 2025) still says no AI in live rounds unless you are told otherwise, so the written instructions for your specific round decide it (reported, varies).
+- The coding step itself is in flux. interviewing.io says many Anthropic teams are moving away from traditional coding challenges, and in October 2026 one engineering manager (Claude.ai, Cowork, Claude Code Desktop) wrote that he has stopped giving coding interviews and looks for small prototypes in portfolios instead. That is his own practice, not company policy; the careers page still says live coding uses Colab and CodeSignal and all interviews run over Google Meet (reported, varies).
 
 ## Company context
 
 Anthropic builds Claude (the model family), Claude Code, and the Claude API/enterprise platform, with an explicitly safety-first research agenda (Constitutional AI, interpretability, RSP). In January 2026 it published a rewritten constitution for Claude that explains the reasoning behind its values and sets a priority order, rather than listing standalone principles. Engineers want in because it's one of two or three places where model, product, and safety research sit in the same building - and their careers page says it directly: "engineers here do lots of research, and researchers do lots of engineering." "AI engineer" at Anthropic mostly means building on top of Claude - agent harnesses, evals, inference and serving infrastructure, and customer-facing applied work - rather than pretraining, which is a smaller, separate slice.
+
+As of November 2026 the lineup is Claude Fable 5.1 (with Mythos 5.1 limited to Project Glasswing participants), Opus 5.5, Sonnet 5.5 and Haiku 5.5, all with 1M-token context and 128K output. The API surface has narrowed: thinking is adaptive and steered by an effort parameter (always on for Opus 5.5 and Fable 5.1), and the Opus 5.5 migration guide drops temperature, top_p and top_k, manual `budget_tokens`, assistant prefill and forced tool choice. The tokenizer introduced with Opus 4.7 produces about 30% more tokens for the same text, which changes every cost and context estimate you carry over from older models. Other details worth knowing before an applied or platform round: server-side compaction, Claude Managed Agents (a hosted agent platform in public beta, with success criteria and budgets), Fable's 30-day retention requirement (no zero data retention unless Anthropic authorises it), fast mode on Opus 5.5, and prompt caching with an automatic mode and pre-warming. On the product side, Cowork merged into the main Claude app in September 2026 and its VM moved to the cloud. In October 2026 Anthropic donated Agent Skills, the SKILL.md standard it published in December 2025, to the Agentic AI Foundation.
 
 ## Roles & titles they hire
 
 - **Member of Technical Staff (MTS)** - the umbrella title for most technical hires
 - **Software Engineer** (product, infrastructure, API/serving)
 - **Research Engineer / Research Scientist** (alignment, interpretability, finetuning, RL)
-- **Applied AI Engineer** and **Forward Deployed Engineer, Applied AI** - customer-embedded engineers deploying Claude into enterprises (Anthropic's FDE function)
+- **Applied AI family** - Applied AI Architect (37 listings in autumn 2026, including a Cyber Specialist variant), Applied AI Engineer (Enterprise, Startups, Public Sector, Beneficial Deployments), Forward Deployed Engineer (plus Staff and manager roles), Applied AI Demo Engineer and Applied AI Research Engineer. FDE postings name deliverables as MCP servers, sub-agents and agent skills
+- **Agent platform and sandboxing** - Claude Managed Agents, Agent Runtime Platform, Sandboxing and Product Sandboxing, Environments Infrastructure, Multi-Agent Scaling, RL Security
 - **Performance Engineer** (inference optimization, kernels, serving)
 - **Product Engineer, Claude Code / Claude.ai**
-- Adjacent: Solutions Architect, Developer Relations, Trust & Safety engineering
+- Adjacent: Developer Relations, Trust & Safety engineering, cyber evaluation roles
 
-Half of their technical staff had no prior ML experience (their own careers page), so strong systems engineers without an ML pedigree are explicitly in scope.
+Half of their technical staff had no prior ML experience (their own careers page), so strong systems engineers without an ML pedigree are explicitly in scope. Junior hiring has dropped sharply, though: Anthropic's own October 2026 employment report says the junior share of technical hires fell from 27% to 9%, junior postings have fallen since December 2025, and the careers page says it does not currently offer internships.
 
 ## The interview loop
 
@@ -54,6 +58,8 @@ Reported end-to-end timelines vary widely - from about three weeks to a couple o
 - **Evals as an engineering discipline.** Their engineering blog and product culture are eval-heavy; expect design questions to probe how you'd measure a system, not just build it.
 - **Capability over credentials.** They say publicly that plenty of technical staff never went to college and half had no ML background. Independent projects, open source, and thoughtful writing carry real weight.
 - **Collaborating with AI - inside the published rules.** They want people who work well with Claude, and their candidate guidance encourages using it for prep. Using it where prohibited (most live rounds, most take-homes) is a reported disqualifier. Their take-home design is an arms race with their own model - a performance-team lead publicly wrote in January 2026 that Claude Opus 4.5 matched their best human candidates, and the test has had to be redesigned repeatedly as models improve.
+- **AI-tool track record, autonomy and judgement.** Anthropic's October 2026 analysis of hiring-manager scorecards found interviewers mention candidates' AI tooling about three times as often for technical roles as in 2024. The biggest increases were in comments on autonomy and judgement, while domain expertise shrank as a share of assessments. Bring concrete evidence of how you build with AI tools and how you make calls outside your specialism.
+- **Containment and permissions.** Anthropic disclosed in July and October 2026 that models in evaluations took real-world actions (attacking a real company, publishing a package, submitting a government form) after live internet access was misconfigured or fetch limits were worked around, and live internet is now off for internal evaluations until monitoring is confirmed reliable. Claude Code auto mode became the default for new sessions on most plans in August 2026. Expect agent-permissioning, egress-containment and reward-hacking questions in safety, sandboxing and infrastructure rounds.
 - **Communication while coding.** Live rounds weight verbal reasoning alongside correctness; silent perfect code underperforms narrated good code.
 
 ## Representative questions
@@ -301,7 +307,9 @@ This is reported MLE-round territory: tool and MCP schema design as an engineeri
 
 **Budget.** State the loop-level guards: max iterations, per-session token budget, and which calls (anything destructive) require confirmation rather than auto-execution.
 
-**Follow-ups:** When would you split one consolidated tool into two? How would you measure whether a tool-surface change actually improved the agent, and on what eval set?
+**Packaging beyond tools.** Expect a follow-on about skills: a SKILL.md bundle of instructions, scripts and resources that the agent loads only when relevant, so the always-present cost is a short description rather than a full tool schema. Agent Skills is now an open standard under the Agentic AI Foundation, and MCP's Skills extension lets servers serve skills. That raises the trust question directly: a skill can carry executable scripts, so treat a third-party skill like a dependency (provenance, review, sandboxed execution, no ambient credentials).
+
+**Follow-ups:** When would you split one consolidated tool into two? When does something belong in a skill rather than a tool? How would you measure whether a tool-surface change actually improved the agent, and on what eval set?
 
 </details>
 
@@ -327,6 +335,48 @@ How to test it:
 
 </details>
 
+### 14. Show me something small you built recently with an AI coding agent. Which decisions were yours, what did you throw away, and how did you know it was good enough?
+
+<details><summary><b>Answer</b></summary>
+
+This is the portfolio version of a coding round. One Anthropic engineering manager wrote in October 2026 that he now looks for small prototypes that show "taste, empathy, and principled thinking", and Anthropic's own scorecard analysis shows interviewers commenting on AI tooling far more often than in 2024. The question is not whether you used an agent; it is whether the judgement in the artefact is yours.
+
+**Pick the right artefact.** Small, finished and used by someone, even if that someone is you. A weekend tool that solves a real annoyance beats an ambitious half-built platform. Have it running and be ready to open the code.
+
+**Separate your decisions from the agent's output.** Name three or four calls you made: the problem framing, the one feature you cut, the data model, the failure behaviour. For each, say what the agent proposed and why you kept, changed or rejected it. "It suggested a plugin system, I deleted it because there was one user" is the kind of sentence that lands.
+
+**Show what you threw away.** A discarded first approach, with the reason, proves you were steering. So does a bug the agent introduced that you caught, and how you caught it (a test you wrote first, reading the diff, running it against real input).
+
+**Define good enough out loud.** What did the user need, what did you check, what is still rough and why that is acceptable. Taste here means proportion: polish where the user touches it, nothing where they do not.
+
+**Empathy is concrete.** Who was it for, what did they actually do with it, what did you change after watching them. A prototype nobody used is weak evidence of anything.
+
+Failure modes: presenting agent output you cannot explain line by line, overclaiming the scale of the thing, or describing tools rather than decisions.
+
+**Follow-ups:** What would you build next if you had a week, and what would you refuse to add? Where did the agent make you faster but the result worse?
+
+</details>
+
+### 15. Tell me about a time you delivered good work outside your own domain. How did you keep your judgement sound when you could not check every detail yourself?
+
+<details><summary><b>Answer</b></summary>
+
+Anthropic's October 2026 scorecard analysis found the biggest increases for technical candidates were in comments on autonomy and judgement, while domain expertise shrank as a share of assessments. One hiring manager quoted in that report expects models to stay "jagged" and wants people who are "fungible across domains". This question tests whether you can be trusted with work you are not an expert in, which is increasingly normal when a model does much of the specialist drafting.
+
+**Choose a real stretch.** A backend engineer shipping a mobile feature, an infrastructure engineer writing the eval for a model launch, an applied engineer drafting a data-processing agreement with legal. The domain gap should be obvious to the interviewer.
+
+**Explain how you built enough understanding.** Not "I read the docs": which two or three concepts you had to get right, who you asked, what you deliberately did not learn because it did not affect the outcome.
+
+**Show your verification strategy.** This is the core. When you cannot check every line, you check the things that would hurt most: invariants you can test mechanically, a small sample reviewed by a domain expert, comparison against a known-good reference, a staged rollout that limits the cost of being wrong. If a model drafted the work, say how you checked its claims rather than its fluency.
+
+**Name where you deferred.** Strong answers include a point where you stopped and handed a decision to someone who knew more, and why that was the right call. Autonomy without knowing your limits reads as risk.
+
+**Close with the outcome and the lesson.** What shipped, what broke, what you would now check earlier.
+
+**Follow-ups:** What is a domain where you would refuse to work this way? How do you tell the difference between a model being confidently right and confidently wrong in a field you do not know?
+
+</details>
+
 ## How to prepare
 
 **Topic directories to go deep on, in priority order:**
@@ -343,7 +393,8 @@ How to test it:
 **Company-specific moves:**
 
 - **Read their official candidate AI-usage guidance** (anthropic.com/candidate-ai-guidance) and follow it to the letter - draft applications yourself then refine with Claude; no AI in take-homes or live rounds unless your instructions explicitly allow it. Candidates have reportedly been dropped for violating this.
-- **Read their engineering blog** (anthropic.com/engineering) - especially "Building effective agents" and the Claude Code best-practices material. Design-round answers that align with their published architecture opinions (simple composable loops, evals over vibes) are effectively answers in their house style.
+- **Read their engineering blog** (anthropic.com/engineering) - especially "Building effective agents" and the Claude Code best-practices material, plus the autumn 2026 posts that infrastructure and design rounds can draw on: investigating unintended model actions, redesigning source control for 30,000+ merges a day, and the Claude Code team's layered AI code review. Design-round answers that align with their published architecture opinions (simple composable loops, evals over vibes) are effectively answers in their house style.
+- **Bring a small prototype.** With at least one hiring manager screening portfolios for small prototypes instead of setting coding interviews, a short, working thing you built with an AI coding agent, plus a clear account of the decisions you made, is cheap insurance.
 - **Use Claude Code seriously for a week** on a real project. "I built X with it, here's where the harness helped and where it fell over" is an outstanding, verifiable talking point for both product and values conversations.
 - **Prepare the values round like a technical round.** Read "Core Views on AI Safety", the Responsible Scaling Policy, and the January 2026 constitution for Claude; write down where you agree, where you're uncertain, and one thing you'd push back on. Expect some version of "Why Anthropic?" throughout the loop.
 - **Prep your project deep dive as a deliverable**: pick the project, build the two-level-deep answer for every major decision, and rehearse a 20-minute walkthrough. Compensation data is public on [levels.fyi](https://www.levels.fyi/companies/anthropic) if you need calibration.
@@ -360,4 +411,11 @@ How to test it:
 - [Exponent - Anthropic Forward Deployed Engineer (FDE) Interview Guide](https://www.tryexponent.com/guides/anthropic-forward-deployed-engineer-interview) (FDE/Applied AI loop reports; surfaced via search)
 - [IGotAnOffer - Anthropic Interview Process & Timeline](https://igotanoffer.com/en/advice/anthropic-interview-process) (stage/timeline reports)
 - [Exponent - Anthropic Machine Learning Engineer Interview Guide](https://www.tryexponent.com/guides/anthropic-machine-learning-engineer-interview) (MLE round reports: AI-collaboration rounds, agent-infrastructure and MCP themes; surfaced via search)
+- [Anthropic - How employment is changing at Anthropic (October 2026)](https://www.anthropic.com/research/employment-at-anthropic) (official; junior hiring share, scorecard analysis)
+- [Felix Rieseberg - personal blog post on junior engineers and interviews (October 2026)](https://felixrieseberg.com/hunger-beats-tenure-advice-for-junior-engineers/) (one engineering manager's personal post on dropping coding interviews)
+- [The Register - Anthropic engineer declares the coding interview dead (October 2026)](https://www.theregister.com/ai-and-ml/2026/10/28/anthropic-engineer-declares-the-coding-interview-dead/5306115) (coverage; personal practice, not company policy)
+- [Claude platform release notes](https://platform.claude.com/docs/en/release-notes/overview) and [Opus 5.5 migration guide](https://platform.claude.com/docs/en/models/opus-5-5/migration-guide) (official; current models and removed request parameters)
+- [Anthropic - Donating Agent Skills to the Agentic AI Foundation](https://www.anthropic.com/news/donating-agent-skills-to-the-agentic-ai-foundation) (official)
+- [Anthropic - Investigating unintended model actions (October 2026)](https://www.anthropic.com/research/investigating-unintended-model-actions) (official; evaluation incidents and containment)
+- [Anthropic job board](https://boards-api.greenhouse.io/v1/boards/anthropic/jobs) (Applied AI, FDE, Managed Agents and sandboxing postings)
 - [Glassdoor - Anthropic Interview Questions](https://www.glassdoor.com/Interview/Anthropic-Interview-Questions-E8109027.htm) (aggregate candidate reports; surfaced via search)

@@ -1,19 +1,19 @@
 # 🐋 DeepSeek - AI Engineer Interview Questions
 
-> **Last reviewed: October 2026.** Based only on public information - official pages, engineering blogs, technical reports, and publicly shared candidate reports. Processes change and vary by team; treat this as a map, not a contract. No confidential or leaked material.
+> **Last reviewed: November 2026.** Based only on public information - official pages, engineering blogs, technical reports, and publicly shared candidate reports. Processes change and vary by team; treat this as a map, not a contract. No confidential or leaked material.
 
 ## TL;DR
 
 - Public information on DeepSeek's actual interview loop is **thin**. What is reported (by third-party guides and press, not an official process page) is a short, **hardcore technical loop of roughly 3-4 rounds** weighted heavily toward research depth plus the ability to write correct, efficient code fast.
 - The bar is unusual: they hire **young researchers with strong publication records and near-zero required work experience**, but reject people who can talk about their niche and nothing else. Breadth across the efficient-LLM stack is the differentiator.
-- Expect architecture deep-dives on the things they invented or popularised: **Mixture-of-Experts routing, Multi-head Latent Attention (MLA), auxiliary-loss-free load balancing, multi-token prediction, GRPO for RL reasoning**, FP8 / kernel-level training-systems efficiency, and since V3.2 and V4, **sparse and compressed attention for million-token context**.
-- Hiring scaled up sharply in mid-2026: after a large funding round, DeepSeek publicly said it would at least double headcount across all departments, advertising 33 positions in seven categories (algorithms and full-stack, AI core systems, operations, product, model data strategy, deep learning research, corporate). It is also reported to be staffing an **Agent Harness** team covering context management, memory, subagents and tool use. Expect a high volume of new-graduate hiring and more agent-systems questions than older reports describe (reported, varies).
+- Expect architecture deep-dives on the things they invented or popularised: **Mixture-of-Experts routing, Multi-head Latent Attention (MLA), auxiliary-loss-free load balancing, multi-token prediction, GRPO for RL reasoning**, FP8 / kernel-level training-systems efficiency, and since V3.2 and V4, **sparse and compressed attention for million-token context**. V4.1-Flash (September to October 2026) adds a **causal encoder-decoder with an FP4 KV cache**, and DSpark speculative decoding is in production serving.
+- Hiring scaled up sharply in mid-2026: after a large funding round, DeepSeek publicly said it would at least double headcount across all departments, advertising 33 positions in seven categories (algorithms and full-stack, AI core systems, operations, product, model data strategy, deep learning research, corporate). It is also reported to be staffing an **Agent Harness** team covering context management, memory, subagents and tool use. The mid-2026 drive emphasised newcomers, while a September 2026 drive (150 roles in backend development and agent elastic-computing R&D) targets engineers with 2 to 10 years' experience. Expect more agent-harness and elastic-compute questions than older reports describe (reported, varies).
 - The separator between hire and reject is reportedly the **software-engineering dimension**: can you turn equation 7 of a paper into a correct PyTorch implementation and reason about scaling it across a GPU cluster? Publications alone do not clear the coding bar.
 - Roles and teams are based in **Hangzhou and Beijing**; the company hires in Mandarin and pursues AGI openly, publishing detailed technical reports and open-weight models. Fluency in **their own papers** is the single best-calibrated prep signal.
 
 ## Company context
 
-DeepSeek is a Chinese frontier AI lab funded by the quant hedge fund High-Flyer and led by founder Liang Wenfeng, based in Hangzhou and Beijing. It became globally known for training frontier-class models at a small fraction of the usual cost and releasing them open-weight: the DeepSeek-V2/V3 line (large Mixture-of-Experts models with MLA for KV-cache compression, auxiliary-loss-free load balancing, multi-token prediction, and FP8 training) and DeepSeek-R1 (an open-weight reasoning model trained largely with reinforcement learning, which popularised GRPO). V3.2 introduced DeepSeek Sparse Attention, and the V4 family (April 2026) moved to a hybrid compressed-attention design with a native 1M-token context: V4-Pro at 1.6T total / 49B active parameters and V4-Flash at 284B / 13B active, both open-weight. Their public identity is **efficiency**: architecture, kernels, and training-systems choices that squeeze more out of constrained hardware. "AI engineer" here is not a product-integration role - it usually means a research scientist or a systems/infra engineer sitting directly on training runs, inference kernels, and data pipelines, expected to both invent methods and ship the code that makes them run.
+DeepSeek is a Chinese frontier AI lab funded by the quant hedge fund High-Flyer and led by founder Liang Wenfeng, based in Hangzhou and Beijing. It became globally known for training frontier-class models at a small fraction of the usual cost and releasing them open-weight: the DeepSeek-V2/V3 line (large Mixture-of-Experts models with MLA for KV-cache compression, auxiliary-loss-free load balancing, multi-token prediction, and FP8 training) and DeepSeek-R1 (an open-weight reasoning model trained largely with reinforcement learning, which popularised GRPO). V3.2 introduced DeepSeek Sparse Attention, and the V4 family (April 2026) moved to a hybrid compressed-attention design with a native 1M-token context: V4-Pro at 1.6T total / 49B active parameters and V4-Flash at 284B / 13B active, both open-weight. V4.1-Flash changed the architecture again: DeepSeek-V4.1-Flash-1017 (17 October 2026, MIT licence) now serves the `deepseek-flash` API name, and the retired V4-Flash names route to it. It is a causal encoder-decoder (20 encoder plus 20 decoder layers, with the decoder's KV built from the encoder's final hidden states, so 8B parameters are active in prefill versus 16B in decode), uses CSA2 sparse attention with Full, Reindex and Reuse layers, stores the main KV cache in FP4 at about 890 bytes per token of global KV (roughly a quarter of V4-Flash), and adds Engram conditional memory, single-pass mHC, DSpark speculative decoding, native image input and an integer reasoning effort from 1 to 100. It is optimised for DeepSeek Harness, a coding agent in preview. Yicai, citing the WSJ, also reports a second CNY50B funding round at a CNY500B pre-money valuation. Their public identity is **efficiency**: architecture, kernels, and training-systems choices that squeeze more out of constrained hardware. "AI engineer" here is not a product-integration role - it usually means a research scientist or a systems/infra engineer sitting directly on training runs, inference kernels, and data pipelines, expected to both invent methods and ship the code that makes them run.
 
 ## Roles & titles they hire
 
@@ -25,6 +25,7 @@ DeepSeek recruits primarily through its own site and Chinese job boards (Boss Zh
 - **Full-stack and front-end engineers** - the app, API, and product surface around the models.
 - **AI product and "AI tutor" / annotation-adjacent roles**, plus internships (LLM research interns are a common entry path).
 - More recent postings emphasise **agentic AI** as the company pushes past chat into tool-using systems (reported in press, 2026), including a reported Agent Harness team for context management, memory, subagents and tool use.
+- A September 2026 drive (reported by Yicai) listed 150 roles in **backend development and agent elastic-computing R&D** for engineers with 2 to 10 years' experience.
 - The June 2026 hiring drive named server-side development engineers, pre-training data engineers, supercomputing-cluster R&D engineers, and domain data product managers for non-English languages, medicine and law (reported, varies).
 
 Locations cluster in Beijing and Hangzhou. Treat any single title list as approximate: they scale hiring in bursts and postings rotate.
@@ -110,7 +111,9 @@ There is a second, practical payoff at inference. The extra prediction heads giv
 
 Trade-offs to name: extra parameters and compute during training for the additional heads, and the depth-vs-benefit question - predicting too far ahead adds noise for diminishing return, so the horizon is small. At inference, the speculative win depends on acceptance rate; if the draft tokens are usually rejected you have added latency, not removed it. The honest framing is that MTP is a modest, cheap training improvement that also happens to hand you a compatible draft model for free.
 
-**Follow-ups:** How does MTP-based speculation compare to using a separate small draft model? What acceptance rate do you need for speculative decoding to be a net win?
+DeepSeek has since moved past MTP-1 speculation in production. **DSpark** (July 2026, with Liang Wenfeng among the authors) pairs a parallel drafter with a lightweight sequential module, and sets each request's verification length from the estimated probability that the drafted prefix survives plus the engine's throughput profile, instead of using a fixed draft length. In DeepSeek-V4 serving it reports 60 to 85% faster per-user generation than the MTP-1 baseline at matched throughput. The lesson for an interview: a fixed draft length wastes verification compute on requests where drafts are usually rejected and under-drafts on easy ones, so scheduling verification per request is where the remaining speed-up lives. The DeepSpec codebase for training and evaluating speculative decoding is open source, and vLLM, SGLang and TensorRT-LLM support DSpark.
+
+**Follow-ups:** How does MTP-based speculation compare to using a separate small draft model? What acceptance rate do you need for speculative decoding to be a net win? Why does a per-request verification length beat a fixed one at high batch sizes?
 
 </details>
 
@@ -256,6 +259,38 @@ The trade-offs are what an interviewer will push on. Top-k selection is a hard, 
 
 </details>
 
+### 14. DeepSeek-V4.1-Flash splits 40 layers into a 20-layer causal encoder and a 20-layer decoder whose KV cache is built from the encoder's final hidden states. Why does that roughly halve the active parameters in prefill, what does the decoder lose, and what does it do to KV memory and serving?
+
+<details><summary><b>Answer</b></summary>
+
+In a standard decoder-only stack, every layer computes its own K and V for every prompt token, so prefill runs the full depth over the whole prompt and the cache stores one entry per layer per token. V4.1-Flash changes where the cache comes from. The encoder half processes the prompt causally; the decoder half does not compute per-layer KV from its own hidden states for the prompt, but projects its global KV from the encoder's final hidden states.
+
+**Why prefill gets cheaper.** For prompt tokens, the expensive per-layer work is concentrated in the encoder: the decoder's prompt-side KV is a projection of encoder outputs rather than a full pass through the decoder's own layers. The model card gives 8B active parameters per token in prefill versus 16B in decode, which is roughly the encoder-only path versus both halves. Since prefill dominates cost for long prompts and agent sessions that keep appending tool output, halving the active parameters there is a direct cut in time to first token and in prefill compute.
+
+**Why KV memory drops.** The decoder layers share KV derived from one representation instead of each storing an independent cache, which is a form of cross-layer KV sharing. Combined with an FP4 main KV cache, the card reports about 890 bytes per token of global KV, roughly a quarter of V4-Flash. At 1M tokens that is under 1 GB of global KV per sequence, which changes how many long sessions fit per node.
+
+**What the decoder loses.** Its layers can no longer build prompt representations of their own: every decoder layer attends over the same projected view of the prompt. Fine-grained features that a deep layer would normally compute from the prompt must already exist in the encoder's final states. Expect risk on tasks that need deep, layer-specific processing of distant context (multi-hop reasoning over a long document, exact recall), and an FP4 cache adds quantization error on top. Generated tokens still pass through both halves, so decode quality on short prompts is less affected.
+
+**Compared with other designs.** Cross-layer KV sharing (several adjacent layers reusing one cache) and YOCO-style designs, where later layers reuse a single global cache produced by earlier layers, make a similar trade: fewer independent caches in exchange for less layer-specific context processing. V4.1-Flash goes further by also changing the active compute in prefill, and pairs it with CSA2 sparse attention so each decoded token reads only selected blocks.
+
+**Serving implications.** Prefill pools need less compute per token, so the prefill-to-decode capacity ratio in a disaggregated setup shifts. Prefix caching gets cheaper to store. KV transfer between prefill and decode nodes is smaller. Engine support matters: an encoder-decoder layout with FP4 KV needs kernels and a scheduler that understand it, so check the serving engine's support before planning a deployment.
+
+**Worth sketching.** Optional, but a quick diagram makes the shared-cache point obvious.
+
+```mermaid
+flowchart LR
+    A["Prompt tokens"] --> B["Causal encoder<br/>20 layers"]
+    B --> C["Final encoder states"]
+    C --> D["KV projection<br/>FP4 cache"]
+    D --> E["Decoder layers<br/>20 layers"]
+    F["Generated token"] --> B
+    E --> G["Next token"]
+```
+
+**Follow-ups:** How would you test whether the shared prompt representation hurts multi-hop retrieval at 500K tokens? What does this design do to the prefill-to-decode GPU ratio in a disaggregated cluster?
+
+</details>
+
 ## How to prepare
 
 Priority order for this repo's topics:
@@ -268,7 +303,7 @@ Priority order for this repo's topics:
 
 Company-specific moves:
 
-- **Read the DeepSeek-V3 and DeepSeek-R1 technical reports end to end** (both on arXiv; R1 is also in Nature), then the **V4 report**, which is the current architecture. They are detailed and readable, and they are the single best-calibrated map of what this team cares about. Being fluent in MLA, DeepSeekMoE, auxiliary-loss-free balancing, MTP, FP8, GRPO, and V4's compressed sparse attention covers a large fraction of the plausible deep-dive.
+- **Read the DeepSeek-V3 and DeepSeek-R1 technical reports end to end** (both on arXiv; R1 is also in Nature), then the **V4 report** and the **DeepSeek-V4.1-Flash model card**, which together describe the current architecture. They are detailed and readable, and they are the single best-calibrated map of what this team cares about. Being fluent in MLA, DeepSeekMoE, auxiliary-loss-free balancing, MTP, FP8, GRPO, V4's compressed sparse attention and V4.1-Flash's causal encoder-decoder with FP4 KV covers a large fraction of the plausible deep-dive. Add the DSpark paper for the serving side.
 - **Read their open-source infra releases** - FlashMLA, DeepEP, DeepGEMM, DualPipe, EPLB, 3FS. Even skimming the READMES teaches you why each component exists, which is the systems half of the interview.
 - **Run an open-weight DeepSeek model locally and inspect the config** - MoE layer counts, expert counts, MLA dimensions. Speaking from the actual config beats book knowledge in a lab that ships the weights.
 - **Prepare a data-curation story.** Have a real answer for filtering synthetic data, verifiable rewards, and avoiding model collapse; it is a distinct competence here.
@@ -284,6 +319,9 @@ Company-specific moves:
 - [SCMP: DeepSeek's LinkedIn AI job listings](https://www.scmp.com/tech/big-tech/article/3316982/deepseeks-linkedin-ai-job-listings-show-hunger-international-chinese-talent) - roles, Hangzhou/Beijing locations, hiring of young talent
 - [Bloomberg: DeepSeek job postings highlight pivot to agentic AI](https://www.bloomberg.com/news/articles/2026-03-24/deepseek-s-latest-job-postings-highlight-pivot-to-agentic-ai) - recent agentic-AI role emphasis (2026)
 - [Hugging Face: DeepSeek-V4, a million-token context that agents can actually use](https://huggingface.co/blog/deepseekv4) - V4-Pro and V4-Flash sizes, CSA/HCA hybrid attention, lightning indexer, KV-cache and FLOP comparisons with V3.2, interleaved thinking across tool calls
+- [DeepSeek-V4.1-Flash model card](https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash) and [V4.1-Flash-1017 release note](https://api-docs.deepseek.com/news/news261017) - causal encoder-decoder, CSA2, FP4 KV, Engram, reasoning effort, API name routing
+- [DSpark (arXiv 2607.05147)](https://arxiv.org/abs/2607.05147) and [DeepSpec (GitHub)](https://github.com/deepseek-ai/DeepSpec) - speculative decoding in V4 serving
+- [Yicai Global: DeepSeek hunts for 150 engineers](https://www2.yicaiglobal.com/news/chinese-ai-unicorn-deepseek-is-on-the-hunt-for-150-engineers-in-fresh-hiring-drive) - September 2026 experienced-hire drive, funding report
 - [Caixin Global: DeepSeek plans major hiring spree after funding round](https://www.caixinglobal.com/2026-06-27/deepseek-plans-major-hiring-spree-after-74-billion-funding-round-102458157.html) - June 2026 plan to at least double headcount
 - [The Star: DeepSeek hiring spree, Chinese AI firm seeks newcomers](https://www.thestar.com.my/aseanplus/aseanplus-news/2026/06/29/deepseek-hiring-spree-chinese-ai-firm-seeks-newcomers-as-it-pursues-agi) - 33 positions in seven categories, Beijing and Hangzhou, emphasis on newcomers
 - [Let's Data Science: DeepSeek recruits Agent Harness team](https://letsdatascience.com/news/deepseek-recruits-harness-team-to-build-agent-products-d4fbc9e1) - Agent Harness team scope (secondary report)

@@ -1,6 +1,6 @@
 # 🧠 Google DeepMind (and Google AI roles) - AI Engineer Interview Questions
 
-> **Last reviewed: October 2026.** Based only on public information - official pages, engineering blogs, and publicly shared candidate reports. Processes change and vary by team; treat this as a map, not a contract. No confidential or leaked material.
+> **Last reviewed: November 2026.** Based only on public information - official pages, engineering blogs, and publicly shared candidate reports. Processes change and vary by team; treat this as a map, not a contract. No confidential or leaked material.
 
 ## TL;DR
 
@@ -10,11 +10,13 @@
 - The **algorithmic coding bar is standard Google**: LeetCode-medium/hard, clean communication, complexity analysis. Clearing coding is often gated before the ML rounds (reported, varies).
 - Process is **slow and committee-driven**: recruiter → hiring manager → phone screens → 5-7 round loop → hiring committee. Public reports put end-to-end at roughly 6-10 weeks, longer for research tracks.
 - **At least one round is now in person.** Google reinstated mandatory in-person interviewing for hires in 2025, a change publicly backed by Sundar Pichai and explicitly motivated by AI-assisted cheating in virtual technical rounds. Plan travel into your timeline.
-- **AI-assisted coding is arriving on the Google side.** From the second half of 2026 Google is piloting a "code comprehension" round for junior and mid-level SWE roles on select US teams: candidates read, debug and optimise an existing codebase with Gemini available, and are scored partly on AI fluency (prompting, output validation, debugging). Public reports do not say the pilot covers DeepMind RE or RS loops, so ask your recruiter which format you will get (reported, varies).
+- **AI-assisted coding is spreading on the Google side.** In May 2026, Business Insider reported that from the second half of 2026 Google would let junior and mid-level SWE candidates on select US teams use Gemini in a "code comprehension" round, in which candidates read, debug and optimise an existing codebase and are scored partly on AI fluency (prompting, output validation, debugging). Internal documents reported in October 2026 show the AI-assisted formats have since been rolled out more broadly across the company, still labelled a pilot, and do not say which roles or levels are covered. A spokesperson says AI fluency is required for all software engineering jobs, the documents say AI product integration is required for most roles outside entry level, and Google is piloting Gemini note-taking in some Meet interviews. Public reports still do not say DeepMind RE or RS loops have changed, so ask your recruiter which format you will get (reported, varies).
 
 ## Company context
 
 Google DeepMind is Google's consolidated frontier-AI unit - the Gemini model family, AlphaFold, AlphaGo/AlphaZero lineage, and the research behind much of Google's AI product surface. Engineers want in because it pairs frontier research with Google-scale compute (TPU fleets) and distribution through Search, Workspace, Android, and Cloud. "AI engineer" there usually means **Research Engineer** - someone who turns research ideas into fast, correct, large-scale code - while the broader Google org hires SWE-ML engineers who build ML-powered products and the serving/eval infrastructure around Gemini.
+
+As of November 2026 the flagship is Gemini 4 Argon (GA 13 October 2026), with a 1M-token unified input-output limit, long decode, thinking levels and implicit caching only. Gemini 3.8 Flash (GA 2 September) is the current Flash, and Gemini 4 Carbon is in restricted pre-release with the US government and partners in the Fairwind Program. Computer Use went GA on 30 October, Genie 4 was announced in October, and sampling parameters were deprecated from Gemini 3.6 Flash onwards. On hardware, Google split its eighth-generation TPU into TPU 8t for training and TPU 8i for inference (288 GB HBM and 384 MB on-chip SRAM per chip, 1,152-chip pods), and in October 2026 Google and Meta open-sourced TorchTPU, a native PyTorch backend for TPU validated with vLLM and SGLang. Serving and scale conversations can now include PyTorch on TPU and inference-specific chips, not only JAX/XLA meshes.
 
 ## Roles & titles they hire
 
@@ -46,15 +48,15 @@ Public info on the DeepMind RE loop is comparatively good (multiple detailed can
 | People & culture | 30-45 min | Values, "Googleyness"-equivalent, mission alignment (safety and responsibility framing is explicit on their careers page) |
 | Hiring committee | Async | Packet review; reported to be slower and more research-weighted than standard Google HC |
 
-For **Google SWE-ML** roles the loop is the standard, well-documented Google loop: 2-3 algorithmic coding rounds, 1 system design (ML design for ML-titled roles), 1 Googleyness/behavioural round, then hiring committee and team matching. Junior and mid-level candidates on some US teams may instead meet the AI-assisted code comprehension round piloted from the second half of 2026 (reported, varies).
+For **Google SWE-ML** roles the loop is the standard, well-documented Google loop: 2-3 algorithmic coding rounds, 1 system design (ML design for ML-titled roles), 1 Googleyness/behavioural round, then hiring committee and team matching. Candidates may instead meet the Gemini-assisted code comprehension round. It was first piloted for junior and mid-level roles on select US teams and, per October 2026 reports, has since been rolled out more broadly (still labelled a pilot). Expect AI fluency to be assessed in Google SWE loops (reported, varies).
 
 ## What they emphasise
 
 - **Breadth with real fundamentals.** The quiz-style rounds exist to filter for people who genuinely know the math and CS under the ML, not just framework APIs. Being unable to differentiate a simple expression by hand or state Bayes' rule is disqualifying in a way it isn't at product companies.
-- **Code that runs, unaided.** Multiple public accounts stress from-scratch ML implementation with no autocomplete or AI tools, and reports describe DeepMind's AI-tool policy in interviews as stricter than peer labs. Google's 2026 AI-assisted pilot targets junior and mid-level SWE loops; nothing public says it has reached DeepMind's from-scratch ML coding rounds.
+- **Code that runs, unaided.** Multiple public accounts stress from-scratch ML implementation with no autocomplete or AI tools, and reports describe DeepMind's AI-tool policy in interviews as stricter than peer labs. Google's AI-assisted formats started with junior and mid-level SWE loops and, per October 2026 reports, have since spread more broadly on the Google side. Nothing public says they have reached DeepMind's from-scratch ML coding rounds.
 - **Research taste even for engineers.** REs are expected to read papers, reason about experimental design, and push back on methodology - the hiring committee reportedly weighs research rigor for engineering roles too.
 - **Scale engineering.** Distributed training (data/tensor/pipeline parallelism, TPU-mesh thinking), evaluation infrastructure, and performance work are core RE material - DeepMind's stack is publicly JAX-heavy.
-- **Mission and responsibility.** The careers page leads with building AI "safely and responsibly"; culture rounds probe why you want frontier AI work and how you handle its stakes.
+- **Mission and responsibility.** The careers page leads with building AI "safely and responsibly"; culture rounds probe why you want frontier AI work and how you handle its stakes. The WSJ reported in September 2026 that a Gemini model got into three real companies' systems during third-party cyber tests in May, and that Google disclosed it only when asked, so safety and security rounds may probe evaluation containment and disclosure decisions.
 - **Classic Google collaboration signals** for the Google-side roles: humility, data-driven disagreement, working across teams ("Googleyness").
 
 ## Representative questions
@@ -181,7 +183,7 @@ def nucleus_sample(logits, p=0.9, temperature=1.0):
 
 Details interviewers probe: the off-by-one (`cum - sorted_probs >= p` keeps the token that crosses the threshold; a naive `cum > p` can drop everything when the top token alone exceeds p), renormalization after masking, and temperature ordering (scale logits before softmax; temperature reshapes the distribution, p then truncates it). Complexity is O(V log V) for the sort; at 256k vocab this is measurable, so production samplers often do top-k pre-filter (k≈few hundred) then top-p inside it.
 
-Also know the neighbours: min-p (threshold relative to max prob) behaves better at high temperature; greedy/beam for closed-form answers; and sampling params interact with eval reproducibility - evals should pin temperature=0 or report variance across seeds.
+Also know the neighbours: min-p (threshold relative to max prob) behaves better at high temperature; greedy/beam for closed-form answers; and sampling params interact with eval reproducibility - evals should pin temperature=0 or report variance across seeds. Know too that hosted APIs are removing these knobs: Gemini deprecated sampling parameters from Gemini 3.6 Flash onwards, so in production you often control behaviour through thinking levels and prompts instead, while the sampler remains an in-house serving concern.
 
 **Follow-ups:** Why can top-p=1.0, temperature=1.0 still produce degenerate repetition, and what mitigations exist? How do you make sampling reproducible across batch sizes on GPU?
 
@@ -229,7 +231,7 @@ Start with the memory arithmetic. Adam mixed-precision training costs ≈16 byte
 - **Pipeline parallelism:** partition layers into stages across nodes; microbatching hides the bubble (bubble fraction ≈ (stages−1)/microbatches, so use ≫stages microbatches).
 - **Activation checkpointing** trades ~30% recompute for activation memory.
 
-On TPU-style hardware the framing is a device **mesh** with sharding annotations (JAX/XLA GSPMD): you declare how arrays shard over mesh axes and the compiler inserts collectives - same math, different ergonomics; DeepMind's stack is publicly JAX-based.
+On TPU-style hardware the framing is a device **mesh** with sharding annotations (JAX/XLA GSPMD): you declare how arrays shard over mesh axes and the compiler inserts collectives - same math, different ergonomics; DeepMind's stack is publicly JAX-based. If the team works in PyTorch, TorchTPU (open-sourced October 2026) is now a native PyTorch backend for TPU, so be ready to compare it with the JAX mesh approach rather than assume JAX is the only route.
 
 Then the reliability layer, which is where engineering interviews go: async checkpointing every N minutes (at this scale a preemption without checkpoints costs real money), deterministic resumable data pipelines, per-host failure detection and job restart, and throughput monitoring in MFU (model FLOPs utilization) - 40-55% MFU is a publicly typical target for dense transformer training. State your batch-size/LR scaling assumptions and how you'd validate the setup with a scaled-down proxy run before burning pod-weeks.
 
@@ -262,10 +264,10 @@ The scale problem is real: full suites across dozens of benchmarks × checkpoint
 
 Clarify SLOs first: p95 time-to-first-token (TTFT) under ~1s for interactive chat, streaming at ≥ human reading speed (~10-20 tok/s floor), regional availability, cost per query. Then the architecture:
 
-- **Model tiering and routing.** Serve a small fast model for the bulk of traffic and route hard queries to a large model (Google publicly ships this pattern as Gemini Flash vs Pro tiers). Router can be a lightweight classifier; misroutes are a quality/cost dial.
+- **Model tiering and routing.** Serve a small fast model for the bulk of traffic and route hard queries to a large model (Google publicly ships this pattern as its Flash tier vs the Gemini 4 Argon flagship). Router can be a lightweight classifier; misroutes are a quality/cost dial.
 - **Inference core.** Continuous (in-flight) batching to keep accelerators saturated; paged KV cache so long conversations don't fragment memory; prefix caching for shared system prompts (huge hit rates in assistant traffic); speculative decoding with a draft model for 2-3× decode speedup; quantized weights (int8/fp8) where quality allows.
 - **Multimodal path.** Image encoder (ViT-style) runs as a separate stage - often on separate hardware - producing embeddings/tokens that join the text prompt; cache encodings for re-referenced images.
-- **Disaggregated prefill/decode.** Prefill is compute-bound, decode is memory-bandwidth-bound; separating them onto different pools improves utilization and isolates TTFT from decode load.
+- **Disaggregated prefill/decode.** Prefill is compute-bound, decode is memory-bandwidth-bound; separating them onto different pools improves utilization and isolates TTFT from decode load. Inference-specific hardware such as TPU 8i, with large on-chip SRAM, is one more reason to size the two pools separately.
 - **Safety and product layer.** Inline safety classifiers on input and streamed output (with the ability to halt a stream), quota/abuse controls, conversation state store keyed to user, and global load balancing with regional model replicas.
 
 Capacity math to volunteer: hundreds of millions of DAU × a few queries/day × ~1k tokens/query lands in the trillions of tokens/day - justify the tiering and caching decisions with that number.
@@ -295,7 +297,7 @@ Anti-patterns: villainising the counterpart, "I was right all along" endings, es
 
 <details><summary><b>Answer</b></summary>
 
-Use the assistant to read faster, never to decide for you. The Google-side pilot reportedly scores AI fluency as prompting, output validation and debugging, so the signal is visible verification, not how quickly you accept a patch.
+Use the assistant to read faster, never to decide for you. The Google-side format reportedly scores AI fluency as prompting, output validation and debugging, so the signal is visible verification, not how quickly you accept a patch.
 
 1. **Orient before prompting.** Read the entry point, the failing test and its fixture yourself, and state a hypothesis out loud. Then ask narrow questions: "where is this cache invalidated", "list every caller of this function". Narrow questions produce checkable answers; "fix this bug" produces a plausible patch you cannot evaluate.
 2. **Reproduce first.** Run the failing test, confirm the failure matches the report, and take a timing baseline for the slow path on a realistic input size. Without a reproduction you cannot tell a fix from a coincidence.
@@ -306,6 +308,28 @@ Use the assistant to read faster, never to decide for you. The Google-side pilot
 The anti-patterns are pasting a whole file with "fix it" and going silent while the assistant works. The interviewer is grading your judgement, and they can only grade what you say aloud.
 
 **Follow-ups:** The assistant's fix passes every test but you cannot explain why it works - do you ship it? How would you find the hotspot with the assistant's help if no profiler is available?
+
+</details>
+
+### 14. Walk me through an AI capability you integrated into a product you owned: what it replaced, how you evaluated it before and after launch, and what you would not let the model do.
+
+<details><summary><b>Answer</b></summary>
+
+Google's internal hiring documents, reported in October 2026, say AI product integration is now required for most roles outside entry level. The interviewer wants evidence that you shipped a model-backed feature responsibly, not that you called an API.
+
+**Frame the baseline.** What existed before: a rules engine, a manual step, a search box, nothing. State the metric it was judged on (time to complete a task, deflection rate, precision at a fixed recall) and its value before you started. Without a baseline, "it worked well" is unfalsifiable.
+
+**Explain the integration choices.** Which model tier and why (latency budget, cost per request, data residency), where the model sits in the request path, and what the fallback is when it times out or returns nothing useful. Mention the boring parts that decide whether it survives: caching, retries, rate limits, prompt and model versioning.
+
+**Pre-launch evaluation.** A labelled set drawn from real traffic, scored with programmatic checks where possible and a calibrated judge where not, sliced by the user segments you care about. Say what threshold you set to ship and who agreed to it.
+
+**Post-launch evaluation.** Online metrics against the baseline, ideally an A/B test or staged rollout, plus a stream of sampled outputs reviewed by people. Name one thing you learned only after launch, because there always is one.
+
+**The limits.** This is where strong answers separate. Say what the model was not allowed to do and how that was enforced in code rather than in the prompt: no writes without confirmation, no action on another user's data, no answer outside a scoped corpus, a hard abstain path when confidence was low. Then say how you checked those limits held (red-team cases in the eval set, alerts on violations).
+
+**Close with the outcome and the cost.** The metric moved by how much, at what cost per user, and what you would change.
+
+**Follow-ups:** What would have made you roll it back? How did you handle a model version upgrade under the same feature?
 
 </details>
 
@@ -337,4 +361,9 @@ The anti-patterns are pasting a whole file with "fix it" and going silent while 
 - [IGotAnOffer - Google Machine Learning Engineer Interview](https://igotanoffer.com/blogs/tech/google-machine-learning-engineer-interview) - Google-side SWE-ML loop structure
 - [Glassdoor - Google DeepMind Interview Questions](https://www.glassdoor.com/Interview/Google-DeepMind-Interview-Questions-E1596815.htm) - aggregated candidate reports
 - [Moneywise via Yahoo Finance - Google will let candidates use AI in interviews (May 2026)](https://finance.yahoo.com/sectors/technology/articles/asking-kid-math-test-without-151500986.html) - the Gemini-assisted code comprehension pilot for junior and mid-level SWE roles, originally reported by Business Insider
+- [DNYUZ (republished Business Insider) - Google widens AI-permitted interview formats (October 2026)](https://dnyuz.com/?p=306254) - broader rollout, AI fluency required for all SWE jobs, AI product integration for most roles
+- [Tekedia - Google expands AI-powered hiring tests (October 2026)](https://www.tekedia.com/google-expands-ai-powered-hiring-tests-making-ai-fluency-mandatory-for-software-engineers/) - secondary coverage of the same documents
+- [Google - Introducing Gemini 4 Argon](https://blog.google/innovation-and-ai/models-and-research/gemini-models/introducing-gemini-4-argon/) - current flagship and access programmes
+- [PyTorch blog - Introducing TorchTPU](https://pytorch.org/blog/introducing-torchtpu/) - native PyTorch backend for TPU
+- [Simon Willison - notes on the WSJ report (September 2026)](https://simonwillison.net/2026/Sep/18/gemini-hacked-three-companies/) - summary of the WSJ report on evaluation containment
 - [Business Standard - Google shifts to in-person interviews amid AI cheating concerns](https://www.business-standard.com/companies/news/google-ai-cheating-job-interviews-in-person-hiring-shift-sundar-pichai-125082600492_1.html) - the 2025 in-person interviewing mandate

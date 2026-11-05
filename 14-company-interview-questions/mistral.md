@@ -1,6 +1,6 @@
 # 🌬️ Mistral AI - AI Engineer Interview Questions
 
-> **Last reviewed: October 2026.** Based only on public information - official pages, engineering blogs, and publicly shared candidate reports. Processes change and vary by team; treat this as a map, not a contract. No confidential or leaked material.
+> **Last reviewed: November 2026.** Based only on public information - official pages, engineering blogs, and publicly shared candidate reports. Processes change and vary by team; treat this as a map, not a contract. No confidential or leaked material.
 
 ## TL;DR
 
@@ -13,7 +13,7 @@
 
 ## Company context
 
-Mistral AI is the European frontier lab: it trains competitive open-weight models (the Mistral 7B and Mixtral lines popularised grouped-query attention, sliding-window attention, and production sparse MoE), and monetises through La Plateforme (API), Le Chat (assistant), and enterprise deployments - including on-prem and VPC installs for European companies with data-residency constraints. The current open-weight generation is Mistral 3 (December 2025): Mistral Large 3, a sparse MoE with ~41B active and ~675B total parameters, plus small dense Ministral 3 models, all under Apache 2.0. Alongside it sit coding products (Devstral and the Vibe CLI) and a compute and cloud business that runs its own GPU infrastructure, so the lab now sells models, agents, and the hardware they run on. Teams are lean relative to US labs, so "AI engineer" at Mistral usually means owning more of the stack: an applied AI engineer might scope a customer's RAG system, fine-tune a model, and ship the serving infrastructure; a research engineer sits close to training runs and inference kernels rather than behind layers of platform teams.
+Mistral AI is the European frontier lab: it trains competitive open-weight models (the Mistral 7B and Mixtral lines popularised grouped-query attention, sliding-window attention, and production sparse MoE), and monetises through La Plateforme (API), Le Chat (assistant), and enterprise deployments - including on-prem and VPC installs for European companies with data-residency constraints. The current flagship is Mistral Large 4, announced 6 October 2026 with weights released 29 October. It has about 1T total and 49B active parameters, 128 routed experts with 4 active plus 1 shared, a 1M-token context, image input and reasoning_effort (low, medium, high). It ships under the Mistral Ecosystem Open-Weight License, a modified MIT licence under which a model-as-a-service business needs a separate commercial licence. The previous generation, Mistral 3 (December 2025: Mistral Large 3, about 675B total and 41B active, plus small dense Ministral 3 models), remains Apache 2.0, and Small 4 (March 2026) and Medium 3.5 (April 2026) also shipped this year. Voxtral 3 and Voice Agents followed in October. Alongside it sit coding products (Devstral and the Vibe CLI) and a compute and cloud business that runs its own GPU infrastructure, so the lab now sells models, agents, and the hardware they run on. Teams are lean relative to US labs, so "AI engineer" at Mistral usually means owning more of the stack: an applied AI engineer might scope a customer's RAG system, fine-tune a model, and ship the serving infrastructure; a research engineer sits close to training runs and inference kernels rather than behind layers of platform teams.
 
 ## Roles & titles they hire
 
@@ -29,7 +29,7 @@ From their public job board (now hosted on Ashby at jobs.ashbyhq.com/mistral.ai)
 - **Research Engineer, Code Agents Infra** and **Robotics** roles - smaller, newer tracks behind the coding-agent and embodied-model work
 - Plus conventional **Software Engineer** roles (backend, frontend, security)
 
-Paris dominates, with growing hubs in Palo Alto, New York, London, Seoul, and Singapore and smaller postings across EMEA, the Gulf, Montréal, and Australia; hybrid is common.
+Paris dominates (the careers page now cites 900+ employees), with a new Munich hub (September 2026) hiring Physics AI and Industrial AI researchers and engineers after the Emmi AI acquisition, growing hubs in Palo Alto, New York, London, Seoul, and Singapore and smaller postings across EMEA, the Gulf, Montréal, and Australia; hybrid is common.
 
 ## The interview loop
 
@@ -54,7 +54,7 @@ Timeline reports vary widely - Glassdoor's average is around two weeks, but some
 - **Model internals as shipped, not as taught.** Their differentiation came from architecture-level efficiency (GQA, sliding-window attention, sparse MoE). Interviews reportedly probe these at tensor level - implement it, not just name it.
 - **Inference economics.** Open-weight + enterprise self-hosting means customers run the models; KV-cache math, batching, and quantization are product concerns, not niche infra trivia.
 - **Pragmatic API/product craft (applied track).** The customer-facing org lives in fine-tuning jobs, RAG pipelines, and integration code. Reported rounds test refactoring and building against their real API under pair-programming conditions.
-- **Open-weights conviction and EU context.** Expect culture-round questions about why open models matter strategically, and expect enterprise conversations to touch data residency and European regulatory awareness (the EU AI Act shapes their customers' requirements).
+- **Open-weights conviction and EU context.** Expect culture-round questions about why open models matter strategically (sharper now that Large 4 ships under a licence that restricts model-as-a-service use rather than Apache 2.0, so have a view on why a lab would do that), and expect enterprise conversations to touch data residency and European regulatory awareness (the EU AI Act shapes their customers' requirements).
 - **Lean-team ownership.** Their values page explicitly asks for builders comfortable with ambiguity, directness, and low-ego collaboration. "I only do modelling" reads poorly; end-to-end ownership reads well.
 
 ## Representative questions
@@ -269,19 +269,21 @@ Mitigations, in the order I'd try them: (1) **LoRA instead of full fine-tuning**
 
 </details>
 
-### 13. Mistral Large 3 is an open-weight sparse MoE with roughly 675B total and 41B active parameters. A customer wants to self-host it on one 8-GPU node. Does it fit, and how would you serve it?
+### 13. Mistral Large 4 has about 1T total and 49B active parameters, 128 routed experts (4 active plus 1 shared) and a 1M-token context. A customer wants to self-host it on one 8-GPU node. Does it fit, at what precision, and how would you serve it? What changes now that it ships under a licence that restricts model-as-a-service use?
 
 <details><summary><b>Answer</b></summary>
 
-Start with weights, because MoE memory scales with total parameters, not active ones (Q3). At BF16, 675B parameters is ~1.35 TB, which no current 8-GPU node holds with room left for a KV cache. At FP8 it is ~675 GB: that does not fit on 8×H100 80 GB (640 GB in total) but fits on 8×H200 141 GB (~1.13 TB) with ~450 GB left for KV cache, activations, and runtime overhead. A 4-bit weight format (0.5 bytes per parameter plus scale overhead, so roughly 350-400 GB) brings 8×H100 into range with a couple of hundred GB of headroom. The hardware nuance: Blackwell runs FP4 natively, while on Hopper a 4-bit checkpoint is weight-only and dequantized inside the kernel, which saves bandwidth rather than compute.
+Start with weights, because MoE memory scales with total parameters, not active ones (Q3). At BF16, about 1T parameters is about 2 TB, which no 8-GPU node holds. At FP8 it is about 1 TB of weights. That technically fits on 8xH200 141 GB (about 1.1 TB of HBM), but leaves only around 100 GB for KV cache, activations and runtime overhead, so concurrency and context length collapse: a demo, not a production deployment. On 8xB200-class Blackwell parts (about 1.5 TB in total) FP8 leaves roughly 500 GB of headroom. The model card also ships an NVFP4 checkpoint for Blackwell: at roughly 0.5 bytes per parameter plus scale overhead, about 550-600 GB, which leaves most of a Blackwell node's HBM for KV cache. The hardware nuance: Blackwell runs FP4 natively, while on Hopper a 4-bit checkpoint is weight-only and dequantized inside the kernel, which saves bandwidth rather than compute. 8xH100 80 GB (640 GB) is effectively out of range even at 4 bits once you account for KV cache.
 
-Inside the node, use tensor parallelism for attention and expert parallelism for the MoE layers, with the all-to-all token shuffle running over NVLink. Expert parallelism across nodes is where the interconnect starts to dominate, so keep the first deployment single-node.
+Serving: the model card shows tensor-parallel-8 examples for vLLM and SGLang. In practice combine tensor parallelism for attention with expert parallelism for the MoE layers, with the all-to-all token shuffle running over NVLink, and keep the first deployment single-node because cross-node expert parallelism makes the interconnect dominate. The card also reports an embedded DSpark speculative-decoding head giving up to 1.9x throughput, so enable it and measure acceptance rates on the customer's own traffic rather than trusting the headline.
 
-Decode economics are subtler than "41B active". At batch size 1, each token reads only its routed experts. At realistic batch sizes different tokens hit different experts, so each step touches most of the expert pool and the bytes moved per step approach the full weight footprint, amortised across the batch. Size concurrency against real traffic, and compute the per-token KV cache from the model config to find the concurrent-sequence limit.
+Decode economics are subtler than "49B active". At batch size 1, each token reads only its routed experts plus the shared expert. At realistic batch sizes different tokens hit different experts, so each step touches most of the expert pool and the bytes moved per step approach the full weight footprint, amortised across the batch. The 1M-token context is the other trap: compute the per-token KV cache from the model config before promising long-context concurrency, because a few very long sequences can consume all the headroom you just won by quantizing.
 
-Then the customer conversation: does every request need Large 3? A router that sends routine traffic to a small dense Ministral model and hard cases to Large 3 can cut the hardware bill substantially. Whatever precision you pick, gate it on the customer's golden set against a full-precision reference (Q9), and watch expert-load imbalance in production, because a hot expert becomes a straggler.
+Then the customer conversation. Does every request need Large 4? A router that sends routine traffic to Mistral Small or a Ministral model and hard cases to Large 4 can cut the hardware bill substantially, and reasoning_effort (low, medium, high) is a second cost dial. Whatever precision you pick, gate it on the customer's golden set against a full-precision reference (Q9), and watch expert-load imbalance in production, because a hot expert becomes a straggler.
 
-**Follow-ups:** The customer only has 8×A100 80 GB, which has no FP8 tensor cores. What changes? How would you detect that quantization has damaged a few rarely routed experts more than the rest?
+**Licence.** Large 4 ships under the Mistral Ecosystem Open-Weight License, a modified MIT licence under which a model-as-a-service business needs a separate commercial licence, unlike Large 3 and the Ministral 3 models, which are Apache 2.0. Internal self-hosting for a bank is a different case from a software vendor reselling Large 4 inference to its own customers, so ask which one this is before sizing anything, and get legal to read the actual terms. If the customer needs Apache 2.0, Large 3 (about 675B total, 41B active; about 675 GB at FP8, which fits 8xH200 with roughly 450 GB to spare) is still the permissive option.
+
+**Follow-ups:** The customer only has 8xH200 and insists on Large 4 - what do you cut first: context length, concurrency, or precision? How would you detect that quantization has damaged a few rarely routed experts more than the rest?
 
 </details>
 
@@ -297,7 +299,7 @@ Priority order for this repo's topics:
 
 Company-specific moves:
 
-- **Read the Mistral 7B and Mixtral of Experts papers** (both on arXiv). They're short and unusually readable. Being fluent in GQA, sliding-window attention, the rolling-buffer KV cache, and top-2 expert routing covers a striking fraction of the reported technical deep-dive. Then read the Mistral 3 announcement and be ready to reason about serving its large sparse MoE, since that is what current enterprise customers ask about.
+- **Read the Mistral 7B and Mixtral of Experts papers** (both on arXiv). They're short and unusually readable. Being fluent in GQA, sliding-window attention, the rolling-buffer KV cache, and top-2 expert routing covers a striking fraction of the reported technical deep-dive. Then read the Mistral Large 4 announcement and model card and be ready to reason about serving its large sparse MoE and about its licence terms, since that is what current enterprise customers ask about.
 - **Build something real on La Plateforme** - function calling plus one third-party API, mirroring the reported pair-programming round. Fluency with their SDK, error handling, and structured outputs is directly what one candidate was rejected for lacking.
 - **Run an open-weight Mistral model locally** (vLLM or llama.cpp) and quantize it. Speaking about int4-vs-fp16 tradeoffs from experience beats book knowledge in a lab that ships weights.
 - **Prepare the culture round like a technical round**: a crisp project presentation with real ownership stories, plus substantive answers to "why open weights?", "why a European lab?", and questions mapped to their five published values (audacity, rigor, customer centricity, speed, low-ego).
@@ -308,6 +310,8 @@ Company-specific moves:
 - [Mistral AI careers page](https://mistral.ai/careers/) - official process skeleton (intro conversations, 2-5 technical exercises, values conversation, reference checks) and published values
 - [Mistral AI job board (Ashby)](https://jobs.ashbyhq.com/mistral.ai) - role titles, new role families, and locations cited above (the older Lever board no longer resolves)
 - [Introducing Mistral 3 (official, Dec 2025)](https://mistral.ai/news/mistral-3) - Mistral Large 3 (41B active / 675B total sparse MoE) and the Ministral 3 dense models, Apache 2.0
+- [Mistral Large 4 announcement (official, Oct 2026)](https://mistral.ai/news/mistral-large-4) and [model card](https://huggingface.co/mistralai/Mistral-Large-4-1T-A52B) - about 1T total / 49B active, NVFP4 checkpoint, serving examples, Mistral Ecosystem Open-Weight License
+- [Mistral - Hallo Deutschland (official, Sep 2026)](https://mistral.ai/news/hallo-deutschland/) - Munich hub for Physics AI and Industrial AI
 - [techinterview.org - Mistral AI interview process 2026](https://www.techinterview.org/post/3233474922/mistral-interview-process-2026/) - third-party 2026 stage breakdown (LLM-theory quiz, live coding, 5-6 rounds, 5-8 weeks); unofficial
 - [techinterview.org Mistral guide](https://www.techinterview.org/companies/mistral/) - third-party prep guide; stage breakdown and technical focus areas (unofficial)
 - [Dataford Mistral AI Engineer guide](https://dataford.io/interview-guides/mistral-ai/ai-engineer) - third-party prep guide; PyTorch implementation and LLM-theory round descriptions (unofficial)

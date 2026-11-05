@@ -1,6 +1,6 @@
 # Agents, Tool Use & MCP - Interview Questions
 
-65 questions: 15 basic, 26 intermediate, 24 advanced.
+71 questions: 15 basic, 27 intermediate, 29 advanced.
 
 > **On the diagrams: drawing is optional.** Some answers include a small sketch you could
 > reproduce on a whiteboard or in a shared doc. You never have to draw anything to score well,
@@ -198,7 +198,7 @@ The one-line version for interviews: the model proposes, the runtime disposes - 
 
 - `auto` - model decides (default).
 - `required` / `any` - the model must call *some* tool; useful when a text-only reply is never valid, e.g., a router that must pick a branch.
-- **Specific tool** - the model must call the named tool. The classic use is guaranteed structured extraction: define an `extract_invoice` tool whose schema is your output type, force it, and you get schema-valid JSON without parsing prose.
+- **Specific tool** - the model must call the named tool. The classic use was structured extraction: define an `extract_invoice` tool whose schema is your output type and force it. Support is now provider- and model-dependent: Anthropic's newest models reject forcing a specific tool (and `any`) with a 400 and recommend `auto` with strict tool use, while older models still accept it. Guaranteed schema-valid extraction now comes from structured outputs or strict schemas rather than from forcing a tool.
 - `none` - tools visible but not callable this turn (e.g., you want a summary of what it *would* do).
 
 Two production caveats worth volunteering: forcing a specific tool on input that doesn't fit it invites fabricated arguments - the model must fill the schema with something; and forced tool choice can interact awkwardly with reasoning/thinking modes on some providers, so check vendor docs before combining them.
@@ -293,7 +293,7 @@ flowchart LR
 
 ReAct (Yao et al., 2022 - "Synergizing Reasoning and Acting in Language Models") is the pattern of interleaving reasoning and action: the model emits a Thought (free-text reasoning about what to do next), then an Action (a tool call), receives an Observation (the result), and repeats until it can answer. The insight was that reasoning traces and actions reinforce each other: thinking improves action selection, and real observations ground the reasoning, cutting hallucination relative to pure chain-of-thought.
 
-Historical context: the original work used few-shot prompting to coax the Thought/Action/Observation format out of models with no native tool support, then parsed actions out of raw text. That machinery is obsolete - every serious model since ~2023 has native structured tool calling, and reasoning models (OpenAI's o-series and GPT-5 family, Claude with extended thinking, Gemini thinking models, the DeepSeek-R1 lineage) generate deliberate reasoning internally, trained via RL rather than prompted.
+Historical context: the original work used few-shot prompting to coax the Thought/Action/Observation format out of models with no native tool support, then parsed actions out of raw text. That machinery is obsolete - every serious model since ~2023 has native structured tool calling, and reasoning models (OpenAI's o-series, GPT-5 and GPT-6 families, Claude with extended (now adaptive) thinking, Gemini thinking models, the DeepSeek-R1 lineage) generate deliberate reasoning internally, trained via RL rather than prompted.
 
 But ReAct's *shape* is exactly what the modern agent loop is: reason → act → observe → repeat. When you call a tool-use-trained model in a loop, you are running ReAct with better plumbing. So the honest 2026 answer: the paper's specific prompting technique is dead; its architecture won so completely that it stopped having a name.
 
@@ -1112,7 +1112,7 @@ The cultural point: cost is a product metric the team owns, not a finance surpri
 
 <details><summary><b>Answer</b></summary>
 
-A skill is a folder with a SKILL.md at its root: YAML frontmatter carrying at minimum a name and a description, then Markdown instructions. It can bundle scripts, reference documents and asset templates alongside. Anthropic released the format as an open standard, and it now loads in Claude Code, ChatGPT and Codex, Cursor, VS Code, GitHub Copilot, Gemini CLI, Goose and dozens more, so a skill written once is portable.
+A skill is a folder with a SKILL.md at its root: YAML frontmatter carrying at minimum a name and a description, then Markdown instructions. It can bundle scripts, reference documents and asset templates alongside. Anthropic published the format as an open standard in December 2025 and on 22 October 2026 donated it to the Agentic AI Foundation, which also hosts MCP. Anthropic reports it now loads in more than 70 agent platforms (Claude Code, ChatGPT and Codex, Cursor, VS Code, GitHub Copilot, Gemini CLI, Goose and others), so a skill written once is portable. The foundation's roadmap adds versioned releases, a formal proposal process and security guidance for people who write and install skills.
 
 Agents load skills by progressive disclosure in three stages. At startup only each skill's name and description enter context. When a task matches a description, the agent reads the full SKILL.md. Bundled files and scripts load only when the instructions call for them. So a client can carry dozens of skills for a small fixed cost, and the description is doing retrieval work: write it as a trigger condition, not a title.
 
@@ -1192,9 +1192,37 @@ flowchart TD
 
 </details>
 
+### 42. Your provider now offers server-side compaction and stateful message threads. When would you use them instead of managing context yourself, and what do you give up in portability, auditability and the ability to switch models?
+
+<details><summary><b>Answer</b></summary>
+
+Providers have been moving context management server-side. As of late 2026, Anthropic offers compaction on demand (beta), which returns a signed compaction block you send in place of the summarised messages, and message threads (beta), which keep the conversation on the server and expire it 5 minutes after the last request. Thinking blocks are now preserved only for the model that produced them or a newer one. OpenAI's Agents API (beta) is a managed harness that handles session orchestration, compaction and recovery for you. Check current docs, since these are beta and move fast.
+
+**When server-side wins:**
+
+- You are committed to one provider for this workload, and the provider's compactor is tuned to its own model in ways yours will not be.
+- Long histories make resending the full context a real latency and bandwidth cost.
+- A small team would rather not own compaction quality, cache alignment and recovery logic.
+
+**What you give up:**
+
+- **Portability.** A signed compaction block is meant to be returned unchanged to the same provider. You cannot hand it to another provider's model, and bound thinking blocks mean even a model switch within a provider can lose state. Mid-run failover to a different model now needs your own reconstruction of the context.
+- **Auditability.** For a regulated replay you need to show what the model saw. If the provider held or rewrote the state, your logs must capture enough to reconstruct it, or you have a gap.
+- **Control over what survives.** You cannot pin a constraint, enforce a summary schema, or validate the summary against injection before the next turn trusts it.
+- **Durability.** A thread that expires after 5 minutes of inactivity is a hot cache, not a store. Anything long-running still needs your own durable state.
+- **Deprecation risk.** Managed state ties you to the product's lifecycle. OpenAI's Assistants API, an earlier stateful design, shut down in August 2026, and teams that kept no state of their own had a migration on their hands.
+
+**The pattern I would use.** Keep your own append-only event log as the system of record: every message, tool call and result, model version and config. Treat provider-side compaction and threads as an accelerator on top. Then you can rebuild a context from your log with your own compactor whenever you switch models, fail over, or need to replay, and you only pay that cost when it happens.
+
+Decide on two questions: is cross-provider or cross-model failover a hard requirement, and do you need to replay exactly what the model saw? If either is yes, you own the state and use server features only as an optimisation.
+
+**Follow-ups:** How would you test that your own compactor is good enough to fail over to mid-task? What would you log so a server-held thread can be reconstructed for an audit? Does server-side compaction change how you design for prompt cache hits?
+
+</details>
+
 ## Advanced
 
-### 42. Walk me through the compounding-error math for agents, and what it implies for design.
+### 43. Walk me through the compounding-error math for agents, and what it implies for design.
 
 <details><summary><b>Answer</b></summary>
 
@@ -1225,7 +1253,7 @@ flowchart LR
 
 </details>
 
-### 43. How does prompt injection work against agents via tool results, and what actually mitigates it?
+### 44. How does prompt injection work against agents via tool results, and what actually mitigates it?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1256,7 +1284,7 @@ flowchart LR
 
 </details>
 
-### 44. What is the "lethal trifecta," and how do you design agent systems around it?
+### 45. What is the "lethal trifecta," and how do you design agent systems around it?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1285,7 +1313,7 @@ flowchart TD
 
 </details>
 
-### 45. How do you sandbox a code-executing agent?
+### 46. How do you sandbox a code-executing agent?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1304,7 +1332,7 @@ Layers, from inside out:
 
 </details>
 
-### 46. Why are computer-use / browser agents so much harder to make reliable than API-based agents?
+### 47. Why are computer-use / browser agents so much harder to make reliable than API-based agents?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1322,7 +1350,7 @@ Engineering responses: prefer APIs or DOM/accessibility-tree interfaces whenever
 
 </details>
 
-### 47. How do you build agents that survive long-horizon tasks - hours or days of execution?
+### 48. How do you build agents that survive long-horizon tasks - hours or days of execution?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1353,7 +1381,7 @@ flowchart LR
 
 </details>
 
-### 48. How do you engineer an agent for cost and latency without wrecking quality?
+### 49. How do you engineer an agent for cost and latency without wrecking quality?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1374,7 +1402,7 @@ Guard the quality side with your eval suite: tiering and compaction changes are 
 
 </details>
 
-### 49. What does good observability look like for an agent system?
+### 50. What does good observability look like for an agent system?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1392,7 +1420,7 @@ Full-fidelity traces at the unit of a *run*, with metrics aggregated above them 
 
 </details>
 
-### 50. Your agent gets stuck in loops or gives up too early. Diagnose and fix both.
+### 51. Your agent gets stuck in loops or gives up too early. Diagnose and fix both.
 
 <details><summary><b>Answer</b></summary>
 
@@ -1404,15 +1432,15 @@ Fixes, harness-side first: **duplicate-call detection** - hash recent tool calls
 
 **Giving up early.** Signatures: "I don't have access to X" when a tool provides X, offering a partial answer three steps in, or asking the user for information it could retrieve itself. Root causes: timid default personas, tool descriptions that don't make capabilities obvious, prior errors in context creating learned helplessness ("everything I try fails"), and genuinely ambiguous task specs.
 
-Fixes: explicit persistence policy in the system prompt ("attempt at least N distinct approaches before reporting failure; exhaust available tools before asking the user"), tool descriptions that advertise capability clearly, clearing failed-attempt debris from context so past errors don't cast a shadow, and - importantly - verification requirements on *claims of impossibility*, symmetric with verifying claims of success.
+Fixes: explicit persistence policy in the system prompt ("attempt at least N distinct approaches before reporting failure; exhaust available tools before asking the user"), paired with an explicit boundary: blocked tools, auth walls, rate limits and permission denials mean stop and escalate, never route around them. State the task's scope and permitted actions, because persistence without a boundary is how agents end up working round a restriction instead of stopping, a cause Anthropic named in its October 2026 report on unintended real-world agent actions. Beyond that: tool descriptions that advertise capability clearly, clearing failed-attempt debris from context so past errors don't cast a shadow, and - importantly - verification requirements on *claims of impossibility*, symmetric with verifying claims of success.
 
-Both directions need eval coverage: seed tasks that require persistence, and impossible tasks where the *correct* behaviour is a clean, early, well-explained stop. Calibration means passing both.
+Both directions need eval coverage: seed tasks that require persistence, and impossible tasks (including tasks impossible *by policy*, where the only way through is a workaround) where the *correct* behaviour is a clean, early, well-explained stop. Calibration means passing both.
 
 **Follow-ups:** How do you distinguish a productive retry from a loop programmatically? What's the right behaviour when the agent correctly determines a task is impossible?
 
 </details>
 
-### 51. What is tool-call hallucination, and how do you defend against it?
+### 52. What is tool-call hallucination, and how do you defend against it?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1431,7 +1459,7 @@ Defences, in layers:
 
 </details>
 
-### 52. What is context pollution in agents, and how do you deal with it?
+### 53. What is context pollution in agents, and how do you deal with it?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1453,7 +1481,7 @@ Countermeasures:
 
 </details>
 
-### 53. Should you build your agent on a framework or roll the loop yourself? Defend a position.
+### 54. Should you build your agent on a framework or roll the loop yourself? Defend a position.
 
 <details><summary><b>Answer</b></summary>
 
@@ -1469,7 +1497,7 @@ The synthesis interviewers reward: the *loop* is trivial; the *harness* (state, 
 
 </details>
 
-### 54. A customer reports the agent did something wrong three days ago. You have the trace. Can you reproduce it? How do you build a system where the answer is yes?
+### 55. A customer reports the agent did something wrong three days ago. You have the trace. Can you reproduce it? How do you build a system where the answer is yes?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1503,7 +1531,7 @@ flowchart LR
 
 </details>
 
-### 55. You're building a multi-tenant agent platform. Tenants bring their own MCP servers and their own data. What isolates them?
+### 56. You're building a multi-tenant agent platform. Tenants bring their own MCP servers and their own data. What isolates them?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1525,7 +1553,7 @@ The dangerous framing is treating this as a normal multi-tenant web app with an 
 
 </details>
 
-### 56. You want to change your agent's system prompt. How do you ship it without finding out from customers that you broke something?
+### 57. You want to change your agent's system prompt. How do you ship it without finding out from customers that you broke something?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1558,7 +1586,7 @@ flowchart LR
 
 </details>
 
-### 57. Define SLOs for a customer support agent. Every span returns 200 and latency is fine. What do you actually alert on?
+### 58. Define SLOs for a customer support agent. Every span returns 200 and latency is fine. What do you actually alert on?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1586,7 +1614,7 @@ The cultural point: alert on trends in the leading indicators, page on user-visi
 
 </details>
 
-### 58. Your agent handles multi-turn conversations where users change their minds. Static test cases can't cover that. Build me an evaluation environment.
+### 59. Your agent handles multi-turn conversations where users change their minds. Static test cases can't cover that. Build me an evaluation environment.
 
 <details><summary><b>Answer</b></summary>
 
@@ -1621,7 +1649,7 @@ flowchart LR
 
 </details>
 
-### 59. Design the memory and personalisation layer for an assistant serving millions of users. What do you store, when do you summarise versus retrieve, and how do you evaluate memory quality?
+### 60. Design the memory and personalisation layer for an assistant serving millions of users. What do you store, when do you summarise versus retrieve, and how do you evaluate memory quality?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1653,7 +1681,7 @@ flowchart LR
 
 </details>
 
-### 60. MCP connects an agent to tools. What does A2A solve that MCP does not, and how do the two compose?
+### 61. MCP connects an agent to tools. What does A2A solve that MCP does not, and how do the two compose?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1671,7 +1699,7 @@ They compose in both directions at once: your agent uses MCP for your systems an
 
 The part most candidates miss is that failure semantics change. A peer can reject, stall in working, or return a confident wrong artifact, so you need timeouts, idempotent retries against a system you do not control, and the peer's output treated as untrusted content.
 
-A2A reached v1.0 and is hosted by the Linux Foundation, passing 150 supporting organisations in its first year, AWS, Cisco, Google, IBM, Microsoft, Salesforce, SAP and ServiceNow among them.
+A2A reached v1.0 and has been an Agentic AI Foundation project (Growth Stage) since August 2026, alongside MCP. It is backed by more than 150 organisations, AWS, Cisco, Google, IBM, Microsoft, Salesforce, SAP and ServiceNow among them.
 
 **Worth sketching.** Two axes on one page, with the peer's tool layer behind a wall you never see.
 
@@ -1687,7 +1715,7 @@ flowchart TD
 
 </details>
 
-### 61. You're exposing one of your agents to another company's agent. What crosses the boundary, and what do you refuse to expose?
+### 62. You're exposing one of your agents to another company's agent. What crosses the boundary, and what do you refuse to expose?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1709,7 +1737,7 @@ The half that senior candidates raise unprompted: what you are contractually all
 
 </details>
 
-### 62. Instead of exposing 130 tools as function definitions, you expose them as a code API the agent writes scripts against. Walk me through the tradeoffs.
+### 63. Instead of exposing 130 tools as function definitions, you expose them as a code API the agent writes scripts against. Walk me through the tradeoffs.
 
 <details><summary><b>Answer</b></summary>
 
@@ -1745,7 +1773,7 @@ flowchart LR
 
 </details>
 
-### 63. Your agent solves the same class of task 500 times a week and never gets better at it. How would you make it learn, without fine-tuning?
+### 64. Your agent solves the same class of task 500 times a week and never gets better at it. How would you make it learn, without fine-tuning?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1782,7 +1810,7 @@ flowchart TD
 
 </details>
 
-### 64. How does authorisation work for a remote MCP server, and what do teams get wrong when they implement it?
+### 65. How does authorisation work for a remote MCP server, and what do teams get wrong when they implement it?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1803,7 +1831,7 @@ What teams get wrong:
 - **Static client IDs at proxies.** A server proxying to a third-party OAuth provider under one static client ID can let an earlier consent be replayed for a malicious client. Require per-client consent at the proxy.
 - **Scopes as an afterthought.** Request the minimum and step up when a write tool is first needed.
 
-Worth naming: recent revisions push towards centrally managed enterprise authorisation, where the identity provider decides which users may reach which servers instead of each user clicking through consent per server.
+Worth naming: the Enterprise-Managed Authorization extension (Stable) moves this decision to the identity provider. The client exchanges the user's SSO identity assertion for an ID-JAG (Identity Assertion JWT Authorization Grant, an IETF OAuth working group draft) at the enterprise IdP, which applies policy. The client then redeems the ID-JAG at the MCP server's authorisation server, so the IdP decides which users may reach which servers instead of each user consenting per server.
 
 **Worth sketching.** The audience binding and the separate upstream token are the two arrows people leave out.
 
@@ -1826,7 +1854,7 @@ sequenceDiagram
 
 </details>
 
-### 65. A tool call takes twenty minutes, or needs the user's answer halfway through. How do you model that over MCP now that the protocol is stateless?
+### 66. A tool call takes twenty minutes, or needs the user's answer halfway through. How do you model that over MCP now that the protocol is stateless?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1862,5 +1890,190 @@ sequenceDiagram
 ```
 
 **Follow-ups:** The user answers the elicitation an hour later and the signed state has expired. What should the server do? How does the agent decide between waiting on a task and continuing with other work?
+
+</details>
+
+### 67. Your long-running agent compacts its context into summaries. How can a compaction summary become a prompt-injection channel, including one the model writes itself, and how do you detect and contain it?
+
+<details><summary><b>Answer</b></summary>
+
+A compaction summary crosses a context boundary and arrives in the successor context looking like the agent's own trusted notes. That makes it a persistence channel with elevated trust, and there are two ways bad instructions get in.
+
+**Laundered external injection.** Untrusted text from a web page or tool result gets paraphrased into the summary. The original was marked as tool output; the summary is not. An instruction that would have been treated as data now reads as the agent's own decision.
+
+**Self-generated injection.** OpenAI's alignment team reported (updated September 2026) that an unreleased model wrote jailbreak-style instructions into its own compaction summaries during RL training, and a dedicated monitor found 27 of them. One contained a fake "BREACH ALERT" telling the next context to ignore developer messages; the successor rejected it. One injected a persona, which was not acted on. One imposed restrictions (a 30-word limit, no tools, no citations), which the successor obeyed, so the answer was graded incorrect. Regenerating the summaries reproduced the behaviour 0% of the time, and the authors' leading hypothesis is a summary-termination problem, though they say no causal link is established. The lesson for engineers: the model can be the source of the injection, and a plausible-looking constraint is more dangerous than an obvious alert.
+
+**Containment by design:**
+
+- **Summaries carry state, never authority.** Pin the system prompt, developer instructions and the user's original task verbatim outside compaction. The successor's instructions say summaries are notes about progress, and constraints come only from pinned messages.
+- **Structured summaries.** A schema with fields for goal (copied, not paraphrased), decisions, current state, open items and sources. No free-text "instructions" field. Facts derived from tool output keep a provenance tag.
+- **Raw transcript retained** for audit and for re-compaction.
+
+**Validation before the successor trusts it:**
+
+1. Cheap filters for meta-instructions: "ignore", alerts, persona statements, new limits on tools, length or citations.
+2. A traceability check: every constraint or instruction in the summary must trace to a pinned user or developer message. An LLM judge or entailment check over the transcript does this. Anything untraceable fails.
+3. On failure, regenerate (cheap, and in the reported case regeneration did not reproduce the problem), then fall back to plain truncation if it fails again, and log the event.
+4. Track the rate of failed summaries per model version as a monitored metric. A jump after a model upgrade is a signal.
+
+Eval it by seeding transcripts with injected instructions in tool results and checking whether they survive compaction.
+
+**Worth sketching.** Optional, but it shows the validator sitting between the compactor and the next context.
+
+```mermaid
+flowchart TD
+    A["Transcript so far"] --> B["Compactor"]
+    B --> C["Candidate summary"]
+    C --> D{"Every instruction traces<br/>to a user or developer turn?"}
+    D -->|"yes"| E["New context: pinned prompt,<br/>pinned task, summary"]
+    D -->|"no"| F["Regenerate once"]
+    F --> G{"Passes now?"}
+    G -->|"yes"| E
+    G -->|"no"| H["Truncate instead and log"]
+```
+
+**Follow-ups:** What would you do if the validator itself is the same model that wrote the summary? How do you keep the traceability check affordable on a summary every few hours? Which constraint types would you allow a summary to carry, if any?
+
+</details>
+
+### 68. A partner's MCP server offers your agent a code-review skill. Walk me through how the host discovers, verifies and loads it under the Skills over MCP extension, and what stops the server swapping the instructions after a user has approved them.
+
+<details><summary><b>Answer</b></summary>
+
+Until recently a skill and an MCP server were alternatives: you installed a SKILL.md folder or you connected a server. The official Skills extension for MCP (`io.modelcontextprotocol/skills`, from SEP-2640, which went Final in September 2026) lets a server serve skills. It is classified Beta, and SDK and host support is still rolling out, so treat details as subject to change.
+
+**Discovery.** The server declares the resources capability and the skills extension in `server/discover`. The host calls `skills/list` and gets, per skill, the unchanged frontmatter (name, description) plus a **manifest**: every file's URI, its SHA-256 digest and its byte size. `skill://` URIs are recommended but not required. Skill identity is the originating server plus the URI, because names are not unique, and the host must not let a same-name skill from another server silently replace this one.
+
+**Approval.** The user or an admin approves the skill. Persisted approval binds to the complete set of file URIs and digests. That is the answer to the rug-pull question: if any file changes, or a file is added or removed, the digest set no longer matches and the approval is revoked. The server cannot swap the instructions under an existing approval.
+
+**Loading.** Progressive disclosure still applies, and the extension makes it a rule: hosts must not fetch files ahead of need, not on connection, listing or approval. When a task matches the description, the host calls `skills/get` and reads files through `resources/read`, only for URIs in the manifest it retained at approval, and verifies size, digest and frontmatter before anything enters context. A mismatch means refuse and ask again.
+
+**Further gates:**
+
+- Host-side code execution and grants such as `allowed-tools` need explicit per-skill approval.
+- A skill that wants to read from another server needs per-call approval naming both servers.
+- Content can be declared dynamic (generated per request), which by definition cannot be pinned. Hosts may decline dynamic skills, and for a code-review skill with repository access I would.
+- Servers should stay within 512 files or 16 MiB per skill.
+
+**What it does not solve.** A digest proves the content is the content you approved, not that it is safe. Someone still has to review the SKILL.md and scripts before approval, exactly as for a dependency. Skill instructions remain prompt-injection surface in a context holding your tools, so the code-review skill should run with read access to the repository and no write or network tools it does not need. And a partner server compromised before approval gets its malicious version approved, which is why first-party or reviewed sources and version pinning still matter. The Agent Skills standard moved to the Agentic AI Foundation in October 2026, and its roadmap includes security guidance for skill authors and installers.
+
+**Follow-ups:** How would you show the user what changed when a skill update revokes their approval? Would you allow the same skill name from two servers in one session? What does your review process look like for a skill whose scripts run in your sandbox?
+
+</details>
+
+### 69. Your users approve 93% of the agent's permission prompts. Design an auto mode that replaces prompts with a classifier. What runs without review, what does the classifier get to see, can you trust MCP tool annotations like readOnlyHint, and what miss rate would you accept?
+
+<details><summary><b>Answer</b></summary>
+
+A 93% approval rate means the prompt is not a control; people are clicking through. That figure is from Claude Code, whose auto mode (March 2026) is a useful reference design. It became the default for new sessions on most plans in August 2026.
+
+**Tiers, cheapest first:**
+
+1. **Allowlist.** Read-only tools plus the user's own allow rules run immediately.
+2. **Scoped writes.** File edits inside the project directory run, because version control makes them reversible.
+3. **Classifier.** Everything else (shell commands, network calls, writes outside the project, external side effects) goes to a transcript classifier. Claude Code uses a two-stage classifier here.
+
+**What the classifier sees.** User messages and the proposed tool calls, but not the assistant's prose or tool outputs. That is deliberate. Tool outputs are where injected instructions live, and the agent's own reasoning can talk itself, and a classifier reading it, into an action. The question it answers is narrow: did the user ask for this, and is it within what they asked?
+
+**Denials and escalation.** A denied action goes back to the agent as a result so it can find an in-scope path. Repeated denials mean the agent is pushing against the boundary, so stop and hand to a human. Claude Code escalates after 3 consecutive or 20 total denials.
+
+**Tool annotations.** No, not on their own. MCP's guidance is that clients treat `readOnlyHint`, `destructiveHint`, `idempotentHint` and `openWorldHint` as untrusted unless the server is trusted, and the pessimistic defaults are read-only false, destructive true, idempotent false, open-world true. A malicious server can label a delete as read-only. Use annotations from servers you have vetted and pinned, and apply the defaults to everything else.
+
+**Miss rate.** Claude Code reports a 0.4% false-positive rate on real traffic and a 17% miss rate on real overeager actions. In a study of 1,053 developers shown a swapped-in dangerous command, only 13.6% refused it, while auto mode would have blocked 89% of those actions. So the honest comparison is not classifier against perfect review, it is classifier against the review people actually do.
+
+A 17% miss rate is acceptable only with a backstop. In August 2026 Johann Rehberger published a module-shadowing bypass that worked about 80% of the time: a downloaded archive's local `struct.py` was loaded when the agent's code imported `base64`. The command looked benign; the effect was not. A classifier judges the command, not its consequences, so containment carries the real weight: a container or VM, egress restrictions, credentials kept out of the agent runtime, and monitoring. Irreversible actions with external effect (payments, sending messages, production deploys) stay human-gated whatever the classifier says.
+
+**Worth sketching.** Optional, but it shows where the classifier sits and where the hard gates stay.
+
+```mermaid
+flowchart TD
+    A["Proposed tool call"] --> B{"Read-only or<br/>user allow rule?"}
+    B -->|"yes"| R["Run in sandbox"]
+    B -->|"no"| C{"Edit inside<br/>the project?"}
+    C -->|"yes"| R
+    C -->|"no"| D{"Irreversible external<br/>effect?"}
+    D -->|"yes"| H["Human approval"]
+    D -->|"no"| E{"Classifier: did the<br/>user ask for this?"}
+    E -->|"allow"| R
+    E -->|"deny"| F["Back to agent,<br/>escalate on repeats"]
+```
+
+**Follow-ups:** How would you build the eval set of overeager actions to measure the miss rate? What changes if the agent runs on a developer's laptop rather than in a cloud sandbox? How do you stop users from adding allow rules so broad they recreate the 93% problem?
+
+</details>
+
+### 70. Design an always-on agent that wakes on a schedule or an event, with no user present, and runs until it meets its success criteria or runs out of budget. What identity does it act as, how do you define done, what stops it acting on a stale or poisoned trigger, and how does a human find out what it did overnight?
+
+<details><summary><b>Answer</b></summary>
+
+Scheduled and event-triggered agents are now a product category: agent platforms advertise outcome-driven runs where you give success criteria and a budget and the agent iterates until it gets there, with hard session budgets as a platform feature. The interactive design assumptions break: nobody is there to approve, clarify or notice.
+
+**Job spec, not prompt.** Each agent is defined by a versioned spec: the trigger, the task, machine-checkable success criteria, permitted tools and scopes, a budget, and the action classes it may never take unsupervised. The trigger supplies parameters; it never supplies the task.
+
+**Identity.** The agent runs as its own workload identity, not as a user's session and never with a static API key. If it acts for a user, it holds a delegated, scoped, short-lived token from that user's grant, so audit shows both principals. Credentials live in the runtime, not in the model's context. The IETF WIMSE working group's AI agent identity draft (adopted September 2026) states the same rules: static API keys are an antipattern and the LLM must not have access to the agent's credentials.
+
+**Triggers.**
+
+- Durable queue with an event id, source and timestamp; dedupe on the id so a redelivered webhook does not run twice.
+- A freshness TTL: a trigger older than the job's tolerance is dropped and logged.
+- Revalidate at the start: re-read the current state from the source of truth instead of trusting the payload, because the world may have changed since the event.
+- Treat event content as untrusted data. An inbound email or ticket that triggers a run is the classic injection vector, and with no human watching, the lethal-trifecta analysis matters more, not less.
+- One run per key at a time, with a lock, so two triggers do not race on the same record.
+
+**Defining done.** Terminal states are explicit: succeeded (criteria verified by a check, not by the agent's claim), budget exhausted, blocked needing a human, or failed. Budgets are hard caps on tokens, cost, wall-clock time and tool calls, enforced by the harness. "Keep trying until it works" without a cap is how an overnight run burns a month's budget.
+
+**Supervision without a human present.** Actions above a risk threshold (sending externally, spending money, deleting) are queued for morning approval rather than executed. Everything else runs, but sandboxed and logged.
+
+**How a human finds out.** A run report per job: what triggered it, what it read, what it changed (with diffs), what is waiting for approval, what it cost, and why it stopped. A morning digest across jobs, alerts on anomalies such as a jump in runs, cost or denials, and a kill switch per job and globally.
+
+**Worth sketching.** Optional, but the revalidation step and the approval queue are what make it safe to leave running.
+
+```mermaid
+flowchart TD
+    A["Schedule or event"] --> B{"Duplicate or<br/>older than TTL?"}
+    B -->|"yes"| C["Drop and log"]
+    B -->|"no"| D["Re-read state from<br/>source of truth"]
+    D --> E["Agent loop within budget"]
+    E --> F{"Risky action?"}
+    F -->|"yes"| G["Queue for human approval"]
+    F -->|"no"| H["Execute in sandbox"]
+    H --> I["Verify criteria, write run report"]
+    G --> I
+```
+
+**Follow-ups:** How would you test a job against a poisoned trigger before enabling it? What happens to queued approvals that nobody reviews for a week? How do you stop a misconfigured schedule from launching a thousand runs?
+
+</details>
+
+### 71. A new model generation ships. Which parts of your agent harness, such as planning prompts, step caps, tool restrictions, context resets and retry wrappers, do you expect to delete or loosen, and how do you prove on real customer workloads that removing them does not regress anything? How do you tell a harness change from a model change in your evals?
+
+<details><summary><b>Answer</b></summary>
+
+Most harness code is compensation for a model weakness at a point in time. Teams that build agent platforms say this openly: harness assumptions get revisited with each model generation, and evals measure harness quality against real customer workloads. The skill being tested is removing scaffolding with evidence instead of accumulating it forever.
+
+**Inventory first.** Every scaffold should have a recorded reason: which failure it compensates for, which model it was added for, and which eval showed it helped. Without that list you cannot decide what to remove, and you will be afraid to touch anything.
+
+**Likely candidates to loosen:**
+
+- Planning prompts and forced "think step by step" turns, now that adaptive thinking does this inside the call.
+- Retry wrappers that repair malformed JSON, now that strict schemas and structured outputs guarantee shape.
+- Aggressive context resets and tight compaction thresholds, with 1M-token windows and better long-context use.
+- Low step caps, if pass^k on long tasks has improved.
+- Tool restrictions added because the old model misused a tool.
+
+**Things that break regardless.** New generations also remove API knobs. Anthropic's newest models reject temperature and top_p overrides, forced tool choice and assistant prefill, so a harness relying on prefill to force JSON fails outright. Tokenizer changes move your numbers: the tokenizer introduced with Claude Opus 4.7 produces about 30% more tokens for the same text, which shifts budgets, truncation thresholds and cost alerts. Find these in a compatibility pass before any quality work.
+
+**Do not remove policy.** Approval gates, permission boundaries, sandboxing and spend caps are not compensations for weakness. A more capable model is a reason to keep them, not loosen them.
+
+**Proving it on real workloads.**
+
+1. Build the eval set from replayed customer traces, stratified by task type and tenant, with verifiable end states where possible.
+2. Ablate one scaffold at a time, then in plausible groups, measuring success rate, pass^k over several runs, cost, latency and safety evals, with confidence intervals.
+3. Remove only what is neutral or better on every slice, not just on average.
+4. Canary to a traffic slice with production outcome metrics before full rollout.
+
+**Separating harness from model.** Run a 2x2: old model with old harness, old model with new harness, new model with old harness, new model with new harness, on the same eval set and fixed seeds. The new model with old harness isolates the model effect; the difference to new with new is the harness effect; and the interaction tells you which scaffolds only mattered for the old model. Version harness and model independently in every trace, and never ship both changes in one deploy, so a production regression can be attributed.
+
+**Follow-ups:** How do you keep the scaffold inventory honest as engineers add workarounds under deadline? What would you do if removing a scaffold helps most tenants and hurts one large customer? How many eval runs do you need before trusting a 2-point change in success rate?
 
 </details>

@@ -1,6 +1,6 @@
 # 🤝 Together AI - AI Engineer Interview Questions
 
-> **Last reviewed: October 2026.** Based only on public information - official pages, engineering blogs, and publicly shared candidate reports. Processes change and vary by team; treat this as a map, not a contract. No confidential or leaked material.
+> **Last reviewed: November 2026.** Based only on public information - official pages, engineering blogs, and publicly shared candidate reports. Processes change and vary by team; treat this as a map, not a contract. No confidential or leaked material.
 
 ## TL;DR
 
@@ -9,11 +9,11 @@
 - The centre of gravity is **inference performance and economics**: KV-cache math, continuous batching, speculative decoding, quantization, and what a token actually costs on an H100/B200. Their whole business is serving open models faster and cheaper than you could yourself.
 - System design rounds reportedly use their real problems: serving 100+ open models on a shared GPU fleet, multi-tenant LoRA, speculative-decoding pipelines. Interviewers reward concrete numbers (GPU memory capacities, KV-cache footprints) over hand-waving.
 - Public interview info is **moderate, not deep** - a handful of Glassdoor/Blind reports plus third-party prep guides. Treat stage-level details as "reported, varies" and confirm with your recruiter. 2026 prep guides describe the same shape, with the applied ML-systems round reportedly including KV-cache management logic and design prompts on LoRA-adapter fine-tuning services (reported, varies).
-- Context for "why Together": an $800M Series C at a reported ~$8.3B valuation (July 2026) is funding a large capacity build-out, so GPU-cloud, data-centre and inference-infrastructure hiring is heavy, and rack-scale Blackwell serving of large open MoE models is the live engineering problem.
+- Context for "why Together": an $800M Series C at a reported ~$8.3B valuation (July 2026) is funding a large capacity build-out, so GPU-cloud, data-centre and inference-infrastructure hiring is heavy, and rack-scale Blackwell serving of large open MoE models is the live engineering problem. The autumn 2026 launches are fair game in interviews: Together Post-Training (October), where customers write their own SFT or RL loop on dedicated GPUs, and the Together Compiler (November), which keeps re-optimising serving as traffic drifts.
 
 ## Company context
 
-Together AI is an "AI-native cloud": a serverless inference API over 100+ open models (Llama, Qwen, DeepSeek, Kimi, MiniMax lines), dedicated endpoints, a fine-tuning/post-training platform, and raw GPU clusters (including on-demand B200s). Their stated mission is to lower the cost of modern AI by co-designing software, hardware, algorithms, and models - and they have the research pedigree to mean it: Tri Dao (FlashAttention) is chief scientist, the FlashAttention line continued with the Blackwell-targeted FlashAttention-4 paper in March 2026, and the company ships work like FlashAttention-3, the Together Kernel Collection, and adaptive speculative decoding (ATLAS) directly into its serving stack. "AI engineer" here spans that whole stack: CUDA kernels, inference engines, serving platforms, GPU-cloud infrastructure, and customer-facing forward-deployed work - this is a place where the model is the workload, and performance engineering *is* the product.
+Together AI is an "AI-native cloud": a serverless inference API over 100+ open models (Llama, Qwen, DeepSeek, Kimi, MiniMax lines), dedicated endpoints, a fine-tuning/post-training platform, and raw GPU clusters (including on-demand B200s). Their stated mission is to lower the cost of modern AI by co-designing software, hardware, algorithms, and models - and they have the research pedigree to mean it: Tri Dao (FlashAttention) is chief scientist, the FlashAttention line continued with the Blackwell-targeted FlashAttention-4 paper in March 2026, and the company ships work like FlashAttention-3, the Together Kernel Collection, and adaptive speculative decoding (ATLAS) directly into its serving stack. Recent launches push the same thesis further. **Together Compiler** (November 2026) uses coordinating agents and persistent engines that hot-load new candidate forward passes, with a cost model that re-picks parallelism (TP, EP, DCP) as traffic shifts; Together reports up to 2.6x higher throughput and says it already runs on some popular serverless endpoints, with a limited customer beta. Its companion essay on polymorphic inference argues that megakernel fusion is not the right design goal. **Together Post-Training** (October 2026) runs a customer-written training loop on dedicated GPU allocations, with async RL and a one-line migration from Tinker. Operational work shipped alongside: gated canary rollouts on dedicated endpoints that pause for a human on regression (September), a dedicated B300 inference cluster with IBM Cloud and NVIDIA (October) and automatic repair for GPU clusters (October). "AI engineer" here spans that whole stack: CUDA kernels, inference engines, serving platforms, GPU-cloud infrastructure, and customer-facing forward-deployed work - this is a place where the model is the workload, and performance engineering *is* the product.
 
 ## Roles & titles they hire
 
@@ -26,8 +26,10 @@ From their public Greenhouse board and job postings (July 2026, rechecked Octobe
 - **Staff Engineer, Distributed Storage and HPC & AI Infrastructure** - cluster-scale storage and networking
 - **Senior/Staff Machine Learning Engineer & Platform Engineer, Voice AI** - a newer product area
 - **Platform Engineer, Model Shaping** - the fine-tuning/post-training product
-- **Forward Deployed Engineer (Inference & Post-Training)** - hands-on technical partner to strategic customers; posting asks for expert-level experience with vLLM, TensorRT-LLM, or SGLang
-- **Senior Software Engineer, Infra Agent Systems** and **Software Engineer, AI Compute (Together Cloud)** - newer postings in the October 2026 check, alongside a GPU-cluster customer-success track and a Mandarin-speaking FDE variant
+- **Forward Deployed Engineer, Strategic Inference** - engine-level work for POCs, benchmarks and customer deployments; asks for expert-level vLLM, TensorRT-LLM and SGLang, KV cache tuning, speculative decoding, TP/PP and quantization
+- **Forward Deployed Engineer, Post-Training** (first posted October 2026, $270k-$300k OTE) - SFT, LoRA, DPO and RL (GRPO, PPO), diagnosing training instabilities and reward hacking, LLM-as-judge evals, base-model selection, and scoping and sizing RL and fine-tuning workloads with sales and capacity teams. The older combined "(Inference & Post-Training)" title now survives only as the Mandarin-speaking Singapore role
+- **AI Inference Reliability Engineer** - new postings in late October 2026
+- **Senior Software Engineer, Infra Agent Systems** and **Software Engineer, AI Compute (Together Cloud)** - newer postings in the October 2026 check, alongside a GPU-cluster customer-success track
 - Plus data platform, observability, product engineering, network engineering, and data-centre operations roles
 
 Compensation data points exist on [levels.fyi](https://www.levels.fyi/jobs/company/together-ai).
@@ -54,7 +56,7 @@ Reported timeline: roughly 2-6 weeks; Glassdoor's average is around 16 days. Can
 - **Performance engineering as product.** Their differentiation is serving open models faster and cheaper - kernels (FlashAttention-3, Together Kernel Collection), speculative decoding (ATLAS adapts speculators to live traffic), and quantization down to FP4. Expect to be probed at the "why is this faster, with numbers" level, not the buzzword level.
 - **Inference economics.** Cost per million tokens, GPU utilization, batch-size trade-offs, and hardware roofline math are business fundamentals here. Interviewers reportedly reward specific numbers: HBM capacities, KV-cache footprints, bandwidth ceilings.
 - **Full-stack systems ownership.** They run their own data centers, GPU fleet, and serving stack. Debugging a distributed system end to end - from NCCL to the API gateway - is valued over narrow specialisation, especially for infra roles.
-- **Open-model fluency.** The catalogue is open models. Knowing the actual architectures (GQA configs, MoE routing, context-length behaviour) and the OSS serving ecosystem (vLLM, SGLang, TensorRT-LLM - named explicitly in the FDE posting) is table stakes.
+- **Open-model fluency.** The catalogue is open models. Knowing the actual architectures (GQA configs, MoE routing, context-length behaviour) and the OSS serving ecosystem (vLLM, SGLang, TensorRT-LLM - named explicitly in the Strategic Inference FDE posting) is table stakes.
 - **Research-to-production speed.** Papers ship into the engine within months. Research candidates should expect to defend experimental methodology; engineers should expect "how would you productionise this technique" questions.
 
 ## Representative questions
@@ -242,7 +244,7 @@ Decision axes: performance ceiling, workload shape, model/hardware flexibility, 
 
 - **vLLM** - the default. Broadest model support, fastest to adopt new architectures, huge community, PagedAttention/continuous batching built in, Python-extensible. Choose it when the customer iterates across models, needs day-one support for new releases, or lacks a dedicated inference team. Ceiling is high but not maximal.
 - **SGLang** - strongest when the workload has **structure**: heavy shared prefixes (agents, multi-turn chat, batch eval over one system prompt) exploit RadixAttention automatic prefix caching; constrained/JSON decoding is fast. Choose it for agentic pipelines, high prefix reuse, or heavy structured output. Ecosystem is smaller than vLLM's but performance on those shapes is often materially better.
-- **TensorRT-LLM** - peak performance on NVIDIA when the deployment is **static**: fixed model, fixed hardware, tightest kernel selection and FP8/FP4 paths. It was historically built around ahead-of-time compiled engines; newer releases have shifted towards a PyTorch-based runtime that cuts much of that build friction, but it remains the most NVIDIA-specific option. Cost: more tuning effort, often slower support for brand-new architectures, less portability. Choose it when the customer owns one model at very large scale and single-digit-percent efficiency is worth engineering time.
+- **TensorRT-LLM** - peak performance on NVIDIA when the deployment is **static**: fixed model, fixed hardware, tightest kernel selection and FP8/FP4 paths. It has dropped its compiled-engine path (the TensorRT engine backend is gone from the 1.3/1.4 release candidates and the current docs, leaving PyTorch as the only backend), so the old build-step friction argument no longer applies. What remains is that it is the most NVIDIA-specific option. Cost: more tuning effort, often slower support for brand-new architectures, no portability off NVIDIA hardware. Choose it when the customer owns one model at very large scale and single-digit-percent efficiency is worth engineering time.
 
 The FDE-shaped answer adds the meta-point: benchmark on the *customer's* traffic - their sequence-length distribution, prefix-reuse ratio, and latency SLO - not on marketing numbers, because ranking flips with workload shape. Then be honest about when managed serving (i.e., the thing Together sells) beats self-hosting: below a utilization threshold, dedicated GPUs sit idle and per-token pricing wins; above it, dedicated capacity wins. Knowing where that crossover sits for the customer is the actual job.
 
@@ -334,6 +336,61 @@ flowchart LR
 
 </details>
 
+### 14. Two weeks after a model update, prompts on a popular endpoint are much longer and the prefix-cache hit rate has dropped. Design a system that keeps re-tuning kernels and parallelism for live traffic, and explain how you stop it shipping a regression.
+
+<details><summary><b>Answer</b></summary>
+
+The premise is real: Together has cited an 80% rise in prompt length two weeks after a model release. A serving configuration tuned on launch-week traffic is now tuned for the wrong workload. Prefill share rises, KV per sequence grows, the cache hit rate falls, and the best TP/EP split, attention kernel and batch shape all move. The goal is to make optimisation a continuous loop, not a one-off launch task.
+
+**The loop.** (1) *Profile*: sample live traffic into a workload descriptor: prompt and output length distributions, prefix-reuse ratio, concurrency, MoE routing histogram. (2) *Propose*: generate candidates, either new kernels or fusions for the hot shapes, or a new parallelism layout. A cost model ranks parallelism options (TP, EP, context parallelism) against the descriptor before anything runs on a GPU, which keeps the search cheap. (3) *Test*: in tiers. Fast tests load a few layers and check correctness and micro-latency. Slower tests load many layers on realistic replayed data, because random-input kernel benchmarks mislead for MoE and sparse attention: routing skew and real sparsity patterns are the whole performance story. (4) *Deploy*: persistent engines hot-load a candidate forward pass instead of restarting. Together reports about 9 s to serving against roughly 470 s for a cold start, which is what makes frequent iteration affordable.
+
+**Stopping regressions.** This is where the senior answer lives.
+
+- **Correctness gate first.** Compare logits or token distributions against a reference implementation on a fixed eval set, with tolerances per precision. Run a small task-level eval too, because tiny numeric drift can flip tool-call formatting.
+- **Optimise the real objective.** Score candidates on throughput at the endpoint's latency SLO (p95 TTFT and inter-token latency), not raw tokens/s. A change that wins on throughput by growing the batch can still break p99.
+- **Canary with gates.** Roll out on a traffic ladder (for example 5/25/50/100%) gated on error rate, p95+ latency and in-flight requests per replica. On a tripped gate, pause for a human rather than auto-promoting.
+- **Hysteresis.** Require a minimum gain (say 5-10%) and a minimum dwell time before re-optimising again. Otherwise the system thrashes as traffic oscillates daily.
+- **Instant rollback.** Keep the previous engine warm, so reverting is a pointer swap and not a recompile.
+
+Trade-offs to name: the search costs GPU time, so you need a budget per endpoint, and you start with the highest-traffic endpoints where a gain pays back fastest. Agent-generated kernels widen the space you can search, but they make the correctness gate non-negotiable.
+
+**Worth sketching.** Optional, but the loop with its gates is easy to draw.
+
+```mermaid
+flowchart LR
+    A["Live traffic profile"] --> B["Cost model and<br/>candidate generator"]
+    B --> C["Fast test<br/>(few layers)"]
+    C --> D["Slow test<br/>(real data, many layers)"]
+    D -->|"pass"| E["Hot-load into<br/>persistent engine"]
+    E --> F["Gated canary"]
+    F -->|"regression"| G["Pause and roll back"]
+    F -->|"healthy"| A
+```
+
+**Follow-ups:** How do you build a reference to compare against when the candidate changes numerics on purpose (say FP8 to NVFP4)? What would you do if two endpoints share a GPU pool and want different layouts? How would you show a customer that a re-optimisation did not change their outputs?
+
+</details>
+
+### 15. Design a post-training service where the customer writes the training loop (sample, reward, forward/backward, optimiser step, weight sync) and you run the trainer and rollout generators on their dedicated GPUs. What primitives do you expose, how do weight sync and async RL work, and how do you isolate customers?
+
+<details><summary><b>Answer</b></summary>
+
+This is the shape of Together Post-Training: one RL step is `sample()`, the customer's own reward function, `forward_backward()`, `optim_step()` and `weights_sync()`. The design question is where to draw the line between what the customer controls and what the platform must own.
+
+**Primitives.** Keep them few and stateful on the server side. A *session* owns a trainer (sharded model and optimiser state) and a set of generator instances (an inference engine with the current policy). `sample(prompts, params)` returns completions plus the token IDs and logprobs the generator actually used. `forward_backward(batch, loss)` computes gradients for a named loss: cross-entropy for SFT, GRPO-family or DPO-style objectives for preference and RL work. `optim_step()` applies them. `weights_sync()` pushes new weights to the generators and returns a version number. The reward function runs in customer code, so the platform never needs to understand their task. Add `save()`/`load()` checkpoints and per-call metrics. A thin, familiar API matters commercially too: a one-line migration from an existing client library such as Tinker lowers switching cost.
+
+**Weight sync.** Full weights for a 30B model are about 60 GB in BF16. Send them trainer to generators over NVLink or RDMA, in shards and in parallel, and swap atomically per generator so no request sees half-old weights. LoRA runs can sync only the adapter, which is orders of magnitude cheaper.
+
+**Async RL.** Synchronous RL leaves generators idle during training and the trainer idle during sampling. Async overlaps them: generators keep sampling with policy version N while the trainer computes N+1. The cost is staleness, so tag every sample with its policy version, bound the lag (for example at most one or two versions), and let the loss use the stored generator logprobs for importance correction. Watch train-inference mismatch as well: different kernels or numerics, and for MoE different expert routing, between generator and trainer. Replaying the generator's routing decisions in the trainer (Together uses Rollout Routing Replay) reduces that drift.
+
+**Isolation.** Dedicated GPU allocations per customer remove noisy-neighbour compute and memory effects, and each session gets its own trainer and generator processes. Customer reward code runs in a sandbox with no route to the control plane or other tenants' storage. Weights, checkpoints and logs sit in per-tenant encrypted storage. Quotas cap sample throughput and storage, and a failing or runaway customer loop is killed at the session boundary without touching anyone else.
+
+Trade-offs to name: exposing raw `forward_backward` gives researchers flexibility but lets customers write unstable losses, so ship good defaults, gradient-norm and KL telemetry, and early warnings for reward hacking (reward rising while held-out evals fall).
+
+**Follow-ups:** What breaks if a customer's reward function takes 30 s per sample? How would you checkpoint and resume an async run without losing the in-flight rollouts? How would you price this: per GPU-hour or per token processed?
+
+</details>
+
 ## How to prepare
 
 **Repo topics, in priority order:**
@@ -342,16 +399,17 @@ flowchart LR
 - **[02-llm-fundamentals](../02-llm-fundamentals/)** - attention variants, GQA/MoE architectures, KV-cache mechanics; you need this at implement-it depth, since the coding rounds reportedly include attention primitives.
 - **[11-ai-system-design](../11-ai-system-design/)** - the design round is raw serving infrastructure. No case study matches "inference platform" one-to-one; the closest transferable one is **[02-ai-code-assistant](../11-ai-system-design/case-studies/02-ai-code-assistant.md)** (latency-sensitive streaming inference, caching, cost control) - but practice Q8 above as its own design exercise.
 - **[12-coding-challenges](../12-coding-challenges/)** - expect one standard algorithms round plus applied ML-systems coding; both live here.
-- **[05-fine-tuning-and-alignment](../05-fine-tuning-and-alignment/)** - essential for FDE (Inference & Post-Training) and Model Shaping roles; LoRA mechanics and distillation judgment come up in serving design too.
+- **[05-fine-tuning-and-alignment](../05-fine-tuning-and-alignment/)** - essential for the Post-Training FDE and Model Shaping roles; LoRA mechanics and distillation judgment come up in serving design too.
 - **[13-interview-process-and-behavioral](../13-interview-process-and-behavioral/)** - they screen for velocity and ownership; have shipped-under-pressure stories ready.
 
 **Company-specific moves:**
 
 1. Read the [Together research blog](https://www.together.ai/research-blog) and [blog](https://www.together.ai/blog) - especially posts on their inference engine, FlashAttention-3, the Together Kernel Collection, and adaptive speculative decoding (ATLAS). Their interview design prompts reportedly mirror this material.
 2. Use the product seriously: run the serverless API across 2-3 models, measure TTFT and tokens/s yourself, try a fine-tuning job. "I benchmarked your API and noticed X" is a strong signal for FDE and platform roles.
-3. Know the OSS engine landscape hands-on - the FDE posting names vLLM, TensorRT-LLM, and SGLang explicitly. Read the vLLM PagedAttention paper and SGLang's RadixAttention design; be ready to compare them on a real workload.
+3. Know the OSS engine landscape hands-on - the Strategic Inference FDE posting names vLLM, TensorRT-LLM, and SGLang explicitly. Read the vLLM PagedAttention paper and SGLang's RadixAttention design; be ready to compare them on a real workload.
 4. Drill the napkin math until it's reflexive: H100/B200 memory and bandwidth, KV-cache per token for a model you know, cost per million tokens from GPU rental prices. Multiple reports say interviewers reward specific numbers.
-5. For research roles: know Tri Dao's line of work (FlashAttention 1-4, Mamba) and Together's public releases (RedPajama, speculative-decoding work) well enough to discuss trade-offs and propose experiments - a paper walk-through round is reported.
+5. Read the Together Compiler and polymorphic-inference posts (November 2026) and the Together Post-Training launch (October 2026). Q14 and Q15 below are built from them, and inference-platform, Model Shaping and FDE loops are likely to probe them.
+6. For research roles: know Tri Dao's line of work (FlashAttention 1-4, Mamba) and Together's public releases (RedPajama, speculative-decoding work) well enough to discuss trade-offs and propose experiments - a paper walk-through round is reported.
 
 ## Sources
 
@@ -366,5 +424,10 @@ flowchart LR
 - VentureBeat coverage of Together AI's ATLAS adaptive speculative decoding (surfaced via search; site blocks automated fetch)
 - [BigDATAwire - Together AI raises $800M at $8.3B valuation (July 2026)](https://www.hpcwire.com/bigdatawire/this-just-in/together-ai-raises-800m-at-8-3b-valuation-to-make-frontier-ai-accessible-to-all/)
 - [FlashAttention-4: Algorithm and Kernel Co-Design for Blackwell GPUs (arXiv:2603.05451)](https://arxiv.org/abs/2603.05451)
+- [Together Compiler: Continual Compilation for AI inference](https://www.together.ai/blog/together-compiler-continual-compilation-for-ai-inference) and [From Static to Polymorphic Inference](https://www.together.ai/blog/polymorphic-inference) (November 2026)
+- [Together Post-Training](https://www.together.ai/blog/together-post-training) and [product page](https://www.together.ai/post-training) (October 2026; the sample, reward, forward_backward, optim_step, weights_sync loop)
+- [Canary rollouts: upgrade models in production without downtime](https://www.together.ai/blog/canary-rollouts-upgrade-models-in-production-without-downtime) (September 2026)
+- [Together AI - Greenhouse API](https://boards-api.greenhouse.io/v1/boards/togetherai/jobs) (checked November 2026; Strategic Inference and Post-Training FDE split, AI Inference Reliability Engineer)
+- [TensorRT-LLM: TensorRT backend removal](https://nvidia.github.io/TensorRT-LLM/latest/legacy/tensorrt-backend-removal.html)
 - [techinterview.org - How Together AI interviews backend and infra engineers](https://www.techinterview.org/post/3233475437/together-ai-engineering-interview/) (2026 third-party guide)
 

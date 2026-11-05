@@ -1,6 +1,6 @@
 # 🩺 Abridge - AI Engineer Interview Questions
 
-> **Last reviewed: October 2026.** Based only on public information - official pages, engineering blogs, technical reports, and publicly shared candidate reports. Processes change and vary by team; treat this as a map, not a contract. No confidential or leaked material.
+> **Last reviewed: November 2026.** Based only on public information - official pages, engineering blogs, technical reports, and publicly shared candidate reports. Processes change and vary by team; treat this as a map, not a contract. No confidential or leaked material.
 
 ## TL;DR
 
@@ -8,11 +8,12 @@
 - Public loop detail is **thin**: a handful of candidate posts, one third-party guide, and a small Glassdoor sample. The stage table below is partly **inference** from the applied-vertical-AI category, and every uncertain row is labelled.
 - One candidate report describes the hiring manager screen carrying a ~20-minute mini design exercise on their clinical tool execution service, with **design stubs pre-written** and the candidate asked to fill in the critical part. Expect design conversation earlier than usual.
 - The technical centre of gravity is **speech plus structured generation under a safety bar**: ASR on messy clinic-room audio, diarisation and role attribution, turning free conversation into a coded, billable, signable note, and proving every line of it traces back to something the patient or clinician actually said.
+- 2026 launches widen what rounds can probe: federal deployment (the VA enterprise contract), inpatient **pre-bill review** for CDI and coding teams, decision support with licensed medical content, and an in-house clinical-conversation model trained on NVIDIA Nemotron with de-identified data. No public change to the loop has been reported.
 - Weighted heavily: **evaluation when there is no clean ground truth**, hallucination framed as patient safety rather than quality, and PHI handling as an architectural constraint rather than a compliance checkbox. Bring an error taxonomy, not an accuracy number.
 
 ## Company context
 
-Abridge builds ambient clinical documentation: a microphone runs during a patient visit, and the conversation comes out the other side as a structured clinical note, with diagnosis codes and draft orders attached, written back into the EHR before the clinician leaves the room. Public materials describe deployment across a large number of US health systems, speech recognition tuned for medical conversation across 14+ languages, a "Contextual Reasoning Engine" that pulls in prior encounters and health-system-specific guidelines, and a "Linked Evidence" feature that ties every generated span, code, or order back to the point in the transcript where it was discussed. Since 2025 the product has extended into revenue cycle and clinical documentation integrity, validating billing codes in the moment rather than weeks later in a back office. It has also moved into nursing: built with Mayo Clinic and Epic, the nursing product turns spoken observations into drafted flowsheet entries in the EHR, with linked sources back to the transcript, and was the subject of an April 2026 KLAS early-adopter report. That is structured data entry across a shift, not a narrative note per visit, and it widens what "the pipeline" means.
+Abridge builds ambient clinical documentation: a microphone runs during a patient visit, and the conversation comes out the other side as a structured clinical note, with diagnosis codes and draft orders attached, written back into the EHR before the clinician leaves the room. Abridge's 2026 releases report 300+ health systems and 100M+ patient-clinician conversations a year, with encounter capture validated for 28+ languages. Public materials also describe a "Contextual Reasoning Engine" that pulls in prior encounters and health-system-specific guidelines, and a "Linked Evidence" feature that ties every generated span, code, or order back to the point in the transcript where it was discussed. Since 2025 the product has extended into revenue cycle and clinical documentation integrity, validating billing codes in the moment rather than weeks later in a back office. In June 2026 it launched a clinician intelligence platform covering pre-visit, in-visit and post-visit work, with clinical decision support from licensed content (UpToDate, NEJM and JAMA among others), and announced it is building a clinical-conversation foundation model with NVIDIA on the open Nemotron family, trained on de-identified data across pre-, mid- and post-training. In September 2026 it launched pre-bill review, its first mid-revenue-cycle product, which checks an inpatient claim's coded diagnoses and DRG against the documentation without changing codes or claim status, and it was selected through a distribution partner for the VA's multiple-award enterprise contract after a pilot on VistA/CPRS and the Federal EHR under VA security authorisation. Competition is real too: Epic released native AI Charting in February 2026, so "why Abridge over the EHR's own scribe" is a fair motivation question. It has also moved into nursing: built with Mayo Clinic and Epic, the nursing product turns spoken observations into drafted flowsheet entries in the EHR, with linked sources back to the transcript, and was the subject of an April 2026 KLAS early-adopter report. That is structured data entry across a shift, not a narrative note per visit, and it widens what "the pipeline" means.
 
 "AI engineer" here is unusually broad and unusually constrained at the same time. Broad, because the pipeline spans streaming audio, ASR, diarisation, retrieval over chart context, LLM generation, structured extraction, and EHR write-back. Constrained, because the output is a legal medical record: a fabricated dose is a safety incident, a wrong code is a billing compliance problem, and a leaked transcript is a HIPAA breach. Engineers who like the systems problem but are bored by the verification problem tend not to enjoy it here.
 
@@ -372,6 +373,50 @@ Evaluation changes with it: per-row precision and recall by row type, wrong-pati
 
 </details>
 
+### 14. Design pre-bill review: before an inpatient claim is submitted, check its coded diagnoses and DRG against the documentation. How do you surface mismatches with evidence without becoming an upcoding engine, and how do you handle present-on-admission?
+
+<details><summary><b>Answer</b></summary>
+
+Abridge launched this in September 2026 as its first mid-revenue-cycle product, and its framing is the right starting point: the system **does not change codes or claim status**; CDI and coding teams decide what to hold, correct or release. That constraint is the design, not a limitation.
+
+**Inputs.** The final coded claim (ICD-10 diagnoses and procedures, the assigned DRG), plus the whole inpatient record: admission H&P, progress notes, consults, discharge summary, labs and medications. Unlike Q8, you are auditing a claim that already exists, across many authors and days, rather than generating codes from one conversation.
+
+**Checks, each with evidence.**
+- **Unsupported codes:** a coded diagnosis with no documentation that it was assessed or treated. Surface the code and the absence, which matters as much as a positive finding.
+- **Documented but uncoded conditions:** a severity-relevant condition (a comorbidity that changes the DRG) that is clearly documented but missing from the claim.
+- **Specificity gaps:** documentation supports a more specific code than the one chosen, or vice versa.
+- **Internal contradictions:** the discharge summary says one thing, the progress notes another. Route these to a clinician query, not a code change.
+
+Every finding links to the exact passages, author and date, and states the DRG impact in both directions.
+
+**Not an upcoding engine.** Design so the incentives stay clean: flag discrepancies symmetrically, so codes that should be removed are surfaced as prominently as codes that could be added; report the share of findings that lower versus raise reimbursement; never suggest documentation to add after the fact, only queries to the clinician; and measure accuracy by coder agreement and audit outcomes, not revenue captured. A reviewer tool that only ever finds money will be read as an upcoding engine by auditors, whatever its intent.
+
+**Present-on-admission.** POA status determines whether a condition counts as a hospital-acquired condition for reporting and payment. Assess it from timeline evidence: was the condition documented or evidenced (labs, imaging, nursing notes) at or near admission, or first appearing later? Show the earliest supporting evidence with its timestamp and let the coder assign the indicator. Ambiguous cases ("clinically undetermined") should be flagged for a provider query, never guessed.
+
+**Evaluation.** Precision per finding type judged by certified coders, recall against findings from retrospective audits, time saved per chart, and the hold rate (claims held that did not need to be is a real cost to cash flow).
+
+**Follow-ups:** How do you prioritise a work queue of 400 charts a day for a team of five? A finding is right but the coder disagrees - how do you learn from that? What would you log so an external auditor can trust the tool?
+
+</details>
+
+### 15. New California laws require developers of clinical decision tools to take reasonable steps to reduce known or foreseeable bias and to protect clinicians' professional judgement. For an ambient scribe that drafts orders and diagnosis codes, what would you build to show that?
+
+<details><summary><b>Answer</b></summary>
+
+AB 1979 and SB 503 (signed 30 September 2026) set that expectation, and the FDA's final Clinical Decision Support Software guidance (January 2026) is the federal reference for when software becomes a regulated device. A scribe that only transcribes is far from that line; one that drafts orders and codes is closer, so the engineering answer has three parts.
+
+**Know where the CDS line falls.** Map every output to a category: documentation of what was said (low risk), suggestions derived from what was said (draft orders, codes), and recommendations the clinician did not raise (closer to decision support). Keep the third category explicit and small. The FDA guidance turns on whether a clinician can independently review the basis for a recommendation, which is exactly what span-level provenance (Q5) provides: every draft order cites the moment it was discussed.
+
+**Preserve professional judgement in the workflow.** Draft orders are never auto-signed; each needs an explicit clinician action, and accepting all with one click should be measured and discouraged. Record what was suggested, what was accepted, edited or rejected, and by whom. Track acceptance rate by suggestion type: near-100% acceptance of a suggestion class is a warning sign of automation bias, not a success metric.
+
+**Bias evaluation by patient subgroup.** The likely failure points are upstream: ASR error rates vary with accent, language, age and speech patterns, and transcription errors propagate into notes, orders and codes. Build an eval set stratified by language (across all 28+ supported), accent, age band, sex, and visit type, with enough samples per cell for confidence intervals. Measure WER on clinical terms, omission rate of discussed problems, and order and code accuracy per subgroup. Set a maximum acceptable gap and treat a breach as a release blocker. Watch interpreter-mediated visits and code-switching specifically, since they are where gaps tend to hide.
+
+**Make it continuous and documented.** Re-run the stratified eval on every model change, monitor production proxies (edit rate and omission complaints by language and site), and keep a written record of known limitations and mitigations. "Reasonable steps" is easier to demonstrate with a versioned history of measurements than with a one-off audit.
+
+**Follow-ups:** You lack demographic labels for most production audio - how do you build the subgroup eval ethically? A gap appears only for one language at one site - model, microphone or workflow? Where would you draw the line on suggesting an order the clinician never mentioned?
+
+</details>
+
 ## How to prepare
 
 **Repo topics, in priority order:**
@@ -390,11 +435,17 @@ Evaluation changes with it: per-row precision and recall by row type, wrong-pati
 2. Read their product and platform pages, particularly the material on Linked Evidence, the Contextual Reasoning Engine, the revenue cycle work, and the nursing flowsheet product. Then be ready to say what you would build next and why.
 3. Have one worked example of evaluating a generative system where correctness was genuinely contested. This is the question they come back to, and a real story about building an error taxonomy and getting annotators to agree beats any framework recital.
 4. Prepare a project deep dive that emphasises infrastructure decisions and trade-offs, since candidate reports describe the hiring manager round centring on exactly that rather than on generic coding.
-5. Be able to answer "why healthcare" without platitudes. The regulated-vertical companies screen for it, and mission fit shows up again in the final leadership round.
+5. Be able to answer "why healthcare" without platitudes. The regulated-vertical companies screen for it, and mission fit shows up again in the final leadership round. Have a view on "why Abridge, now that Epic ships its own AI Charting" as well.
+6. Know the regulatory edges. California's AB 1979 and SB 503 (signed 30 September 2026) preserve clinicians' professional judgement when AI or clinical decision tools are used and require developers of clinical decision tools to take reasonable steps to reduce known or foreseeable bias; the FDA's final Clinical Decision Support Software guidance (January 2026) is the federal reference for when software becomes a device. Q15 covers both.
 
 ## Sources
 
-- [Abridge - AI technology overview](https://www.abridge.com/ai) (fetched August 2026; ASR across 14+ languages, Contextual Reasoning Engine, provenance tracking, guardrails)
+- [Abridge - AI technology overview](https://www.abridge.com/ai) (fetched August 2026; Contextual Reasoning Engine, provenance tracking, guardrails; its 14+ language figure has since been superseded by the 28+ in the 2026 releases below)
+- [Abridge - clinician intelligence platform keynote](https://abridge.com/press-release/patient-centered-clinician-intelligence-platform-keynote) (June 2026; 28+ languages, 300+ health systems, Nemotron foundation model, decision support)
+- [Abridge - pre-bill review for CDI and coding teams](https://www.abridge.com/press-release/pre-bill-review-for-cdi-and-coding-teams) (September 2026)
+- [Abridge - VA enterprise contract](https://www.abridge.com/press-release/va-enterprise-contract) (September 2026)
+- [HIT Consultant - Epic releases AI Charting](https://hitconsultant.net/2026/02/05/epic-releases-ai-charting-ambient-ai-market-implications/) (February 2026)
+- [Office of the Governor of California, 30 September 2026](https://www.gov.ca.gov/2026/09/30/californias-nation-leading-ai-framework-just-got-stronger-governor-newsom-signs-more-first-in-the-nation-worker-protections-and-more/) (AB 1979, SB 503) and [FDA - Clinical Decision Support Software guidance](https://www.fda.gov/regulatory-information/search-fda-guidance-documents/clinical-decision-support-software)
 - [Abridge - product](https://www.abridge.com/product) and [Abridge - revenue cycle platform](https://www.abridge.com/platform/revenue-cycle)
 - [Abridge - job board](https://jobs.ashbyhq.com/Abridge) (official careers page redirects here)
 - [Built In - Abridge jobs](https://builtin.com/company/abridge/jobs) (fetched August 2026; role titles above)

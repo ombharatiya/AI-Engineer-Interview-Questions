@@ -127,7 +127,7 @@ Model and prompt swaps roll out in stages: **shadow** (the new variant runs on m
 
 ### Observability: tracing LLM apps
 
-An LLM request is a **trace**: a tree of **spans** - one per model call, tool invocation, retrieval, guardrail check. Log per span: model + exact version, sampling params, prompt & completion (or a redacted/pointer form), input/output token counts, time-to-first-token and total latency, cost, prompt-template version, and user/session IDs for joining with feedback. **OpenTelemetry has GenAI semantic conventions** (attribute names like `gen_ai.request.model`, `gen_ai.usage.input_tokens`) so traces are portable across backends. The conventions are still marked as in development, so attribute names can change between releases: pin the semconv version your instrumentation emits.
+An LLM request is a **trace**: a tree of **spans** - one per model call, tool invocation, retrieval, guardrail check. Log per span: model + exact version, sampling params, prompt & completion (or a redacted/pointer form), input/output token counts, time-to-first-token and total latency, cost, prompt-template version, and user/session IDs for joining with feedback. **OpenTelemetry has GenAI semantic conventions** (attribute names like `gen_ai.request.model`, `gen_ai.usage.input_tokens`) so traces are portable across backends. The conventions are still at Development status and their dedicated repository had no tagged release as of November 2026, so attribute and operation names keep changing: pin the instrumentation package version you emit and read its changelog on upgrade.
 
 For **reasoning models**, record reasoning-token counts separately from visible output (the conventions define `gen_ai.usage.reasoning.output_tokens` for this): they bill as output tokens and dominate latency, yet the raw chain of thought is often hidden or summarised by the provider, so the trace may show cost without content. Track the reasoning-effort setting per span, since it is now a quality and cost knob in its own right.
 
@@ -145,7 +145,7 @@ Teams evolve: **vibes** ("looks good to me") → **spot checks** (a doc of 10 fa
 
 ## Interview questions
 
-See [questions.md](questions.md) - 55 questions across basic, intermediate, and advanced levels.
+See [questions.md](questions.md) - 61 questions across basic, intermediate, and advanced levels.
 
 ## Red flags interviewers watch for
 

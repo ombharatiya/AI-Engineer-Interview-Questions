@@ -1,6 +1,6 @@
 # 🚘 Waymo - AI Engineer Interview Questions
 
-> **Last reviewed: October 2026.** Based only on public information - official pages, engineering blogs, technical reports, and publicly shared candidate reports. Processes change and vary by team; treat this as a map, not a contract. No confidential or leaked material.
+> **Last reviewed: November 2026.** Based only on public information - official pages, engineering blogs, technical reports, and publicly shared candidate reports. Processes change and vary by team; treat this as a map, not a contract. No confidential or leaked material.
 
 ## TL;DR
 
@@ -12,7 +12,7 @@
 
 ## Company context
 
-Waymo builds the Waymo Driver: the autonomy stack, sensor hardware, simulation infrastructure, and fleet operations behind a commercial rider-only robotaxi service. As of their February 2026 World Model post they report nearly 200 million fully autonomous miles, and their peer-reviewed safety work compares rider-only crash rates against human benchmarks over tens of millions of miles. Engineers want in because it is one of the very few places where a learned system makes consequential physical decisions at scale, and where the evaluation problem is genuinely unsolved. "AI engineer" here is broader than LLM plumbing: perception and behaviour prediction modelling, planning and learned policies, foundation and world models, simulation and sim agents, ML platform and data infrastructure, evaluation and metrics, and onboard inference under a fixed power and latency budget. If your mental model of ML is "call an API and evaluate on a benchmark", this loop will not go well.
+Waymo builds the Waymo Driver: the autonomy stack, sensor hardware, simulation infrastructure, and fleet operations behind a commercial rider-only robotaxi service. Waymo's 24 September 2026 safety update covers over 270 million fully autonomous miles through June 2026, with 82% fewer injury-causing crashes, 95% fewer serious-injury-or-worse crashes and 93% fewer pedestrian injury crashes than human benchmarks, and their peer-reviewed safety work sets out the comparison methodology. The footprint keeps widening: rides opened to everyone in San Antonio, San Diego and Tampa in October 2026; Toyota will build custom autonomous bZ4X vehicles at its Takaoka plant, with testing in Japan from 2027 and the UK later, and the two will explore personally owned vehicles; and Waymo has documented its winter operations, reducing or pausing service when weather exceeds validated conditions and testing in Alaska. New-platform, new-market and weather-envelope validation are therefore likely design topics. Engineers want in because it is one of the very few places where a learned system makes consequential physical decisions at scale, and where the evaluation problem is genuinely unsolved. "AI engineer" here is broader than LLM plumbing: perception and behaviour prediction modelling, planning and learned policies, foundation and world models, simulation and sim agents, ML platform and data infrastructure, evaluation and metrics, and onboard inference under a fixed power and latency budget. If your mental model of ML is "call an API and evaluate on a benchmark", this loop will not go well.
 
 ## Roles & titles they hire
 
@@ -292,6 +292,8 @@ flowchart TD
     C --> E2["Outcome rates,<br/>counterfactual sim"]
 ```
 
+Weather is the clearest example of an ODD delta handled operationally as well as technically. Waymo's November 2026 winter post describes reducing or pausing service when conditions exceed what has been validated, sharing road and weather data across the fleet, heated sensors with micro-wipers, simulated black ice and whiteouts, and closed-course testing and snow-data collection in Alaska. The safety case should say which conditions are validated, how the fleet detects it has left them, and what the minimal-risk response is.
+
 **Follow-ups:** Which sub-claim is weakest for a city with real winter weather, and what evidence would you need? How do you keep a safety case current when the model is retrained every few weeks?
 
 </details>
@@ -438,6 +440,31 @@ flowchart LR
 
 </details>
 
+### 14. A partner manufacturer will build a new vehicle with our hardware for Japan and the UK. What carries over from the current fleet, what has to be revalidated, and how much of the existing data and simulation can you reuse?
+
+<details><summary><b>Answer</b></summary>
+
+This is the situation Waymo and Toyota announced in October 2026: custom autonomous bZ4X vehicles built at Toyota's Takaoka plant, testing in Japan from 2027 and the UK later. It differs from Q8 because two things change at once: the **platform** and the **country**, and the second includes left-hand traffic.
+
+**Carries over largely intact.** The software stack and the learned models' general driving competence, the safety case structure and governance, the simulation and evaluation infrastructure, and the data pipeline. Most of the scenario library is still relevant, since pedestrians, occlusions and cut-ins look similar everywhere.
+
+**Platform deltas, revalidate.**
+- **Sensor geometry.** Different mounting heights and positions change fields of view, blind spots and calibration. Perception models trained on the old geometry need fine-tuning on data from the new one; check whether near-field coverage around a different body shape has gaps.
+- **Vehicle dynamics.** Mass, wheelbase, braking and steering response differ, so the planner's dynamics model and comfort limits need re-identification on the new vehicle, then closed-loop validation.
+- **Actuation and redundancy interfaces.** The partner's drive-by-wire, redundant braking and steering, and fault reporting are new integration surfaces. Fault-injection testing on the real vehicle is non-negotiable.
+- **Manufacturing variation.** At volume, unit-to-unit calibration drift becomes an end-of-line testing problem the current fleet never had in the same form.
+
+**Country deltas, revalidate.**
+- **Left-hand traffic** (both Japan and the UK): mirrored junction logic, roundabout direction, which side vulnerable road users appear on. Mirroring existing scenarios is a useful start for simulation, not evidence on its own.
+- **Signs, signals, markings and norms:** different conventions for signals, priority rules and road furniture, plus very narrow residential streets in Japanese cities.
+- **Regulation and the safety case audience:** different regulators, different evidence expectations.
+
+**Reuse of data and simulation.** Log data from the current fleet remains valuable for behaviour priors and rare events, but sensor data does not transfer directly to new geometry. Approaches: re-simulate sensor data for the new rig from reconstructed scenes or a world model (Q13), then validate the re-simulation against real drives from the new vehicle before trusting it; collect targeted real data in the new markets early, prioritised by the deltas above. Track a per-delta evidence table: which claims rest on transferred evidence, which on new evidence, and what would stop launch.
+
+**Follow-ups:** How would you measure whether mirrored scenarios are a faithful proxy for left-hand traffic? What changes in the safety case if the vehicle is personally owned rather than fleet-operated? Which delta would you test first, and why?
+
+</details>
+
 ## How to prepare
 
 **Repo topics, in priority order:**
@@ -472,6 +499,8 @@ flowchart LR
 - [WOD-E2E: Waymo Open Dataset for End-to-End Driving in Challenging Long-tail Scenarios](https://arxiv.org/abs/2510.26125) (0.03% frequency definition, Rater Feedback Score)
 - [The Waymo Open Sim Agents Challenge](https://arxiv.org/pdf/2305.12032) and the [Waymax simulator repository](https://github.com/waymo-research/waymax)
 - [The Waymo World Model: A New Frontier for Autonomous Driving Simulation](https://waymo.com/blog/2026/02/the-waymo-world-model-a-new-frontier-for-autonomous-driving-simulation/) (Genie 3 base, camera and lidar generation, language, layout and driving-action control, nearly 200M autonomous miles)
+- [Waymo safety data update, September 2026](https://waymo.com/blog/shorts/safetydata-september26/) (270M+ miles through June 2026, crash-reduction figures)
+- [Waymo and Toyota bZ4X partnership](https://waymo.com/blog/2026/10/toyota-bz4x-partnership) (October 2026), [rides open in San Antonio, San Diego and Tampa](https://waymo.com/blog/shorts/sat-sd-tpa/) and [winter weather preparedness](https://waymo.com/blog/2026/11/winter-weather-preparedness) (November 2026)
 - [Exponent - Waymo interview process](https://www.tryexponent.com/blog/waymo-interview-process) (loop shape, ML round breakdown, reported question topics)
 - [Exponent - Waymo machine learning engineer interview guide](https://www.tryexponent.com/guides/waymo-machine-learning-engineer-interview) (2026 virtual onsite shape, consulted October 2026)
 - [TechPrep - Waymo's interview process](https://www.techprep.app/blog/waymo-interview-process) (stage list, timeline, evaluation emphasis)

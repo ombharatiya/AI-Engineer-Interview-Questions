@@ -1,6 +1,6 @@
 # 🦙 Meta (Superintelligence Labs & product AI) - AI Engineer Interview Questions
 
-> **Last reviewed: October 2026.** Based only on public information - official pages, engineering blogs, and publicly shared candidate reports. Processes change and vary by team; treat this as a map, not a contract. No confidential or leaked material.
+> **Last reviewed: November 2026.** Based only on public information - official pages, engineering blogs, and publicly shared candidate reports. Processes change and vary by team; treat this as a map, not a contract. No confidential or leaked material.
 
 ## TL;DR
 
@@ -13,7 +13,7 @@
 
 ## Company context
 
-Meta consolidated its AI efforts in mid-2025 into **Meta Superintelligence Labs (MSL)** - comprising TBD Lab (frontier model training), FAIR (research), Products and Applied Research, and MSL Infra - alongside the huge existing surface of product ML: ads ranking, Reels/Feed recommendations, integrity, and the Meta AI assistant. MSL's first public model, **Muse Spark** (April 2026), is a multimodal reasoning model that launched closed: it powers Meta AI across the app, WhatsApp, Instagram, Facebook, Messenger, and Ray-Ban glasses, with API access limited to a partner preview, while Meta says open-weight versions of future models are still planned. That is a real break from the open-weight Llama releases, and a candidate who talks about Meta only as an open-weights lab will sound out of date. "AI engineer" at Meta usually means Machine Learning Engineer or Research Engineer: a strong software engineer who ships models into systems serving billions of users. Engineers want in for frontier-scale training runs, the reach of shipping one model across Meta's apps and devices, the open-weight legacy of Llama, and arguably the largest recsys/ads ML deployment in the industry.
+Meta consolidated its AI efforts in mid-2025 into **Meta Superintelligence Labs (MSL)** - comprising TBD Lab (frontier model training), FAIR (research), Products and Applied Research, and MSL Infra - alongside the huge existing surface of product ML: ads ranking, Reels/Feed recommendations, integrity, and the Meta AI assistant. MSL's first public model, **Muse Spark** (April 2026), is a multimodal reasoning model that launched closed: it powers Meta AI across the app, WhatsApp, Instagram, Facebook, Messenger, and Ray-Ban glasses, with API access at first limited to a partner preview. MSL now ships both ways. **Muse Glimmer** (August 2026) is a 30B multimodal model under Apache 2.0, distilled from Muse Spark and runnable on one consumer GPU at about 4-bit. On 12 October 2026 Meta released **Muse Wonder** and **Muse Wonder Full**, its first frontier-class models: Wonder is sold through the Meta Model API at $4 input and $20 output per million tokens, Wonder Full is available only to Muse Code subscribers, and Meta pitches both on "active memory" for long-running agents. No open weights have been reported for the Wonder models. On 15 October it released **Muse Spark Open**, the open-weights version of Muse Spark: an 816B-total, roughly 42B-active sparse MoE with 256 experts, a 1M-token context and text, image, video and audio input, under the Muse Model License. So frame Meta as serving its frontier models through its API and Muse Code while releasing open weights below the frontier; a candidate who calls Meta either a pure open-weights lab or a closed-only lab will sound out of date. Fortune quotes Alexandr Wang saying the core MSL research team is "closer to 100" people. "AI engineer" at Meta usually means Machine Learning Engineer or Research Engineer: a strong software engineer who ships models into systems serving billions of users. Engineers want in for frontier-scale training runs, the reach of shipping one model across Meta's apps and devices, the open-weight legacy of Llama, and arguably the largest recsys/ads ML deployment in the industry.
 
 ## Roles & titles they hire
 
@@ -309,6 +309,26 @@ flowchart TD
 
 </details>
 
+### 14. Meta's Muse Spark Open is an 816B-total, roughly 42B-active sparse MoE with 256 experts and a 1M-token context. A team wants to self-host it: size the memory, choose the parallelism, and tell me where long context breaks your plan.
+
+<details><summary><b>Answer</b></summary>
+
+Start with the two numbers that matter for an MoE: total parameters decide memory, active parameters decide compute per token. At 816B total, every expert must be resident even though only about 42B parameters run per token.
+
+**Weights.** Meta ships BF16 weights (about 1.6 TB) and NVFP4 weights (about 530 GB, with only the experts quantised, so attention and shared layers stay at higher precision). BF16 does not fit on one 8-GPU node of 141 GB parts (about 1.1 TB of HBM), so it means two nodes or larger-memory GPUs. NVFP4 fits on one Blackwell-class 8-GPU node with room left for KV cache, which is why it is the default answer for most teams. Say you would eval the NVFP4 build on your own tasks before trusting it, because quantising the experts hits rarely-used experts hardest.
+
+**Parallelism.** Expert parallelism across GPUs for the expert layers (each GPU holds a slice of the 256 experts and tokens are routed to them with all-to-all), tensor parallelism for the dense attention layers inside the node, and no pipeline parallelism unless you are forced across nodes. Meta documents SGLang, vLLM and TensorRT-LLM, with NVIDIA Dynamo for serving beyond one node, so pick one of those rather than building your own. Watch for expert load imbalance: hot experts make one GPU the straggler, so track per-expert token counts and consider replicating the hottest ones.
+
+**Throughput intuition.** Decode cost tracks the roughly 42B active parameters, so per-token compute is closer to a mid-size dense model than to an 816B one. The catch is the all-to-all traffic on every MoE layer, which is why keeping expert parallelism inside the NVLink domain matters.
+
+**Where long context breaks it.** The model uses sliding-window attention, so most layers keep a bounded KV cache, but any global attention layers grow linearly with context. At 1M tokens, KV memory for a single sequence can rival the spare HBM you have after weights, so concurrency collapses: you might serve dozens of 32K conversations or a handful of 1M ones on the same node. Prefill for a 1M-token prompt is also long, so you need chunked prefill to stop it stalling every decode in the batch. Practical plan: cap context per tier, quantise the KV cache, use prefix caching for shared documents, and route genuinely long requests to a separate pool.
+
+**Licence check.** It ships under the Muse Model License, not Apache 2.0, so read the terms before promising it for a hosted product.
+
+**Follow-ups:** How would you decide between expert parallelism and tensor parallelism for the MoE layers on one node? What would you measure to tell whether NVFP4 hurt quality on your workload?
+
+</details>
+
 ## How to prepare
 
 Mapped to this repo:
@@ -326,7 +346,7 @@ Company-specific moves:
 1. **Practice the AI-enabled round for real.** Recruiters reportedly provide CoderPad practice access - use it. Separately, practice fixing bugs in unfamiliar repos with an LLM in chat-only mode (no autocomplete, no file edits), narrating aloud. The bottleneck is reading unfamiliar code fast, not prompting.
 2. **Drill two-problems-in-45-minutes pacing** on Meta-tagged problem lists - the volume-and-speed bar is the most commonly reported failure mode.
 3. **Read Meta's official prep page** ([metacareers.com/ML-prep-onsite](https://www.metacareers.com/ML-prep-onsite/)) and download their MLE loop PDF - it's rare for a company to publish its own rubric; use it as ground truth over any third-party guide, including this one.
-4. **Read the Llama papers and Meta AI engineering blog posts** on Llama 3/4 training and infrastructure - training-reliability and architecture questions (Q4, Q9) map directly to what Meta has published. Then read the April 2026 Muse Spark launch coverage for where MSL is heading: closed first, reasoning efficiency, and deployment across every Meta surface (Q13).
+4. **Read the Llama papers and Meta AI engineering blog posts** on Llama 3/4 training and infrastructure - training-reliability and architecture questions (Q4, Q9) map directly to what Meta has published. Then read the April 2026 Muse Spark launch coverage (closed first, reasoning efficiency, deployment across every Meta surface; Q13), followed by the October 2026 Muse Wonder launch (frontier models on the Meta Model API and in Muse Code, pitched on "active memory" for agents) and the Muse Spark Open release (open weights for Muse Spark under the Muse Model License; Q14).
 5. **Use Meta AI and Reels seriously for a week** and form opinions with metrics attached: what would you measure, what's broken, what would you ship first? "Business acumen" is an explicit evaluation axis in their ML loops.
 
 ## Sources
@@ -336,6 +356,10 @@ Company-specific moves:
 - [Hello Interview - Meta's AI-Enabled Coding Interview](https://www.hellointerview.com/blog/meta-ai-enabled-coding)
 - [PracHub - Meta's AI-Enabled Coding Interview: What to Expect in 2026](https://prachub.com/resources/meta-ai-coding-interview) (third-party; 2026 expansion up to E7/M2, one classic plus one AI-enabled round)
 - [Fortune - Meta unveils Muse Spark](https://www.fortune.com/2026/04/08/meta-unveils-muse-spark-mark-zuckerberg-ai-push) (April 2026; first MSL model, launched closed inside Meta products)
+- [Meta - Introducing Muse Glimmer](https://research.meta.ai/blog/introducing-muse-glimmer-open-agentic-model) (August 2026; 30B Apache 2.0 open-weight model)
+- [TechCrunch - Meta releases its first frontier model, Muse Wonder](https://techcrunch.com/2026/10/12/meta-releases-its-first-frontier-model-muse-wonder/) (October 2026; API pricing, Muse Code availability)
+- [Meta - Build with Muse Spark Open](https://dev.meta.ai/resources/blog/build-with-muse-spark-open) (October 2026; architecture, weights, supported serving engines)
+- [Fortune - Alexandr Wang and Meta's Muse Wonder bet](https://fortune.com/2026/10/17/alexandr-wang-mark-zuckerberg-meta-superintelligence-labs-muse-wonder-ai-bet/) (October 2026; MSL team size)
 - [Exponent - Meta Machine Learning Engineer Interview Guide](https://www.tryexponent.com/guides/meta-machine-learning-engineer-interview)
 - [interviewing.io - How to use AI in Meta's AI-assisted coding interview](https://interviewing.io/blog/how-to-use-ai-in-meta-s-ai-assisted-coding-interview-with-real-prompts-and-examples)
 - [IGotAnOffer - Meta Machine Learning Engineer Interview](https://igotanoffer.com/blogs/tech/facebook-machine-learning-engineer-interview)

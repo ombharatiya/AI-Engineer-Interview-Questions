@@ -42,10 +42,10 @@ Why it transfers: supervision is **open-vocabulary natural language**, not a fix
 Every provider converts images to tokens; the budget scales with resolution. The exact schemes change with model generations, so check current docs before quoting a bill:
 
 - **OpenAI** (GPT-4o-class, high detail): image is resized and cut into **512×512 tiles**, ~170 tokens per tile + 85 base tokens; newer models count small patches instead, but the principle - tokens scale with area - is the same.
-- **Anthropic**: ~`(width × height) / 750` tokens, with images downscaled to a per-model cap (~1568 px on the long edge, about 1.6k tokens, for most models; newer flagship models accept higher resolution).
+- **Anthropic**: `ceil(width / 28) × ceil(height / 28)` visual tokens. Claude 4.7 and later (the whole current lineup) allow up to 2,576 px on the long edge and 4,784 tokens; older models such as Sonnet 4.6, Opus 4.6 and Haiku 4.5 cap at 1,568 px and 1,568 tokens. High-resolution images can use up to about three times the tokens, so downsample when the extra fidelity is not needed.
 - **Google Gemini**: Gemini 2.x charged ~258 tokens per small image or per 768×768 tile. Gemini 3 replaced tiling with a `media_resolution` setting that fixes the per-image budget: 280, 560, 1120 or 2240 tokens from low to ultra-high, 1120 by default.
 
-So a readable full page of a document costs on the order of **1-2k tokens**; a 100-page PDF sent as images is ~150k tokens *per request*. This is why **tiling / dynamic resolution** exists (LLaVA-NeXT's AnyRes, Qwen-VL's dynamic resolution): the model sees a low-res global view plus high-res crops, spending tokens only where needed. The engineering tradeoff is always the same - more pixels means better OCR and fine detail but linearly more cost and latency, and past the model's training resolution extra pixels buy nothing.
+So a readable full page of a document, downsampled to a modest resolution, costs on the order of **1-2k tokens**, and a dense page at a high-resolution tier can cost several thousand; a 100-page PDF sent as images is ~150k tokens or more *per request*. This is why **tiling / dynamic resolution** exists (LLaVA-NeXT's AnyRes, Qwen-VL's dynamic resolution): the model sees a low-res global view plus high-res crops, spending tokens only where needed. The engineering tradeoff is always the same - more pixels means better OCR and fine detail but linearly more cost and latency, and past the model's training resolution extra pixels buy nothing.
 
 ### What vision models get wrong
 
@@ -116,11 +116,11 @@ Video understanding is mostly *frame sampling + image understanding + the audio 
 
 ### Safety: provenance, deepfakes, filtering
 
-Generation-side safety is layered: prompt classifiers and policy filters on input (including uploaded reference images - real-person likeness, minors), output classifiers (NSFW; hash-matching against known CSAM), and refusal behaviour tuned into the model. **Provenance**: C2PA "Content Credentials" attach a cryptographically signed manifest saying who/what made the image - but it's metadata and strips on re-encode/screenshot; **invisible watermarking** (e.g. Google's SynthID) embeds a signal in pixels that survives common transforms. Know the honest limits: provenance proves *presence* of a claim, absence proves nothing; post-hoc deepfake *detection* classifiers are an arms race and unreliable as sole evidence. Voice cloning adds consent verification requirements, and regulation now mandates labelling: the EU AI Act's Article 50 transparency obligations, applying from August 2026 (with a short grace period for systems already on the market), require machine-readable marking of AI-generated content and disclosure of deepfakes.
+Generation-side safety is layered: prompt classifiers and policy filters on input (including uploaded reference images - real-person likeness, minors), output classifiers (NSFW; hash-matching against known CSAM), and refusal behaviour tuned into the model. **Provenance**: C2PA "Content Credentials" attach a cryptographically signed manifest saying who/what made the image - but it's metadata and strips on re-encode/screenshot; **invisible watermarking** (e.g. Google's SynthID) embeds a signal in pixels that survives common transforms. Know the honest limits: provenance proves *presence* of a claim, absence proves nothing; post-hoc deepfake *detection* classifiers are an arms race and unreliable as sole evidence. Voice cloning adds consent verification requirements, and regulation now mandates labelling: the EU AI Act's Article 50 transparency obligations, in application since 2 August 2026 (systems already on the market have until 2 December 2026 to meet the machine-readable marking duty), require marking of AI-generated content and disclosure of deepfakes. The voluntary Code of Practice on transparency of AI-generated content (final June 2026) and the Commission's Article 50 guidelines (July 2026) describe how.
 
 ## Interview questions
 
-See [questions.md](questions.md) - 40 questions with detailed answers, from basic to advanced.
+See [questions.md](questions.md) - 43 questions with detailed answers, from basic to advanced.
 
 ## Red flags interviewers watch for
 

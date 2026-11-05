@@ -4,22 +4,25 @@ Every AI engineering loop ends the same way: a behavioural round where they deci
 
 ## Anatomy of the 2026 AI Engineer loop
 
-A typical full loop is 4-6 rounds over 2-5 weeks. Stages vary, but this is the common skeleton:
+A typical full loop is 4-6 rounds over 2-5 weeks. Stages vary, but this is the common skeleton.
 
-**1. Recruiter screen (30 min).** Logistics, motivation, level calibration, comp expectations. Two things matter: have a crisp 90-second summary of your most impressive AI project (with a number in it), and don't anchor low on comp - deflect with "I'm optimising for the right role; I trust we can make comp work if there's mutual fit" until you have data (see offer section below).
+One shift to plan around: by late 2026 the market split in two directions at once. More rounds now allow or require AI tools, and more first-stage screens are run by AI. At the same time, many employers moved the rounds that matter to proctored or in-person formats to deter AI cheating: in ZipRecruiter's October 2026 employer survey, 70% of information-sector employers said they had made that move. Expect both kinds in one loop, and ask the recruiter which rules apply to each round.
+
+**1. Recruiter screen (30 min).** Logistics, motivation, level calibration, comp expectations. At some companies the first conversation is now with an AI screening agent (voice-first tools such as Metaview Screening): treat it like a recruiter screen, answer concretely, and assume a human reads the transcript. Two things matter: have a crisp 90-second summary of your most impressive AI project (with a number in it), and don't anchor low on comp - deflect with "I'm optimising for the right role; I trust we can make comp work if there's mutual fit" until you have data (see offer section below).
 
 **2. Coding (1-2 rounds).** The bar is real and has *risen* at AI companies, not fallen. Expect one of:
 - **LeetCode-lite / practical DSA**: strings, hashmaps, heaps, BFS/DFS at medium difficulty, graded on working code and communication more than optimal asymptotics.
 - **"Build a thing that calls an LLM"**: increasingly common. E.g. "implement a chat loop with tool calling", "build a rate-limited async client that batches requests", "parse this messy output into a schema with retries". Tests API fluency, async Python, error handling, and whether you've actually done this before. Practice writing a tool-use loop from scratch without a framework.
-- **AI-assisted coding rounds**: some companies now *let or require* you to use Copilot/Claude during the interview and grade how you direct the tool, verify its output, and catch its bugs. Ask the recruiter which rules apply.
+- **AI-assisted coding rounds**: many companies now *let or require* you to use an assistant and grade how you direct the tool, verify its output, and catch its bugs. Formats vary. LinkedIn's AI-enabled round replaces one traditional coding round, and in its CoderPad setup the assistant cannot edit code directly. A reported LinkedIn "Staff Coding with AI" variant hands you a small multi-file repo with 4-5 sub-questions, where the trap is spending the hour reading long agent output. Shopify runs AI coding rounds in your own IDE at both screening and onsite. Google says AI fluency is now a requirement for all its software engineering jobs and has been widening its AI-permitted formats. Practise both modes, and ask the recruiter which rules apply to each round.
+- **Proctored or in-person AI-free rounds**: the counterweight to the above. If a round is proctored, assume no assistant, no second screen and a shared-screen check, and practise writing a tool-use loop or a parser from memory.
 
 **3. ML/AI domain deep-dive (1 round).** Conceptual depth on your resume's claims: transformers, sampling, fine-tuning vs RAG vs prompting, evals, hallucination mitigation. Sections 01-10 of this repo are this round. The interviewer probes until you break - knowing where your knowledge ends and saying so beats bluffing every time.
 
 **4. AI system design (1 round).** "Design a support copilot / enterprise RAG / agent platform." Section 11 covers this. Differentiator: leading with evals, cost, and failure modes rather than boxes and arrows.
 
-**5. Behavioral (1 round, sometimes woven throughout).** The questions in [questions.md](questions.md). At senior+ levels this round carries as much weight as any technical round.
+**5. Behavioral (1 round, sometimes woven throughout).** The questions in [questions.md](questions.md). At senior+ levels this round carries as much weight as any technical round. Expect more probing of how you work with AI tools and how you exercise judgement without supervision: Anthropic's October 2026 analysis of its own interview scorecards found mentions of AI tooling roughly tripled for technical roles since 2024, with the largest growth in comments on autonomy and judgement.
 
-**6. Sometimes: take-home or paid work trial.** Covered below. Startups especially; a few run 1-5 day paid on-site trials in place of parts of the loop.
+**6. Sometimes: take-home or paid work trial.** Covered below. Startups especially; a few run 1-5 day paid on-site trials in place of parts of the loop. A few hiring managers have gone further and dropped the traditional coding interview, screening on resumes and portfolios of small prototypes instead (an Anthropic engineering manager described doing this in October 2026), which makes the portfolio section below matter more.
 
 ## How loops differ by company type
 
@@ -124,7 +127,7 @@ Reading answers is not the same as giving them under pressure. Before a real loo
 
 ## Interview questions
 
-42 behavioural and experience questions specific to AI work, with answer guidance, in [questions.md](questions.md).
+45 behavioural and experience questions specific to AI work, with answer guidance, in [questions.md](questions.md).
 
 ## Red flags interviewers watch for
 

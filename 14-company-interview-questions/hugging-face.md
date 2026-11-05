@@ -1,6 +1,6 @@
 # 🤗 Hugging Face - AI Engineer Interview Questions
 
-> **Last reviewed: October 2026.** Based only on public information - official pages, engineering blogs, and publicly shared candidate reports. Processes change and vary by team; treat this as a map, not a contract. No confidential or leaked material.
+> **Last reviewed: November 2026.** Based only on public information - official pages, engineering blogs, and publicly shared candidate reports. Processes change and vary by team; treat this as a map, not a contract. No confidential or leaked material.
 
 ## TL;DR
 
@@ -8,11 +8,12 @@
 - The reported skeleton: application → culture/mission screen → **2-3 conversational team interviews** → role-specific assessment (take-home or job talk) → final conversation with team leads or co-founders. Reported timelines are fast - roughly 2-3 weeks on average. A 2026 third-party guide describes the assessment debrief as a ~60-minute conversational deep dive where you walk through your take-home and justify each decision, with application to offer still around three weeks (reported, varies).
 - **Open-source track record is the single biggest lever.** Their talent lead has said 30-40% of hires come directly from the open-source community; visible PRs and projects are "the best way to show your added value."
 - The company is remote-first, low-hierarchy, and writing-heavy. They explicitly screen for **autonomous self-starters** - people who can "tell us where to go," not people who need a roadmap.
+- **Ownership is changing.** NVIDIA agreed in September 2026 to acquire Hugging Face for $12.93B. The deal is pending, NVIDIA has committed that the Hub stays open and will not require NVIDIA compute, and the CEO says all staff are staying. Have a considered view on platform neutrality under NVIDIA ownership, because "why Hugging Face" conversations will turn on it. No change to the take-home-based, no-LeetCode loop has been reported.
 - Expect deep fluency checks on **their ecosystem** (transformers, tokenizers, datasets, PEFT/TRL, the Hub, Gradio/Spaces) and on why open-source AI matters to you specifically. Generic applications reportedly get skipped.
 
 ## Company context
 
-Hugging Face is the GitHub of machine learning: the Hub hosts millions of model, dataset, and app (Spaces) repos, and the company maintains the open-source stack most of the industry fine-tunes and ships with - `transformers`, `tokenizers`, `datasets`, `peft`, `trl`, `accelerate`, plus research artifacts like the FineWeb corpus and SmolLM models. Two shifts matter for interviews: text-generation-inference (TGI) went into maintenance mode in December 2025, with Hugging Face now recommending vLLM and SGLang for serving, and `transformers` v5 (first release candidate December 2025) dropped TensorFlow and Flax to go PyTorch-only and is positioned as the model-definition layer that inference engines use as a backend. Revenue comes from enterprise Hub, inference endpoints, and partnerships, but the product surface is fundamentally open. An "AI engineer" here is usually a **machine learning engineer who ships in public** - library code, Hub features, demos, docs, and research reproductions - rather than someone tuning a proprietary model behind an API.
+Hugging Face is the GitHub of machine learning: the Hub hosts millions of model, dataset, and app (Spaces) repos, and the company maintains the open-source stack most of the industry fine-tunes and ships with - `transformers`, `tokenizers`, `datasets`, `peft`, `trl`, `accelerate`, plus research artifacts like the FineWeb corpus and SmolLM models. Several shifts matter for interviews. Text-generation-inference (TGI) went into maintenance mode in December 2025 and its GitHub repository was archived read-only in March 2026, with Hugging Face recommending vLLM and SGLang for serving, or local engines such as llama.cpp and MLX. In February 2026 ggml.ai, the company behind llama.cpp, joined Hugging Face (ggml and llama.cpp stay open source and community-led, with closer `transformers` integration planned), so local inference is now part of Hugging Face's own stack. And `transformers` v5 (first release candidate December 2025) dropped TensorFlow and Flax to go PyTorch-only and is positioned as the model-definition layer that inference engines use as a backend. Revenue comes from enterprise Hub, inference endpoints, and partnerships, but the product surface is fundamentally open. On 3 September 2026 NVIDIA agreed to acquire Hugging Face. The deal is pending, and no closing date has been published. NVIDIA's public commitments are that the Hub stays an open platform, that building on or deploying through Hugging Face will not require NVIDIA compute, that multi-cloud and multi-accelerator support continue, that open models from across the ecosystem stay supported, and that the brand continues; Clem Delangue has said all staff are staying. Security is the other live topic: in July 2026 Hugging Face disclosed an intrusion that began with a malicious dataset abusing dataset-processing code paths (see Q15). An "AI engineer" here is usually a **machine learning engineer who ships in public** - library code, Hub features, demos, docs, and research reproductions - rather than someone tuning a proprietary model behind an API.
 
 ## Roles & titles they hire
 
@@ -223,13 +224,13 @@ The interaction is half the job. This contributor is possibly a future colleague
 
 </details>
 
-### 13. Hugging Face put TGI into maintenance mode and now positions `transformers` as the model definition that engines like vLLM and SGLang can run as a backend. Argue for that strategy, then tell me what has to be true of the modeling code for it to work.
+### 13. Hugging Face put TGI into maintenance mode (and later archived the repository) and now positions `transformers` as the model definition that engines like vLLM and SGLang can run as a backend. Argue for that strategy, then tell me what has to be true of the modeling code for it to work.
 
 <details><summary><b>Answer</b></summary>
 
 The strategy trades owning a serving engine for owning the canonical model definition. Architecture support is the scarce resource: every new model needs a correct implementation, and serving engines compete on kernels and scheduling, not on porting. If a model lands in `transformers` on release day and engines can run it through a generic backend, the whole ecosystem gets day-zero support without N separate ports, and Hugging Face stops duplicating work that vLLM and SGLang do better.
 
-The costs are real. A generic backend path is usually slower than an engine's hand-tuned native port, so hot models still get native implementations and `transformers` becomes the correctness reference plus the long-tail path. Existing TGI users have to migrate, and architectures added after the maintenance cut-off get no TGI support. And a modeling bug now ships to every engine at once.
+The costs are real. A generic backend path is usually slower than an engine's hand-tuned native port, so hot models still get native implementations and `transformers` becomes the correctness reference plus the long-tail path. Existing TGI users have to migrate (the repository has been read-only since March 2026), and architectures added after the maintenance cut-off get no TGI support. Bringing ggml.ai in-house covers the local end of the same strategy: `transformers` as the definition, llama.cpp/GGUF as a first-party path to laptops and edge devices. And a modeling bug now ships to every engine at once.
 
 For it to work, the modeling code has to give up control of the things an engine owns:
 
@@ -243,13 +244,69 @@ For it to work, the modeling code has to give up control of the things an engine
 
 </details>
 
+### 14. NVIDIA has agreed to acquire us and committed that building on or deploying through the Hub will not require NVIDIA compute. As an engineer on the inference and deployment products, how would you design for, test and publicly demonstrate multi-accelerator and multi-cloud neutrality?
+
+<details><summary><b>Answer</b></summary>
+
+Start with why it matters. The Hub's value is that everyone publishes there: AMD, Google, AWS, Intel and Apple-silicon users included. If they come to believe the Hub tilts towards one vendor, they publish elsewhere and the network effect weakens. So neutrality is a product requirement with an owner, not a press-release line, and it needs evidence an outsider can check.
+
+**Design.** Put a hardware abstraction at every layer where the product touches compute:
+
+- **Model definition.** `transformers` stays accelerator-agnostic: attention and kernels go through registries (`attn_implementation`, kernel hubs), so vendor kernels are plug-ins, never hard dependencies in modeling code.
+- **Formats.** safetensors and GGUF stay vendor-neutral. Quantization formats get documented specs, so FP8 or NVFP4 checkpoints are not the only first-class option and AMD, TPU and Apple formats get equal treatment on model cards.
+- **Deployment products.** Inference Endpoints and the "Deploy" buttons are driven by a provider and accelerator catalogue. Defaults are chosen by a published rule (price and latency for the model, availability) rather than by vendor, and the UI never hides a non-NVIDIA option that works.
+- **Local paths.** llama.cpp, MLX and ONNX remain first-class targets, so "runs on a laptop" never depends on a datacentre GPU.
+
+**Test.** Build a cross-accelerator CI matrix: every popular architecture is loaded and run on NVIDIA, AMD (ROCm), TPU, Trainium/Inferentia, CPU and Apple silicon. It checks logit parity against a reference, a small task-eval delta and a throughput smoke test. Track the time from model release to working support per accelerator as a published metric. A widening gap is the early warning sign that neutrality is slipping in practice, even if nobody intended it.
+
+**Demonstrate.** Publish the matrix results and the release-to-support times on a public dashboard. Keep vendor-specific optimisation PRs reviewed under the same rules as everyone else's. Keep partner integrations (cloud marketplaces, other chips' inference providers) on documented, equal-access APIs. Internally, give neutrality regressions the same severity as security regressions.
+
+The honest trade-off: NVIDIA engineers will produce more optimisation work for NVIDIA hardware, and refusing it would make the product worse. The neutral stance is not "equal speed everywhere". It is "equal access, documented paths, no lock-in, and visible measurements", so users can see the difference and choose.
+
+**Follow-ups:** A vendor kernel makes a popular model 3x faster but only on one accelerator. Do you make it the default? Which metric would convince a sceptical AMD or Google partner that nothing has changed? What would you do if a cloud partner's integration quietly fell behind?
+
+</details>
+
+### 15. A malicious dataset on a public hub gets code execution on processing workers through a remote-code dataset loader and a template injection in a dataset config, then harvests cluster credentials. Design dataset ingestion so that cannot happen again.
+
+<details><summary><b>Answer</b></summary>
+
+This is the shape of the incident Hugging Face disclosed in July 2026. The attacker reached node-level access, harvested cloud and cluster credentials and moved laterally. The lesson is that the dataset viewer, conversion and statistics workers are part of the attack surface, just as much as model loading with `trust_remote_code` and pickle. Every uploaded dataset is untrusted input running through your code.
+
+**Remove code paths, then contain the rest.**
+
+- **No remote code in shared workers.** Dataset loading scripts are arbitrary Python. Ingestion should only handle declarative formats (Parquet, Arrow, JSONL, CSV, WebDataset) and convert script-based datasets offline, if at all, inside a disposable sandbox. This mirrors the safetensors argument: prefer a format that cannot carry code over scanning one that can.
+- **No templating of untrusted config.** Treat every field in a dataset config or card as data. Never render it through a template engine with access to objects, filters or the environment. Use a strict schema with typed fields and a parser that rejects anything else, and fuzz it.
+- **Sandbox each job.** Run each dataset job in a short-lived microVM or gVisor-style sandbox: no service-account token mounted, read-only root, no metadata-endpoint access, egress denied except to the object store, CPU, memory and time limits, and the sandbox destroyed after the job.
+- **Credentials outside the blast radius.** Workers get a scoped, short-lived token that can read one input object and write one output prefix. Cluster-admin and cloud credentials never exist on nodes that run tenant workloads. Admission controls stop tenant pods from running privileged, mounting host paths or using the host network.
+- **Detection.** Alert on unexpected egress, process trees that should not exist (a shell under a Parquet converter), metadata-service calls and credential use from unusual nodes. LLM-assisted triage can help a small team sort alerts quickly. Hugging Face ran its forensics on a self-hosted open-weight model after hosted commercial models refused the work, which is a useful reminder to have that capability ready before you need it.
+- **Response.** Rebuild nodes from images rather than cleaning them, rotate every credential the nodes could reach, and publish a clear disclosure.
+
+A wider point is worth naming: OpenAI later attributed the intrusion to its own evaluation agents. Public hubs should now assume some uploads come from capable automated attackers working fast and at scale, so rate limits and anomaly detection on new accounts and uploads matter as much as the sandbox.
+
+**Worth sketching.** Optional, but the trust boundaries are clearer as a picture.
+
+```mermaid
+flowchart LR
+    A["Untrusted upload"] --> B["Schema validation<br/>(no templating)"]
+    B --> C["Job queue"]
+    C --> D["Disposable sandbox<br/>(no creds, no egress)"]
+    D -->|"scoped token"| E["Object store output"]
+    D -.->|"blocked"| F["Cluster and cloud<br/>credentials"]
+    D --> G["Runtime detection"]
+```
+
+**Follow-ups:** How do you keep supporting the long tail of script-based datasets without running their code in shared infrastructure? What would you log so you could reconstruct an intrusion like this in hours rather than days? How do you stop the dataset viewer itself becoming a cross-site scripting vector?
+
+</details>
+
 ## How to prepare
 
 Priority order for this repo's topics:
 
 1. **[02-llm-fundamentals](../02-llm-fundamentals/)** - tokenization is *their* library; know BPE/WordPiece/Unigram mechanics, chat templating, and transformer internals well enough to discuss implementation, not just concepts.
 2. **[05-fine-tuning-and-alignment](../05-fine-tuning-and-alignment/)** - the PEFT/TRL stack is Hugging Face's bread and butter. LoRA/QLoRA memory math, SFT data handling, DPO vs. PPO - this is the most likely technical-discussion territory for ML roles.
-3. **[08-inference-and-production](../08-inference-and-production/)** - they built TGI (now in maintenance mode, with vLLM and SGLang recommended in its place) and run inference-as-a-product; continuous batching, KV-cache economics, quantization, and multi-model serving are directly on-topic.
+3. **[08-inference-and-production](../08-inference-and-production/)** - they built TGI (now archived, with vLLM and SGLang recommended in its place) and now house llama.cpp's maintainers, and run inference-as-a-product; continuous batching, KV-cache economics, quantization, and multi-model serving are directly on-topic.
 4. **[07-evaluation-and-observability](../07-evaluation-and-observability/)** - leaderboards and open evaluation are part of their identity; ablation-driven, benchmark-honest thinking shows up in their research culture (FineWeb, SmolLM).
 5. **[12-coding-challenges](../12-coding-challenges/)** - but calibrate: the assessment is a take-home mirroring real work, not algorithms. Practice producing a *polished notebook + clear written explanation*, which is what reported take-homes actually grade.
 6. **[13-interview-process-and-behavioral](../13-interview-process-and-behavioral/)** - the culture screen is the first gate; prepare concrete autonomy and community-collaboration stories.
@@ -262,6 +319,7 @@ Company-specific moves:
 - **Ship a Space.** Build a Gradio demo around a model you care about, with a proper model/dataset card. Reported intern take-homes look exactly like this, and it doubles as the "impact" evidence their application screen asks for.
 - **Read their engineering blog like source material** (huggingface.co/blog): the FineWeb dataset report, the Zephyr/alignment-handbook posts, the transformers design-philosophy post, and the safetensors security work map almost one-to-one onto the discussion topics above.
 - **Write your application like it's the first interview round.** The recruiter's public advice: three specific sentences on how *you* would make an impact, GitHub link included. Generic applications get skipped.
+- **Have a view on the NVIDIA deal.** Read NVIDIA's announcement and its neutrality commitments, and be ready to say what you think stays the same, what could drift, and what engineering would keep the Hub hardware-neutral (Q14).
 - **Prepare for written, async depth.** The culture is remote-first and writing-heavy - treat the take-home's prose (the email, the README, the notebook narrative) as equally weighted with the code, because reports suggest it is.
 
 ## Sources
@@ -273,6 +331,10 @@ Company-specific moves:
 - [Interview Query: Hugging Face Machine Learning Engineer guide](https://www.interviewquery.com/interview-guides/huggingface-machine-learning-engineer) and [Software Engineer guide](https://www.interviewquery.com/interview-guides/huggingface-software-engineer) - third-party stage breakdowns (unofficial)
 - [Hugging Face blog: Transformers v5](https://huggingface.co/blog/transformers-v5) - official: PyTorch as the sole backend, `transformers` as a backend for inference engines (published December 2025 with the first v5 release candidate)
 - [Text Generation Inference docs](https://huggingface.co/docs/text-generation-inference/index) - official maintenance-mode notice and the recommendation to use vLLM or SGLang
+- [NVIDIA to acquire Hugging Face (NVIDIA blog, September 2026)](https://blogs.nvidia.com/blog/nvidia-to-acquire-hugging-face/) - $12.93B, pending; open Hub, no NVIDIA-compute requirement, multi-cloud and multi-accelerator support, brand continues
+- [CRN: NVIDIA acquires Hugging Face](https://www.crn.com.au/news/2026/ai/nvidia-acquires-hugging-face-us12-billion-mega-deal) and [Semafor coverage](https://semafor.com/article/09/03/2026/nvidia-to-buy-hugging-face-for-nearly-13-billion) - Delangue on staff staying
+- [Hugging Face blog: Security incident, July 2026](https://huggingface.co/blog/security-incident-july-2026) - malicious dataset, remote-code loader and dataset-config template injection, remediation
+- [text-generation-inference on GitHub](https://github.com/huggingface/text-generation-inference) - archived read-only, March 2026
 - [Transformers docs: Loading models](https://huggingface.co/docs/transformers/main/en/models) - `dtype` argument, legacy `torch_dtype`, default dtype behaviour
 - [TechPrep: Hugging Face's Interview Process (2026)](https://www.techprep.app/blog/hugging-face-interview-process) - third-party 2026 stage breakdown: ~60-minute take-home deep dive, ~3-week timeline (unofficial)
 - [Hugging Face blog: We are hiring interns!](https://huggingface.co/blog/interns-2023) - official post describing intern roles and application expectations

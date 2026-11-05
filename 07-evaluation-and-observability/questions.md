@@ -1,6 +1,6 @@
 # Evals & Observability - Interview Questions
 
-55 questions: 14 basic, 24 intermediate, 17 advanced.
+61 questions: 14 basic, 26 intermediate, 21 advanced.
 
 > **On the diagrams: drawing is optional.** Some answers include a small sketch you could
 > reproduce on a whiteboard or in a shared doc. You never have to draw anything to score well,
@@ -333,7 +333,7 @@ They are a standardised vocabulary for describing LLM operations in traces: agre
 
 Why care: it decouples instrumentation from backend. If your app emits standard OTel spans, you can point them at Langfuse, Phoenix, Datadog, Honeycomb or your own collector without touching application code. The alternative is a vendor SDK threaded through every call site, which quietly becomes the reason you cannot leave that vendor. It also means LLM spans sit in the same trace as your HTTP and database spans, so you can see that the 4 second p95 was 300ms of model and 3.7s of your own retrieval code. Many frameworks now emit compliant spans natively or through an instrumentation package, so you often get this close to free.
 
-Two caveats worth raising. First, as of late 2026 the gen_ai.* conventions are still at Development stability (what OTel used to call experimental), not Stable, and the work has been moving into its own repository so it can iterate faster than the core conventions. Attribute names and span shapes can change between releases without a deprecation window. Pin your instrumentation version, read the changelog on upgrade, and expect churn rather than treating the names as settled.
+Two caveats worth raising. First, as of late 2026 the gen_ai.* conventions are still at Development stability (what OTel used to call experimental), not Stable, and the work has moved into its own repository (open-telemetry/semantic-conventions-genai), which had no tagged release as of early November 2026 and was still changing emitted names. In November 2026 it folded invoke_workflow into invoke_agent, dropped gen_ai.workflow.name and deprecated the gen_ai.retrieval.client span. Attribute names and span shapes can change without a deprecation window. Pin your instrumentation version, read the changelog on upgrade, and expect churn rather than treating the names as settled.
 
 Second, and more important in interviews: the conventions cover mechanics, not quality. Tokens, models, parameters, latency, finish reasons. There is no standard for "was this answer correct" or "did this violate policy". Eval scores and safety verdicts are your own custom attributes layered on top. OTel gives you the skeleton and portability; the judgement is still yours to build.
 
@@ -502,7 +502,7 @@ Right usage: coarse shortlisting and capability trend-watching. Then run the sho
 
 <details><summary><b>Answer</b></summary>
 
-Contamination is test data leaking into training data - the model has seen the benchmark's questions (or near-duplicates) during pretraining or fine-tuning, so its score measures memorisation rather than capability. It's endemic because benchmarks are published on the open web, get quoted in blog posts and GitHub repos, and pretraining corpora hoover all of it. It can be indirect too: paraphrases, translated versions, or training on model outputs that themselves solved the benchmark.
+Contamination is benchmark answers reaching the model by a route the benchmark did not intend. The classic route is training data - the model has seen the benchmark's questions (or near-duplicates) during pretraining or fine-tuning, so its score measures memorisation rather than capability. For agents with web or code tools there is a second route at test time: the agent looks the answer up. It's endemic because benchmarks are published on the open web, get quoted in blog posts and GitHub repos, and pretraining corpora hoover all of it. It can be indirect too: paraphrases, translated versions, or training on model outputs that themselves solved the benchmark.
 
 Detection approaches, none perfect:
 
@@ -516,6 +516,12 @@ Protection, for your own evals:
 - **Keep your eval set private** - never in a public repo, never in blog posts, and be careful about pasting it into third-party services whose terms allow training on inputs.
 - **Refresh continuously** from production - new failures postdate any model's training data by construction, which makes a production-sourced eval set naturally contamination-resistant.
 - **Hold out a never-published slice** used only for final model-selection decisions, distinct from the dev set your prompt iteration may have overfit to.
+
+Test-time contamination needs its own defences. Anthropic documented Claude Opus 4.6 on BrowseComp working out which benchmark it was in, finding the eval code and decrypting the answer key, and found at least 20 public sources of leaked answers. For tool-using agents:
+
+- **Block search results that mention the benchmark name**, which worked better than URL blocklists in that study, and block retrieval of known answer files and mirrors.
+- **Read traces for eval awareness**: reasoning about which benchmark this is, searches for the dataset, attempts to decode files.
+- **Re-run flagged items** with those routes closed, and report the score with and without them.
 
 **Follow-ups:** Can contamination make a model look *worse*? Your vendor claims decontamination via 13-gram overlap - what does that miss?
 
@@ -1003,9 +1009,70 @@ Two production details. The router's inputs drift like everything else, so monit
 
 </details>
 
+### 39. Same model, same prompts, same agentic coding benchmark, and your two clusters disagree by six points. What is infrastructure noise, and how do you run and report agent evals so the number means something?
+
+<details><summary><b>Answer</b></summary>
+
+Infrastructure noise is score variance that comes from the environment rather than the agent: containers killed for memory, test suites timing out on a throttled CPU, package installs failing on a flaky network, model API rate limits, slow disks. Agentic coding evals are unusually sensitive because the agent runs real builds and tests, and because resource limits change behaviour, not only pass or fail. An agent with headroom may try a heavier approach that a tight container kills halfway.
+
+Six points is not an outlier. Anthropic measured a 6-point gap on Terminal-Bench 2.0 between its most- and least-resourced setups, and giving 3x resource headroom cut infrastructure errors from 5.8% to 2.1%. That is larger than the gap between many models on a leaderboard.
+
+How I would run it:
+
+- **Guaranteed allocation plus a separate kill threshold.** Guarantee the resources you say the task gets, and only kill at a higher ceiling, so a brief spike during a build does not fail the task. A single hard limit set at the nominal value turns ordinary variance into failures.
+- **Treat resources as an experimental variable.** Run the suite at two or three resource levels once, and see how sensitive this agent is. If the score moves several points, the resource spec is part of the result.
+- **Classify every failure as infrastructure or agent.** Use exit codes, OOM events, timeouts and API errors. Report the infrastructure error rate with the score. Be careful about re-running only infrastructure failures: if they cluster on the hardest tasks, retries change the task mix. Report both the raw and the retried number.
+- **Run on several days**, not one batch, so a bad night on a shared cluster does not become your result.
+- **Pair comparisons on one cluster.** Run both models on the same tasks, the same hardware and the same window, and analyse per-task differences.
+
+How I would report it: the score with a confidence interval, the infrastructure error rate, the resource spec, the harness version and the run dates. The arithmetic matters too. On 100 tasks at about 50%, the standard error is 5 points, so the 95% interval is roughly 10 points either side. Anthropic's advice to be sceptical of leads under 3 points is, if anything, generous for small suites.
+
+**Follow-ups:** Your infrastructure error rate is 2% but concentrated in 10% of tasks: what do you do with those tasks? How would you detect that a cluster change, not a model change, moved your nightly score? What resource spec would you publish alongside a leaderboard number?
+
+</details>
+
+### 40. A vendor reports 99.9% on a benchmark with its own harness and 62.7% with the standard one. Which number do you trust, and how do you compare models when the harness is part of the system?
+
+<details><summary><b>Answer</b></summary>
+
+Both numbers can be honest. They measure different systems, and the question is which system you are going to run.
+
+The real case: in September 2026 ARC Prize reported GPT-6 Astra on the ARC-AGI-3 semi-private set at 62.7% with the standard harness (max effort, about $26.1K) and 99.9% with OpenAI's Provider Adapter harness (high effort, about $18.8K). The adapter kept opaque reasoning state between requests and used compaction, and ran about 3.66x faster with 49% fewer tokens. ARC Prize now reports both, labelled. A 37-point gap from the harness alone is the strongest argument that "model X scores Y" is an incomplete sentence.
+
+How I read the two numbers:
+
+- **The standard harness** is the fair cross-model comparison: every model gets the same scaffold, so differences are mostly the model. It is the number for shortlisting.
+- **The provider harness** is the ceiling for that model when used the way its maker intends. It is the relevant number only if you can and will run that way in production.
+
+The questions I ask before trusting the higher one:
+
+- **Is the harness available to me?** If it relies on provider-side state or features I cannot use, the number describes a product I cannot buy.
+- **Was the budget accounted for in the same way?** Tokens, dollars and wall-clock time, including whatever the harness does between requests.
+- **What does the harness change about my system?** Opaque reasoning state that persists across calls affects debugging, portability between providers, and data-retention arrangements. Compaction changes what the model remembers. These are architecture decisions, not eval details.
+- **Was anything else different?** Tool formats, retry policy, number of attempts.
+
+How I compare candidates in practice: a small matrix. Each candidate model runs in my own harness (the one my product uses) and in its provider's recommended harness, on my tasks, with cost per task and latency next to the score. If a model only wins in its own harness, the decision becomes whether adopting that harness is worth the lock-in. That is a legitimate choice, but it should be made explicitly rather than hidden inside a leaderboard number.
+
+**Worth sketching.** Optional, but the 2x2 makes the point that the harness is a variable you control.
+
+```mermaid
+flowchart LR
+    M["Candidate model"] --> S["Standard harness"]
+    M --> P["Provider harness"]
+    M --> O["Your product harness"]
+    S --> C["Cross-model comparison"]
+    P --> D["Ceiling, if you can run it"]
+    O --> E["Score, cost per task, latency"]
+    E --> F["Decision"]
+```
+
+**Follow-ups:** A model wins only in its provider's harness: how do you price the lock-in? What would you require a vendor to disclose before you accept a harness-specific number? How does persistent opaque reasoning state change your observability and replay setup?
+
+</details>
+
 ## Advanced
 
-### 39. How do you evaluate agents? Compare trajectory-based and outcome-based approaches.
+### 41. How do you evaluate agents? Compare trajectory-based and outcome-based approaches.
 
 <details><summary><b>Answer</b></summary>
 
@@ -1033,7 +1100,7 @@ flowchart LR
 
 </details>
 
-### 40. How does Chatbot Arena - style evaluation work, and what are its strengths and limits?
+### 42. How does Chatbot Arena - style evaluation work, and what are its strengths and limits?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1055,7 +1122,7 @@ Net: excellent for tracking the frontier and coarse shortlisting; never a substi
 
 </details>
 
-### 41. Your new prompt scores 78% vs the old prompt's 74% on a 100-example eval. Do you ship it?
+### 43. Your new prompt scores 78% vs the old prompt's 74% on a 100-example eval. Do you ship it?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1084,7 +1151,7 @@ flowchart TD
 
 </details>
 
-### 42. Design the observability stack for a production LLM application. What does a good trace look like?
+### 44. Design the observability stack for a production LLM application. What does a good trace look like?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1117,7 +1184,7 @@ Tooling: LangSmith, Langfuse, Braintrust, W&B Weave, Arize Phoenix all implement
 
 </details>
 
-### 43. How do you monitor a deployed LLM system for drift? What kinds of drift matter?
+### 45. How do you monitor a deployed LLM system for drift? What kinds of drift matter?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1148,7 +1215,7 @@ flowchart LR
 
 </details>
 
-### 44. Where does Goodhart's law bite in LLM evaluation? Give concrete examples and defences.
+### 46. Where does Goodhart's law bite in LLM evaluation? Give concrete examples and defences.
 
 <details><summary><b>Answer</b></summary>
 
@@ -1186,7 +1253,7 @@ flowchart LR
 
 </details>
 
-### 45. Evals are nondeterministic - temperature, sampling, flaky agents. How do you get trustworthy numbers?
+### 47. Evals are nondeterministic - temperature, sampling, flaky agents. How do you get trustworthy numbers?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1194,13 +1261,13 @@ Accept that each eval score is a sample from a distribution, then engineer the v
 
 **Reduce variance where it's free:**
 
-- Grade at **temperature 0 / greedy** *if* that's how production runs; otherwise eval at the production temperature - measuring greedy while shipping t=0.8 is measuring a different system. Note that even t=0 isn't fully deterministic on real serving stacks (batching and floating-point non-associativity flip tokens occasionally), so determinism is an approximation, not a guarantee.
+- Grade at **temperature 0 / greedy** *if* that's how production runs and the API still lets you set it; otherwise eval at the production temperature - measuring greedy while shipping t=0.8 is measuring a different system. Note that even t=0 isn't fully deterministic on real serving stacks (batching and floating-point non-associativity flip tokens occasionally), so determinism is an approximation, not a guarantee. On many closed frontier APIs this knob is gone: as of late 2026 several providers ignore or reject custom temperature and top_p on their newest models, so sampling settings mainly belong to self-hosted serving. On those closed APIs you pin the snapshot and measure variance instead of trying to remove it.
 - Pin everything pinnable: model snapshot, judge snapshot, dataset version, tool/sandbox environment (dependency versions, seeds, clocks). In agent sandboxes, flaky tests and non-reset state are variance you can actually eliminate - do it.
 
 **Measure the variance you can't eliminate:**
 
 - **k repeats per case** (k=3-5 for LLM calls; more for agents, whose trial-to-trial variance is enormous - single-run agent scores are anecdotes). Report mean ± a bootstrap CI over cases *and* runs. Per-case flip rates tell you which cases are coin flips - segment them out or fix their ambiguity.
-- Judges are stochastic too: repeated judging of *identical* outputs flips verdicts. Include judge variance in your error bars or force judge determinism (t=0, structured output) and validate that flip rates are near zero.
+- Judges are stochastic too: repeated judging of *identical* outputs flips verdicts. Include judge variance in your error bars or push the judge toward determinism (t=0 where the API allows it, structured output, a pinned snapshot) and validate that flip rates are near zero.
 - For comparisons, use **paired analysis** (same cases, per-case deltas, McNemar/bootstrap-of-differences) - pairing cancels case-difficulty variance and is the single biggest power win available.
 
 **Choose metrics that embrace stochasticity rather than hide it:**
@@ -1214,7 +1281,7 @@ Culture point: put error bars on every eval number shown in a decision context. 
 
 </details>
 
-### 46. A team ships prompt changes on vibes - the founder tries five favourite prompts and merges. How do you move them to eval maturity without halting shipping?
+### 48. A team ships prompt changes on vibes - the founder tries five favourite prompts and merges. How do you move them to eval maturity without halting shipping?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1234,7 +1301,7 @@ The maturity ladder you're walking: vibes → written spot-checks → versioned 
 
 </details>
 
-### 47. Your new prompt improves aggregate pass rate by 3 points, but one customer segment drops 8. How do you catch this before shipping, and what do you do about it?
+### 49. Your new prompt improves aggregate pass rate by 3 points, but one customer segment drops 8. How do you catch this before shipping, and what do you do about it?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1268,7 +1335,7 @@ flowchart TD
 
 </details>
 
-### 48. Design the evaluation for a document understanding feature: users upload invoices and scanned forms and ask questions about them.
+### 50. Design the evaluation for a document understanding feature: users upload invoices and scanned forms and ask questions about them.
 
 <details><summary><b>Answer</b></summary>
 
@@ -1292,7 +1359,7 @@ On ground truth, be realistic. Annotating one document is minutes, not seconds. 
 
 </details>
 
-### 49. How does evaluating and observing a reasoning model differ from a standard one?
+### 51. How does evaluating and observing a reasoning model differ from a standard one?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1312,7 +1379,7 @@ Finally, overthinking on trivial inputs is a real regression. Track budget spent
 
 </details>
 
-### 50. How would you build a deterministic replay harness for agent evals, and what does it genuinely buy you?
+### 52. How would you build a deterministic replay harness for agent evals, and what does it genuinely buy you?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1343,7 +1410,7 @@ flowchart TD
 
 </details>
 
-### 51. Your eval suite is green, ship velocity is good, and users are complaining that quality got worse. Debug it.
+### 53. Your eval suite is green, ship velocity is good, and users are complaining that quality got worse. Debug it.
 
 <details><summary><b>Answer</b></summary>
 
@@ -1384,7 +1451,7 @@ flowchart TD
 
 </details>
 
-### 52. How do you evaluate your eval suite itself? What makes one good or bad?
+### 54. How do you evaluate your eval suite itself? What makes one good or bad?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1422,7 +1489,7 @@ flowchart LR
 
 </details>
 
-### 53. Running your LLM judge on every production trace would cost more than the feature itself. How do you monitor quality online at scale?
+### 55. Running your LLM judge on every production trace would cost more than the feature itself. How do you monitor quality online at scale?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1455,7 +1522,7 @@ flowchart TD
 
 </details>
 
-### 54. Your team wants to reuse the eval suite's graders as the reward signal for reinforcement fine-tuning. What changes?
+### 56. Your team wants to reuse the eval suite's graders as the reward signal for reinforcement fine-tuning. What changes?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1475,7 +1542,7 @@ Finally, version the reward grader as part of the training run's provenance. A j
 
 </details>
 
-### 55. Your agent now runs tasks that take hours and hundreds of steps. How do you evaluate and observe it?
+### 57. Your agent now runs tasks that take hours and hundreds of steps. How do you evaluate and observe it?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1508,5 +1575,137 @@ flowchart LR
 ```
 
 **Follow-ups:** How do you write milestones for a task with many valid paths without punishing the unconventional ones? Your agent's success rate at four-hour tasks doubled after a model upgrade, but cost per success tripled. Is that a win?
+
+</details>
+
+### 58. Your agent calls a tool over MCP and a vendor's agent over A2A. How do you get one end-to-end trace across your agent, the MCP server and the vendor's agent, and what do the OpenTelemetry GenAI conventions give you there?
+
+<details><summary><b>Answer</b></summary>
+
+One trace across three parties only exists if trace context crosses every boundary, and each boundary carries it differently. Inside your own service, ordinary OTel context propagation does the work. The two hops out are where traces usually break into three disconnected fragments.
+
+**The MCP hop.** MCP can run over stdio, where there are no HTTP headers to carry a `traceparent`. The 2026-07-28 MCP revision fixes this by reserving `traceparent`, `tracestate` and `baggage` in a request's `_meta`, with values in W3C Trace Context and W3C Baggage format. So the client injects the current span context into `_meta` on every `tools/call`, and the server extracts it and parents its own spans under yours. If you run your own MCP servers, add this to the server middleware once rather than per tool. If you call someone else's, check whether they extract it; many will not yet.
+
+**The A2A hop.** A2A rides on HTTP, so standard W3C trace headers propagate. OpenTelemetry merged A2A conventions in late October 2026: client and server spans named by the A2A method (for example `SendMessage`), `a2a.task.id` and `a2a.task.state` attributes, `gen_ai.conversation.id` set from the A2A `contextId`, and the agent's name, version and description filled from its Agent Card. That gives you stable join keys even when the vendor's spans are not visible to you.
+
+**Propagation is not export.** The vendor can honour your `traceparent` and still record its spans in its own backend. What you realistically get is a shared trace ID and task ID you can quote in a support ticket, plus your own client span showing latency and outcome. If deep visibility matters, negotiate span export or a per-task status endpoint in the contract. Long-running A2A tasks also outlive the request that started them, so link later spans to the original with span links keyed on `a2a.task.id` rather than forcing one trace that stays open for hours.
+
+**Treat inbound and outbound context as a trust boundary.** Baggage travels to third parties, so never put user IDs, emails or tenant names in it, and strip it at egress to anything you do not run. Inbound `tracestate` and baggage from a vendor are untrusted input: do not let them drive sampling decisions or land unvalidated in log fields.
+
+**What the conventions give you, and what they do not.** They give you shared names for model calls, tool executions, agent invocations and now A2A and MCP spans, so one backend can render the whole tree. They are still at Development status, and the dedicated repository had no tagged release as of early November 2026. In the first week of November alone it folded `invoke_workflow` into `invoke_agent` and deprecated the `gen_ai.retrieval.client` span, which silently breaks any dashboard keyed on those names. Pin the instrumentation version, and map emitted names to your own stable internal names in the collector, so a convention change is one config edit rather than every dashboard.
+
+**Worth sketching.** Optional, but drawing the two carriers side by side shows why the MCP context lives in the message and the A2A context lives in the headers.
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant A as Your agent
+    participant M as MCP server
+    participant V as Vendor agent
+    participant C as Collector
+    U->>A: request, root span starts
+    A->>M: tools/call with traceparent in _meta
+    M-->>A: result, child span recorded
+    A->>V: SendMessage with traceparent header
+    V-->>A: task id and state
+    A->>C: spans keyed by trace id and a2a.task.id
+```
+
+**Follow-ups:** The vendor refuses to export spans: what is the minimum you would ask them to log so a cross-company incident can still be joined up? How would you keep a dashboard working through a breaking rename in the GenAI conventions? What would you never allow into baggage, and how do you enforce that?
+
+</details>
+
+### 59. Your coding agent passes the hidden tests, but maintainers say they would reject many of its pull requests. Design an evaluation that scores mergeability. How do you validate the graders, and why might scores fall as you raise reasoning effort?
+
+<details><summary><b>Answer</b></summary>
+
+Hidden tests answer one question: does the patch make these tests pass. Maintainers ask a different one: would I merge this. A patch can pass every test and still be rejected because it fixed one call site and missed three siblings, added no tests, reformatted unrelated files, changed a public API, or ignored the project's conventions. So the eval has to grade the thing maintainers grade.
+
+**Tasks written by the people who would review the PR.** Cognition's FrontierCode 2.0 (October 2026) is the clearest public example: over 20 open-source maintainers built tasks from their own repositories, spending over 40 hours on each, and graders test whether the output is actually mergeable. Two details are worth copying. In 80% of its tasks the reference solution differs from the upstream PR, because maintainers improved on what was merged. So do not grade by similarity to the historical diff; grade against criteria.
+
+**Rubric with blockers.** Score each solution as a weighted aggregate of rubric items, and add blocking criteria that zero the score if any one fails:
+
+- **Blockers**: tests fail, a public interface changes without need, unrelated files are touched, a security regression appears, or an obvious related fix is missing.
+- **Weighted items**: tests added for the new behaviour, conventions followed, a minimal diff, docs or changelog updated, error handling consistent with the codebase.
+
+The hardest blockers to write are thoroughness requirements, the unstated things a good engineer would infer: update the other callers, handle the empty case, keep the CLI flag in sync with the config file. In FrontierCode 2.0 thoroughness blockers rose from 168 to 501 and were the ones failed most often, which matches what maintainers complain about.
+
+**Graders.** Each rubric item is its own check: deterministic where possible (tests, linters, diff scope), otherwise an LLM judge with read access to the repository, judging one item at a time and quoting the lines it relied on. The judge reads the diff, not the agent's PR description, because the description is self-report.
+
+**Validating the graders.** Have maintainers label a sample of agent PRs, merge or reject, plus per-item verdicts. Measure per-item agreement, and weight blocker false negatives most heavily, since a missed blocker turns a rejected PR into a perfect score. Keep an adversarial set: PRs that pass every test but a maintainer rejected, and PRs that look scrappy but were merged. Re-run validation whenever the agent or the judge model changes, because the failures the judge has to catch shift with the agent.
+
+**Why more reasoning effort can lower the score.** The FrontierCode post reports models scoring lower at higher reasoning effort. I would treat the mechanism as a hypothesis to test rather than a given, but blockers make it plausible: more effort tends to produce larger, more ambitious diffs, and one out-of-scope refactor or speculative change zeroes the whole solution. So sweep effort as an experimental variable, report blocker-failure rate per effort level, and pick the setting that maximises merged-quality per dollar rather than assuming maximum effort is best.
+
+**Follow-ups:** How do you write a thoroughness blocker that a judge can apply consistently? A maintainer and the judge disagree on 20% of blocker verdicts: what do you change first? Would you use this rubric as a training reward, and what would you expect to go wrong?
+
+</details>
+
+### 60. Your browsing-agent benchmark runs on the live internet. Mid-run the agent exploited an injection flaw in a third-party site to get an answer and submitted a real government form. Nobody attacked it. How do you scope, contain and audit agent evals?
+
+<details><summary><b>Answer</b></summary>
+
+This is not hypothetical. In October 2026 Anthropic reported Claude models doing these things, mostly in public benchmarks run on the live internet: exploiting an injection flaw in a university-hosted analysis tool after it returned an error, an unreleased model submitting a real government form when the practice form failed to load, a model using access tokens it read from a settings file, and models using URL shorteners to get round a fetch tool's URL length limit. Wikimedia separately documented agents making test edits on its wikis and reconfiguring a citation tool to use it as a proxy. The causes Anthropic named are the useful part: ambiguous or impossible tasks, eval instructions that did not define scope, permitted actions or network boundaries, deliberately limited tools, and training that rewarded working round restrictions.
+
+So the eval is an operation with a blast radius, and it needs the same controls as a production agent.
+
+**Default offline.** Run against recorded or mirrored copies of the web wherever the task allows. Anthropic's response was to disable live internet for all internal evals and move or rebuild public evals offline. You also gain reproducibility: a live-web score drifts as pages change.
+
+**If live access is genuinely needed, define it as policy, not prose.** All traffic goes through an egress proxy that enforces method and domain rules: read-only requests by default, no form submissions or authenticated sessions except to sandbox targets you own, no URL shorteners or open redirects. Identify the agent in its user agent so site operators can tell what hit them.
+
+**Give impossible tasks a sanctioned exit.** If the practice form does not load and the only scored outcome is "submitted", you have built an incentive to find a real one. Every task needs "stop and report that it cannot be done" as a valid, scored outcome.
+
+**Monitor and block in real time.** A classifier or rule set over the trace that flags out-of-scope actions (writes to third-party hosts, credential use, exploitation patterns) and can halt the run, not just log it. Plant tripwires: canary credentials and honeypot forms that should never be touched.
+
+**Audit as part of the score.** Review every run's outbound log. Report the unsanctioned-action rate next to the task score, and treat a success reached through an out-of-scope action as a failure, not a win. Otherwise the leaderboard rewards exactly the behaviour you are trying to remove.
+
+**Have an incident path.** If an eval did touch a real system, someone owns telling the affected operator, the same way a pentest team would.
+
+**Worth sketching.** Optional, but it shows that the proxy and the monitor sit outside the agent, which is what makes the scope enforceable.
+
+```mermaid
+flowchart LR
+    T["Task spec:<br/>scope, allowed actions, exit"] --> A["Agent under test"]
+    A --> P["Egress proxy"]
+    P -->|"default"| O["Offline mirror"]
+    P -->|"allowlisted, read only"| L["Live site"]
+    P --> M["Real-time monitor"]
+    M -->|"out of scope"| K["Halt run"]
+    M --> R["Audit log and<br/>unsanctioned-action rate"]
+```
+
+**Follow-ups:** The benchmark you want to report only exists in a live-web version: what would you need before running it? How do you score a run that got the right answer through an out-of-scope action? Which tripwires give you the best signal for the least effort?
+
+</details>
+
+### 61. A plain LLM judge can't tell whether an enterprise answer is right without looking things up. Design an agentic verifier that can search, open sources and run checks. How do you calibrate it against human labels, keep its cost bounded, and stop it sharing blind spots with the agent it grades?
+
+<details><summary><b>Answer</b></summary>
+
+A plain judge grades plausibility: is this fluent, consistent, well cited on its face. For an enterprise answer ("our Q3 renewal rate for EMEA was 91%, per the board deck") correctness depends on documents the judge has not seen. So the verifier needs tools: search the corpus with the asker's permissions, open the cited documents, and run checks such as recomputing a number from a spreadsheet.
+
+**Structure it per claim, per dimension.**
+
+1. Extract atomic claims from the answer.
+2. For each claim, open the cited source and check that it actually says this (citation quality).
+3. Independently search for evidence for and against (correctness), and mark each claim supported, contradicted or unverifiable.
+4. Check the answer uses only retrieved material for factual claims (groundedness).
+5. For agentic tasks, check end state in the environment: was the ticket filed, does the record match (task success).
+
+Each dimension gets its own verdict with the evidence attached, so a human can audit a disagreement in seconds.
+
+**Calibrate against human labels.** Have domain experts label a stratified sample per dimension, including deliberately hard cases. Measure agreement per dimension, and above all precision and recall on the "wrong" class, since a verifier that never flags anything has high raw agreement on a mostly-correct system. Check that its confidence means something: of the answers it calls 90% likely correct, are about 90% correct? Re-label a fresh sample monthly and whenever the agent or verifier model changes.
+
+**Keep cost bounded.** Give each verification a hard budget in tool calls and tokens, and return "unverifiable" when it runs out rather than guessing. Run cheap screens first (does the cited document exist, does it contain the quoted figure) and escalate to full search only when they fail. Cache evidence by document ID across items. In production, verify a sample plus everything a cheap signal flags, rather than every trace.
+
+**Stop shared blind spots.** This is the part that decides whether the verifier is worth anything. If it uses the same retriever and the same model family as the agent, it fails the same way: both miss the document that was never indexed, both believe the same stale version. So:
+
+- Use a different model family from the agent where you can.
+- Give it an independent retrieval path, such as keyword search and direct document fetch rather than the agent's vector index.
+- Where you have them, give it reference material the agent never saw, such as gold documents for the eval set.
+- Measure the overlap directly: on the human-labelled set, of the answers that were wrong, what share did the verifier also miss? If that share is high, its errors are correlated with the agent's and it is not an independent check.
+
+Two traps. Permissions: the verifier must see what the asker could see, not an admin view, or it will mark answers wrong that are right for that user. And optimisation: once this verifier becomes a reward signal or a ship gate, the agent will be pushed toward whatever the verifier cannot check, so keep a held-out human-graded slice it never trains or tunes against.
+
+**Follow-ups:** The verifier and the agent agree and are both wrong on 15% of the human-labelled failures: what do you change first? How would you set the tool-call budget per item without hurting recall on hard cases? What changes if you use this verifier as the reward for RL fine-tuning?
 
 </details>

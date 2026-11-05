@@ -4,7 +4,7 @@ Interview questions, loop maps and prep priorities for 33 companies, tiered from
 
 Everything here is built from public information: job postings, engineering blogs, technical reports and publicly shared candidate reports. No confidential or leaked material. Processes change and vary by team, so every page carries a "last reviewed" date, marks uncertain stage detail as reported, and lists its sources at the bottom. Treat these as maps, not contracts.
 
-Every page follows the same shape: **TL;DR**, **company context**, **roles and titles they hire**, **the interview loop** stage by stage, **what they emphasise**, around 12 representative questions with worked answers, **how to prepare**, and **sources**.
+Every page follows the same shape: **TL;DR**, **company context**, **roles and titles they hire**, **the interview loop** stage by stage, **what they emphasise**, 12 to 15 representative questions with worked answers, **how to prepare**, and **sources**.
 
 ## Frontier labs
 

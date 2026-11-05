@@ -1,6 +1,6 @@
 # 🍎 Apple - AI Engineer Interview Questions
 
-> **Last reviewed: October 2026.** Based only on public information - official pages, engineering blogs, and publicly shared candidate reports. Processes change and vary by team; treat this as a map, not a contract. No confidential or leaked material.
+> **Last reviewed: November 2026.** Based only on public information - official pages, engineering blogs, and publicly shared candidate reports. Processes change and vary by team; treat this as a map, not a contract. No confidential or leaked material.
 
 ## TL;DR
 
@@ -13,7 +13,7 @@
 
 ## Company context
 
-Apple's AI work centres on Apple Intelligence - generative features (writing tools, summarisation, image generation, Siri, semantic search) integrated across iPhone, iPad, Mac, and Vision Pro - built by the AIML org and product teams on top of in-house foundation models. The engineering identity is hybrid AI at consumer scale: compact on-device models running on Apple silicon for latency and privacy, escalating to larger server models on Private Cloud Compute. Since 2026 that stack has been developed in collaboration with Google, with the next-generation models based on Gemini, while Apple keeps the on-device and Private Cloud Compute privacy architecture as the non-negotiable boundary. "AI engineer" at Apple usually means one of: training/adapting foundation models, squeezing models onto the Neural Engine (quantization, adapters, serving), building ML infrastructure and data pipelines, or shipping ML-powered product features - nearly always with hardware-software co-design and privacy in the job description.
+Apple's AI work centres on Apple Intelligence - generative features (writing tools, summarisation, image generation, Siri, semantic search) integrated across iPhone, iPad, Mac, and Vision Pro - built by the AIML org and product teams on top of in-house foundation models. The engineering identity is hybrid AI at consumer scale: compact on-device models running on Apple silicon for latency and privacy, escalating to larger server models on Private Cloud Compute. Since 2026 that stack has been developed in collaboration with Google, with the next-generation models based on Gemini, while Apple keeps the on-device and Private Cloud Compute privacy architecture as the non-negotiable boundary. Leadership and headcount shifted in autumn 2026: John Ternus became CEO on 1 September 2026, with Tim Cook moving to executive chairman, and media reports put cuts between August and October at 400 or more roles, touching the Vision Products Group and Siri-related software teams. Only 147 separations are backed by a public record (a California WARN filing for October 2026), Apple has not confirmed the full scope, and coverage frames it as a reallocation towards AI rather than a hiring freeze. No change to the interview process itself has been reported. "AI engineer" at Apple usually means one of: training/adapting foundation models, squeezing models onto the Neural Engine (quantization, adapters, serving), building ML infrastructure and data pipelines, or shipping ML-powered product features - nearly always with hardware-software co-design and privacy in the job description.
 
 ## Roles & titles they hire
 
@@ -340,4 +340,6 @@ flowchart LR
 - [Exponent - Apple Machine Learning Engineer Interview Guide](https://www.tryexponent.com/guides/apple-machine-learning-engineer-interview)
 - [Interview Query - Apple Machine Learning Engineer Interview Guide](https://www.interviewquery.com/interview-guides/apple-machine-learning-engineer)
 - [Glassdoor - Apple Machine Learning Engineer interview reports](https://www.glassdoor.com/Interview/Apple-Machine-Learning-Engineer-Interview-Questions-EI_IE1138.0,5_KO6,31.htm)
+- [ABC13 - Tim Cook stepping down, John Ternus set to replace him](https://abc13.com/post/apple-ceo-tim-cook-is-stepping-down-john-ternus-set-replace/18928305/) (CEO change effective 1 September 2026)
+- [Yahoo Finance - Apple eliminates 400 positions](https://finance.yahoo.com/technology/ai/articles/apple-eliminates-400-positions-ceo-191247323.html) (reported scope of autumn 2026 cuts)
 - [levels.fyi - Apple](https://www.levels.fyi/companies/apple/salaries/software-engineer) (compensation data)

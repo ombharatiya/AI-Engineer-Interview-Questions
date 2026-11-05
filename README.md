@@ -2,7 +2,7 @@
 
 <div align="center">
 
-  <p><strong>The complete prep resource for AI Engineer, LLM Engineer, and Applied AI interviews.</strong><br/>1,172 questions with worked answers, 10 system design case studies, 19 runnable coding challenges, company interview questions for 33 companies, and guides for 10 engineering roles.</p>
+  <p><strong>The complete prep resource for AI Engineer, LLM Engineer, and Applied AI interviews.</strong><br/>1,254 questions with worked answers, 10 system design case studies, 19 runnable coding challenges, company interview questions for 33 companies, and guides for 10 engineering roles.</p>
 
   <a href="https://github.com/ombharatiya/AI-Engineer-Interview-Questions/stargazers">
     <img src="https://img.shields.io/github/stars/ombharatiya/AI-Engineer-Interview-Questions?style=flat" alt="GitHub stars" />
@@ -84,8 +84,8 @@ If you can clear all 75, you are ready for most AI engineering loops. If you can
 | Days | [The AI Engineer 75](AI-ENGINEER-75.md), then [CHEATSHEET.md](CHEATSHEET.md) the night before | 75 items + one evening review |
 | 1 week | The 75 + the [1-week cram plan](STUDY_PLAN.md) | 75 items + 6 crash courses |
 | 2-4 weeks | The [4-week plan](STUDY_PLAN.md): all 13 crash courses, full question banks on your weak topics, 3 design mocks | 200+ questions + 3 case studies + all 19 challenges |
-| 1-2 months+ | The [8-week plan](STUDY_PLAN.md): all 596 topic questions, all 10 case studies, all 19 challenges, plus a portfolio project | Everything, plus building |
-| Targeting a company | Add that company's interview questions from the banner above | +10-12 tailored questions and the loop map |
+| 1-2 months+ | The [8-week plan](STUDY_PLAN.md): all 639 topic questions, all 10 case studies, all 19 challenges, plus a portfolio project | Everything, plus building |
+| Targeting a company | Add that company's interview questions from the banner above | +12-15 tailored questions and the loop map |
 | Not an "AI Engineer" title | Start from your [role guide](#role-guides) instead | Role-calibrated study map |
 | Loop booked, want real feedback | Do one [mock interview](https://enginebogie.com/u/om) with an experienced interviewer before the real thing | Honest scoring on where you lose points |
 
@@ -146,7 +146,7 @@ Interview questions, loop maps, and prep priorities for 33 companies, tiered fro
 
 ## Role guides
 
-AI questions now show up in backend, frontend, product, data, DevOps, QA, mobile, and security loops, and the depth expected varies a lot by role. Each guide maps how that role's interviews changed, what you are actually expected to know (and what you are not), and 12-14 role-specific questions.
+AI questions now show up in backend, frontend, product, data, DevOps, QA, mobile, and security loops, and the depth expected varies a lot by role. Each guide maps how that role's interviews changed, what you are actually expected to know (and what you are not), and 14-17 role-specific questions.
 
 | Role | Guide |
 |---|---|
@@ -168,18 +168,18 @@ Each topic has a crash-course primer (`README.md`) and a full question bank with
 | # | Topic | Questions | What it covers |
 |---|-------|-----------|-----------------|
 | 01 | [ML & Deep Learning Foundations](01-ml-and-dl-foundations/) | 55 | Bias-variance, optimization, regularization, metrics, loss functions, the fundamentals a fine-tuning or evals answer is built on |
-| 02 | [LLM & Transformer Fundamentals](02-llm-fundamentals/) | 65 | Attention, positional encodings, tokenization, scaling laws, MoE, decoding, KV cache, reasoning models |
-| 03 | [Prompt Engineering & Context Engineering](03-prompt-engineering-and-context/) | 50 | Few-shot design, chain-of-thought, structured outputs, prompt caching, context rot and compaction |
-| 04 | [RAG & Retrieval](04-rag-and-retrieval/) | 60 | Chunking, embeddings, hybrid search, reranking, agentic RAG, retrieval evaluation |
-| 05 | [Fine-tuning, RLHF & Alignment](05-fine-tuning-and-alignment/) | 56 | SFT, LoRA/QLoRA, DPO/PPO/GRPO, distillation, GPU memory maths for training |
-| 06 | [Agents, Tool Use & MCP](06-agents-and-tool-use/) | 65 | Tool calling, MCP, planning patterns, multi-agent design, agent evaluation and security |
-| 07 | [Evals & Observability](07-evaluation-and-observability/) | 55 | LLM-as-judge, benchmark limits, RAG and agent evals, tracing, regression testing |
-| 08 | [Inference, Serving & Production LLM Systems](08-inference-and-production/) | 56 | Prefill vs. decode, KV cache paging, quantization, speculative decoding, cost engineering |
-| 09 | [Safety, Security & Responsible AI](09-safety-security-and-responsible-ai/) | 52 | Prompt injection, OWASP LLM Top 10, guardrails, agent security, data governance |
-| 10 | [Multimodal Models](10-multimodal/) | 40 | Vision-language architecture, diffusion, ASR/TTS, voice agents, multimodal RAG |
+| 02 | [LLM & Transformer Fundamentals](02-llm-fundamentals/) | 68 | Attention, positional encodings, tokenization, scaling laws, MoE, decoding, KV cache, reasoning models |
+| 03 | [Prompt Engineering & Context Engineering](03-prompt-engineering-and-context/) | 53 | Few-shot design, chain-of-thought, structured outputs, prompt caching, context rot and compaction |
+| 04 | [RAG & Retrieval](04-rag-and-retrieval/) | 62 | Chunking, embeddings, hybrid search, reranking, agentic RAG, retrieval evaluation |
+| 05 | [Fine-tuning, RLHF & Alignment](05-fine-tuning-and-alignment/) | 61 | SFT, LoRA/QLoRA, DPO/PPO/GRPO, distillation, GPU memory maths for training |
+| 06 | [Agents, Tool Use & MCP](06-agents-and-tool-use/) | 71 | Tool calling, MCP, planning patterns, multi-agent design, agent evaluation and security |
+| 07 | [Evals & Observability](07-evaluation-and-observability/) | 61 | LLM-as-judge, benchmark limits, RAG and agent evals, tracing, regression testing |
+| 08 | [Inference, Serving & Production LLM Systems](08-inference-and-production/) | 62 | Prefill vs. decode, KV cache paging, quantization, speculative decoding, cost engineering |
+| 09 | [Safety, Security & Responsible AI](09-safety-security-and-responsible-ai/) | 58 | Prompt injection, OWASP LLM Top 10, guardrails, agent security, data governance |
+| 10 | [Multimodal Models](10-multimodal/) | 43 | Vision-language architecture, diffusion, ASR/TTS, voice agents, multimodal RAG |
 | 11 | [AI System Design](11-ai-system-design/) | 10 case studies | A reusable answer framework plus eight worked case studies |
 | 12 | [Coding Challenges](12-coding-challenges/) | 19 challenges | Implement attention, BPE, sampling, KV cache, an agent loop, and more, from scratch |
-| 13 | [Interview Process & Behavioral](13-interview-process-and-behavioral/) | 42 | Loop anatomy by company type, take-homes, portfolio projects, AI-specific behavioural questions |
+| 13 | [Interview Process & Behavioral](13-interview-process-and-behavioral/) | 45 | Loop anatomy by company type, take-homes, portfolio projects, AI-specific behavioural questions |
 
 ## System design case studies
 

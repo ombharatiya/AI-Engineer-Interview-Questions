@@ -1,31 +1,34 @@
 # 🔎 Glean - AI Engineer Interview Questions
 
-> **Last reviewed: October 2026.** Based only on public information - official pages, engineering blogs, and publicly shared candidate reports. Processes change and vary by team; treat this as a map, not a contract. No confidential or leaked material.
+> **Last reviewed: November 2026.** Based only on public information - official pages, engineering blogs, and publicly shared candidate reports. Processes change and vary by team; treat this as a map, not a contract. No confidential or leaked material.
 
 ## TL;DR
 
 - Reported loop: recruiter screen → hiring manager screen (~45 min) → technical phone screen (~60 min, coding + light design) → 4-5 round virtual onsite: two coding rounds, one system design round (frequently search/retrieval flavoured), a behavioural round, and an ML/RAG round for ML-track roles. Senior+ candidates often get a founder/exec conversation.
-- The one **officially stated** element: Glean's job postings (still present in October 2026) say every candidate completes "a brief AI-focused exercise or discussion" about how you think about, design, and use AI in your work. Come with a real, concrete answer.
+- The one **officially stated** element: Glean's job postings (still present in November 2026) say every candidate completes "a brief AI-focused exercise or discussion" about how you think about, design, and use AI in your work. Come with a real, concrete answer.
 - Coding rounds reportedly weight *working, bug-free code* over clever optimal tricks - mediums dominate, hards appear at senior levels.
 - System design is where they differentiate: indexing pipelines, ranking layers, query-serving paths, and reasoning about latency, freshness, permissions, and multi-tenant scale. Founding DNA is ex-Google search; IR depth matters more here than at most AI companies.
-- **New 2026 role families.** The October 2026 board adds *Agents Governance* and *Machine Learning Engineer, Assistant Quality* tracks beside Agents and Evals, in step with Glean's 2026 releases on governed agents (publish-time agent scanning, admin governance policies). Expect agent-governance and assistant-quality design questions on those teams (reported, varies).
+- **New 2026 role families.** The current board adds an *AI Engineer* family: *Data and Evals*, and *Quality and Post-Training* (posted October 2026; SFT, preference or reward optimisation, RL environments that simulate enterprise workflows, LLM judges and agentic verifiers). Alongside sit *Software Engineer, Agentic Runtime*, *Tech Lead Manager, AI Evaluations*, MLE roles in *Assistant Quality*, *Search Quality* and *Enterprise Brain*, and a *Senior/Staff Applied Scientist* role. Expect post-training, RL-environment and agent-runtime questions on those teams alongside the retrieval and permissions core (reported, varies).
 - Everything about their product funnels back to one theme: **permissions-aware retrieval over messy, heterogeneous enterprise data, evaluated rigorously**. Prep RAG, search ranking, and eval design harder than anything else.
 
 ## Company context
 
-Glean builds a "Work AI" platform: enterprise search and an AI assistant/agent layer over a company's own data, ingested through 100+ SaaS connectors (Slack, Jira, Google Drive, Confluence, ServiceNow, ...) with source-system permissions enforced end to end. Founded by ex-Google search engineers, it is one of the clearest examples of "retrieval quality is the product" - the LLM layer is mostly commodity, the moat is connectors, permission-aware indexing, hybrid ranking, and a knowledge graph of people/content/activity. "AI engineer" at Glean mostly means search/ML infrastructure and applied LLM engineering (retrieval, reranking, agents, evals) rather than model pretraining research.
+Glean builds a "Work AI" platform: enterprise search and an AI assistant/agent layer over a company's own data, ingested through 100+ SaaS connectors (Slack, Jira, Google Drive, Confluence, ServiceNow, ...) with source-system permissions enforced end to end. Founded by ex-Google search engineers, it is one of the clearest examples of "retrieval quality is the product" - the LLM layer is mostly commodity, the moat is connectors, permission-aware indexing, hybrid ranking, and a knowledge graph of people/content/activity. "AI engineer" at Glean mostly means search/ML infrastructure and applied LLM engineering (retrieval, reranking, agents, evals) rather than model pretraining research, although the new AI Engineer roles now include post-training and adapting open-weight models. At Glean:GO in late August 2026 it introduced Glean Tau, a desktop AI workspace on an open-source harness, and extended governed MCP access to organisational skills and user memory.
 
 ## Roles & titles they hire
 
-From Glean's Greenhouse board (October 2026):
+From Glean's Greenhouse board (November 2026):
 
-- **Software Engineer** - generalist, plus specialised tracks: *Agents*, *Agents Governance*, *AI/ML Infrastructure*, *AI & Security*, *APIs & Context Platform*, *Evals*, *Data Foundations*, *Storage*, *Cloud Infrastructure*, *Cloud Deployment Infrastructure*, *Developer Productivity*, Frontend/Fullstack/Backend
+- **AI Engineer** - *Data and Evals* (evalsets, trace capture and replay, agentic verifiers calibrated against human labels, enterprise simulation environments with simulated users, results with confidence intervals; Go and/or Python) and *Quality and Post-Training* (SFT plus DPO, PPO or GRPO, adapting open-weight models, RL environments that simulate enterprise workflows). Posted base range $200k-$280k
+- **Software Engineer** - generalist, plus specialised tracks: *Agentic Runtime*, *AI/ML Infrastructure*, *AI & Security*, *APIs & Context Platform*, *Data Foundations*, *Storage*, *Cloud Infrastructure*, *Cloud Deployment Infrastructure*, *Developer Productivity*, Frontend/Fullstack/Backend
 - **Software Engineer, Machine Learning**
-- **Machine Learning Engineer** - *Assistant Quality*, *Search Quality* (the July 2026 board also listed *Enterprise Brain* and *LLM Evals & Observability*)
+- **Machine Learning Engineer** - *Assistant Quality*, *Search Quality*, *Enterprise Brain* (the July 2026 board also listed *LLM Evals & Observability*)
+- **Senior/Staff Applied Scientist**
+- **Tech Lead Manager, AI Evaluations**
 - **Founding Forward Deployed Engineer** (0-to-1 product building embedded with strategic customers; production LLM experience - prompting, agents, eval frameworks - explicitly required)
-- Adjacent: Application Security Engineer, Cloud Infrastructure Engineer, SRE, Tech Lead Manager
+- Adjacent: Application Security Engineer, Cloud Infrastructure Engineer, SRE
 
-There is no "Member of Technical Staff" or "Research Scientist" branding; AI work ships under SWE/MLE titles. Note the existence of *dedicated eval roles* - a strong signal of what the interviews probe. Offices: Palo Alto HQ / Mountain View, San Francisco, New York, Bangalore; hybrid ~4 days in office.
+There is no "Member of Technical Staff" or "Research Scientist" branding. Most AI work ships under SWE and MLE titles, but there is now an AI Engineer family for evals and post-training, plus an Applied Scientist title. Note the existence of *dedicated eval roles* - a strong signal of what the interviews probe. Offices: Palo Alto HQ / Mountain View, San Francisco, New York, Bangalore; hybrid ~4 days in office.
 
 ## The interview loop
 
@@ -49,7 +52,7 @@ Reported timeline: roughly 3-5 weeks end to end. Multiple sources describe the b
 
 - **Search/IR fundamentals, not just LLM plumbing.** Their public engineering writing argues explicitly for RAG over fine-tuning for enterprise knowledge, hybrid lexical+dense retrieval, and learned ranking over dozens of signals (semantic similarity, keyword match, freshness, personalisation). Expect design conversations to go several layers below "call the vector DB."
 - **Permissions as a first-class constraint.** Their platform's core promise is that users only ever see what source-system ACLs allow. Any design answer that treats permissions as an afterthought will read as not understanding the product.
-- **Evaluation discipline.** They hire engineers specifically for *Evals* and *Assistant Quality* (and earlier in 2026, *LLM Evals & Observability*). Be ready to define metrics, judged sets, and LLM-as-judge pipelines - and their failure modes - for systems where you cannot look at customer data.
+- **Evaluation discipline.** They hire engineers specifically for *Data and Evals*, *AI Evaluations* and *Assistant Quality* (and earlier in 2026, *LLM Evals & Observability*). Be ready to define metrics, judged sets, and LLM-as-judge pipelines - and their failure modes - for systems where you cannot look at customer data.
 - **Practical shipping over theory.** Reported coding rounds reward organised, running code; the FDE track explicitly wants 0-to-1 builders with production LLM experience.
 - **High ownership, customer-driven.** Their stated values ("make it customer-driven / make it happen / make it better / make it together") show up in behavioural rounds as questions about ownership, ambiguity, and resilience.
 - **AI fluency in your own workflow.** The official AI exercise means "I use Copilot sometimes" is not an answer. Bring a specific story of designing or using AI to change an outcome.
@@ -144,7 +147,7 @@ Layered evals, from what you fully control to what you can only observe in aggre
 
 **Layer 3 - behavioural telemetry.** Aggregate, privacy-preserving signals: thumbs up/down rates, retry/reformulation rates, citation click-through, session abandonment, segmented by tenant and connector mix so a regression affecting only Jira-heavy customers is visible.
 
-Tie the layers together with release gates: no model/prompt/retriever change ships without Layer 1 pass and a canary watched on Layer 2/3 metrics. Glean hiring dedicated Evals and Assistant Quality engineers tells you they treat this as a product surface, not a side task.
+Tie the layers together with release gates: no model/prompt/retriever change ships without Layer 1 pass and a canary watched on Layer 2/3 metrics. Glean hiring dedicated evals, AI Evaluations and Assistant Quality engineers tells you they treat this as a product surface, not a side task.
 
 **Follow-ups:** Your judge model updates and every groundedness score shifts 5 points - what now? How do you eval multi-step agent runs, not just single answers?
 
@@ -300,6 +303,29 @@ The tradeoff to name: every gate adds friction. Tier controls by blast radius, s
 
 </details>
 
+### 14. You cannot read customer data, but you must improve the enterprise assistant by post-training. How do you build RL environments that simulate enterprise workflows, plus the verifiers and eval sets that grade them? Where would a small post-trained open-weight model beat a frontier model?
+
+<details><summary><b>Answer</b></summary>
+
+This is the scope of Glean's AI Engineer, Quality and Post-Training role (October 2026): SFT, preference or reward optimisation (DPO, PPO, GRPO), RL environments that simulate enterprise workflows, LLM judges and agentic verifiers, and adapting open-weight models. The constraint that shapes everything is that training data cannot come from customer tenants.
+
+**Build a synthetic enterprise, not a dataset.** An environment is a fake company: an org chart, a few thousand documents across Drive, Slack, Jira and Confluence shapes, realistic permission sets (private channels, restricted folders, stale shares), and tool APIs that behave like the real connectors, including pagination, rate limits and partial failures. Generate content with planted facts and contradictions (an old pricing doc and a newer Slack correction) so tasks have checkable answers. Vary company size, vocabulary and connector mix so the policy does not overfit one fake org.
+
+**Tasks.** Derive them from aggregate, privacy-safe signals about what users actually ask (query classes, tool sequences, failure categories), never from raw queries. Mix single-hop lookups, multi-hop questions that require joining a person to their docs, and action tasks (draft the ticket, summarise the thread). Include tasks whose correct answer is "you do not have access" or "I could not find it".
+
+**Rewards and verifiers.**
+- Verifiable parts first: did the answer contain the planted fact, cite the right document, and never surface a document the simulated user cannot see? A permission leak is a hard zero.
+- Agentic verifiers for the rest: a judge with tool access that re-opens cited sources and checks each claim, calibrated against human labels on a held-out slice, with agreement reported.
+- Simulated users for multi-turn tasks, so clarifying questions are rewarded when the request is ambiguous.
+
+**Guard against gaming.** Policies learn to over-cite, hedge into "I don't know", or pad answers to please the judge. Track abstention rate, citation count and length alongside reward; keep held-out environments and a held-out judge; and read a sample of top-reward trajectories every run.
+
+**Where small models win.** Narrow, high-volume, latency-bound steps: query understanding and routing, connector-specific query rewriting, reranking, and deciding whether retrieval is needed at all. A post-trained 7-30B open-weight model can match a frontier model on those tasks at a fraction of the cost and latency, and can run inside a customer's deployment boundary. Long-form synthesis over many documents usually still favours the frontier model, so the common shape is a small trained router in front of a frontier generator.
+
+**Follow-ups:** How do you show that gains in the synthetic company transfer to real tenants without reading their data? What is your evidence the judge is not the thing being optimised? When would you stop at SFT and skip RL?
+
+</details>
+
 ## How to prepare
 
 **Repo directories, in priority order:**
@@ -307,7 +333,8 @@ The tradeoff to name: every gate adds friction. Tier controls by blast radius, s
 - **[04-rag-and-retrieval](../04-rag-and-retrieval/)** - the core of every technical conversation here: hybrid BM25+dense retrieval, reranking, chunking, retrieval evaluation, and ACL-aware RAG. Go deepest here.
 - **[11-ai-system-design](../11-ai-system-design/)** - especially the **[enterprise RAG assistant case study](../11-ai-system-design/case-studies/01-enterprise-rag-assistant.md)**, which is essentially Glean's product, and **[semantic search](../11-ai-system-design/case-studies/04-semantic-search.md)** for the indexing/ranking/query-serving design round.
 - **[07-evaluation-and-observability](../07-evaluation-and-observability/)** - Glean hires engineers *specifically* for evals and LLM observability; expect metric-driven follow-ups on any claim you make.
-- **[06-agents-and-tool-use](../06-agents-and-tool-use/)** - they ship agents over enterprise tools and hire dedicated Agents and Agents Governance teams; know tool-use patterns, trajectory evals, and prompt-injection defences.
+- **[06-agents-and-tool-use](../06-agents-and-tool-use/)** - they ship agents over enterprise tools and hire a dedicated Agentic Runtime team; know tool-use patterns, trajectory evals, and prompt-injection defences.
+- **[05-fine-tuning-and-alignment](../05-fine-tuning-and-alignment/)** - for the AI Engineer, Quality and Post-Training role: SFT, DPO/PPO/GRPO, reward design and RL environments.
 - **[12-coding-challenges](../12-coding-challenges/)** - two coding rounds reportedly weight clean, working code; practice heaps/graphs/strings and small build-a-feature exercises, not just puzzles.
 - **[13-interview-process-and-behavioral](../13-interview-process-and-behavioral/)** - behavioural rounds reportedly probe ownership and ambiguity with measurable outcomes; map stories to their four "make it" values.
 
@@ -321,8 +348,10 @@ The tradeoff to name: every gate adds friction. Tier controls by blast radius, s
 
 ## Sources
 
-- [Glean Greenhouse job board](https://job-boards.greenhouse.io/gleanwork) - live engineering/ML/FDE role titles (fetched July and October 2026)
+- [Glean Greenhouse job board](https://job-boards.greenhouse.io/gleanwork) - live engineering/ML/FDE role titles (fetched July and November 2026)
 - [Founding Forward Deployed Engineer posting](https://job-boards.greenhouse.io/gleanwork/jobs/4651991005) - role requirements and the official "AI-focused exercise" statement
+- [AI Engineer - Quality and Post-Training posting](https://jobs.generalcatalyst.com/companies/glean/jobs/97919941-ai-engineer-quality-and-post-training) - post-training scope, RL environments, agentic verifiers (October 2026)
+- [Compare the Cloud: Glean:GO coverage](https://www.comparethecloud.net/news/glean-targets-token-costs-and-ai-sprawl-with-new-enterprise-platform-capabilities) - Glean Tau, governed MCP access to skills and memory (August 2026)
 - [Glean careers page](https://www.glean.com/careers) - values, office/hybrid setup
 - [Glean blog: Learning lessons from building an enterprise AI assistant](https://www.glean.com/blog/how-to-build-an-ai-assistant-for-the-enterprise) - RAG-vs-fine-tuning rationale, hybrid ranking, freshness/permissions/explainability framing
 - [techinterview.org Glean interview guide](https://www.techinterview.org/companies/glean-interview-guide/) - third-party loop structure and round breakdown (unofficial)

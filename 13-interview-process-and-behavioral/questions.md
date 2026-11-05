@@ -1,6 +1,6 @@
 # Interview Process & Behavioral - Interview Questions
 
-42 questions: 11 basic, 15 intermediate, 16 advanced. Answers here are guidance - what the interviewer is probing, how to structure a strong answer (STAR-ish: Situation → Task → Action → Result, with numbers), a brief example sketch, and the pitfalls that sink candidates.
+45 questions: 11 basic, 16 intermediate, 18 advanced. Answers here are guidance - what the interviewer is probing, how to structure a strong answer (STAR-ish: Situation → Task → Action → Result, with numbers), a brief example sketch, and the pitfalls that sink candidates.
 
 > **On the diagrams: drawing is optional.** Some answers include a small sketch you could
 > reproduce on a whiteboard or in a shared doc. You never have to draw anything to score well,
@@ -558,9 +558,31 @@ flowchart LR
 
 </details>
 
+### 27. Your loop has an AI-enabled coding round and a proctored, AI-free round. How do you prepare for each, and what changes in how you work?
+
+<details><summary><b>Answer</b></summary>
+
+**What they're probing:** whether you can work at full speed both with and without an assistant, and whether you understand the rules of each round. Loops now often contain both. Many companies run AI-enabled coding rounds, while others moved key rounds to proctored or in-person formats to deter AI cheating: in ZipRecruiter's October 2026 survey, 70% of information-sector employers said they had made that move.
+
+**Before the loop.** Ask the recruiter for the rules of every round: which tools are allowed, whether the assistant can edit code or only answer questions (LinkedIn's CoderPad setup, for example, does not let it edit), whether you use your own IDE (Shopify's AI rounds do), and whether a round is proctored. Treat an AI-run first screen like a recorded recruiter screen: concrete answers, numbers, no rambling.
+
+**For the AI-free round, rebuild the muscle memory.** If you work with an agent every day, the risk is that you no longer write a tool-use loop, a retry with backoff, a streaming parser or attention from memory. Practise those cold, timed, with the tests written first. Narrate more than usual, since the interviewer has only your reasoning to grade.
+
+**For the AI-enabled round, practise steering, not watching.** Plan before prompting, give the assistant narrow tasks, and read every change before keeping it. The common way to fail is the clock: one reported LinkedIn round gave a small multi-file repo with four or five sub-questions, and the candidate ran out of time reading long agent output. Ask for short answers and small diffs, and do the risky parts (error paths, untrusted output parsing, concurrency) yourself.
+
+**Integrity.** In a proctored or AI-free round, use nothing you were not allowed. Getting caught ends the process at that company, and many now check.
+
+Example sketch: "My last loop had an AI-allowed build round and an in-person whiteboard round. For two weeks I did one timed problem a day with no tools, mostly the agent loop and rate limiter from memory, and one assisted session where I capped myself at reading no more than a screen of output per prompt. In the assisted round I finished with time to add tests. In the whiteboard round I was slower than I'd like on the parser but talked through every edge case, which the feedback specifically mentioned."
+
+**Pitfalls:** assuming the rules are the same in every round; only ever practising with an assistant; reading assistant output instead of steering it; treating an AI-run screen as unimportant because no human is present.
+
+**Follow-ups:** The assistant gives you a confident wrong answer with ten minutes left - what do you do? Which skills have you let slip since you started working with agents? What do you do if the rules for a round are unclear on the day?
+
+</details>
+
 ## Advanced
 
-### 27. Tell me about a time you pushed back on shipping something you believed was unreliable.
+### 28. Tell me about a time you pushed back on shipping something you believed was unreliable.
 
 <details><summary><b>Answer</b></summary>
 
@@ -576,7 +598,7 @@ flowchart LR
 
 </details>
 
-### 28. You're asked to ship an AI feature you have safety or ethical concerns about. Walk me through what you'd do - or a time it happened.
+### 29. You're asked to ship an AI feature you have safety or ethical concerns about. Walk me through what you'd do - or a time it happened.
 
 <details><summary><b>Answer</b></summary>
 
@@ -592,7 +614,7 @@ flowchart LR
 
 </details>
 
-### 29. Tell me about a technical disagreement over model choice - how was it resolved?
+### 30. Tell me about a technical disagreement over model choice - how was it resolved?
 
 <details><summary><b>Answer</b></summary>
 
@@ -608,7 +630,7 @@ flowchart LR
 
 </details>
 
-### 30. Deadline pressure: do you spend the next two weeks on eval infrastructure or the feature itself? How have you actually made this call?
+### 31. Deadline pressure: do you spend the next two weeks on eval infrastructure or the feature itself? How have you actually made this call?
 
 <details><summary><b>Answer</b></summary>
 
@@ -624,7 +646,7 @@ flowchart LR
 
 </details>
 
-### 31. A stakeholder wants to send sensitive customer data (PII) to a third-party model API. They say the business need justifies it. What do you do?
+### 32. A stakeholder wants to send sensitive customer data (PII) to a third-party model API. They say the business need justifies it. What do you do?
 
 <details><summary><b>Answer</b></summary>
 
@@ -654,7 +676,7 @@ flowchart TD
 
 </details>
 
-### 32. Tell me about mentoring or upskilling teammates on AI. How did you approach it and what changed?
+### 33. Tell me about mentoring or upskilling teammates on AI. How did you approach it and what changed?
 
 <details><summary><b>Answer</b></summary>
 
@@ -670,7 +692,7 @@ flowchart TD
 
 </details>
 
-### 33. Your provider deprecates the model your product depends on, with 90 days' notice. Walk me through what you'd do - or a migration you actually ran.
+### 34. Your provider deprecates the model your product depends on, with 90 days' notice. Walk me through what you'd do - or a migration you actually ran.
 
 <details><summary><b>Answer</b></summary>
 
@@ -700,7 +722,7 @@ flowchart LR
 
 </details>
 
-### 34. Leadership saw a demo and now expects magic. Tell me about managing expectations for what an AI system can actually do.
+### 35. Leadership saw a demo and now expects magic. Tell me about managing expectations for what an AI system can actually do.
 
 <details><summary><b>Answer</b></summary>
 
@@ -716,7 +738,7 @@ flowchart LR
 
 </details>
 
-### 35. Your assistant's answer quality regressed and nobody noticed for three weeks. You're writing the postmortem. Walk me through the document.
+### 36. Your assistant's answer quality regressed and nobody noticed for three weeks. You're writing the postmortem. Walk me through the document.
 
 <details><summary><b>Answer</b></summary>
 
@@ -754,7 +776,7 @@ flowchart TD
 
 </details>
 
-### 36. Tell me about a time you argued to kill an AI feature that was already live.
+### 37. Tell me about a time you argued to kill an AI feature that was already live.
 
 <details><summary><b>Answer</b></summary>
 
@@ -780,7 +802,7 @@ Killing your own work is a seniority signal. Most AI portfolios I've inherited n
 
 </details>
 
-### 37. An AI feature you're shipping needs sign-off from legal, security, and data governance. How do you run that without it eating the quarter?
+### 38. An AI feature you're shipping needs sign-off from legal, security, and data governance. How do you run that without it eating the quarter?
 
 <details><summary><b>Answer</b></summary>
 
@@ -804,7 +826,7 @@ Where I push back: if a control makes the feature useless, I say so plainly and 
 
 </details>
 
-### 38. You join as a staff engineer. The team ships prompt changes on vibes, has no evals, and as far as they can tell is shipping fine. What do you do in your first 90 days?
+### 39. You join as a staff engineer. The team ships prompt changes on vibes, has no evals, and as far as they can tell is shipping fine. What do you do in your first 90 days?
 
 <details><summary><b>Answer</b></summary>
 
@@ -822,7 +844,7 @@ What I wouldn't do: propose an eval platform, demand a merge gate before there's
 
 </details>
 
-### 39. You are embedded with an enterprise customer whose stated goal is "we want AI in our workflows", with no spec. Walk me through your first month.
+### 40. You are embedded with an enterprise customer whose stated goal is "we want AI in our workflows", with no spec. Walk me through your first month.
 
 <details><summary><b>Answer</b></summary>
 
@@ -840,7 +862,7 @@ This is the forward-deployed engineer scenario, and it is now the job descriptio
 
 </details>
 
-### 40. Tell me about a time an agent you built took an action it should not have. What did you change?
+### 41. Tell me about a time an agent you built took an action it should not have. What did you change?
 
 <details><summary><b>Answer</b></summary>
 
@@ -876,7 +898,7 @@ flowchart TD
 
 </details>
 
-### 41. Your team now writes most new code with coding agents. As tech lead, what changed in how you review, test and own that code?
+### 42. Your team now writes most new code with coding agents. As tech lead, what changed in how you review, test and own that code?
 
 <details><summary><b>Answer</b></summary>
 
@@ -912,7 +934,7 @@ flowchart LR
 
 </details>
 
-### 42. In a values or mission interview at an AI company: what is a risk from AI you take seriously, and how does it change how you do your job?
+### 43. In a values or mission interview at an AI company: what is a risk from AI you take seriously, and how does it change how you do your job?
 
 <details><summary><b>Answer</b></summary>
 
@@ -927,5 +949,61 @@ Then show range. Acknowledge the larger concerns, such as misuse and keeping mea
 Prepare it like any behavioural answer: one risk, one mechanism, one practice, and a time it changed a decision you made. If you have ever disagreed with your own team about shipping something on these grounds, that story is the strongest evidence you can bring.
 
 **Follow-ups:** Where do you disagree with this company's public position on AI risk? Tell me about a decision you made differently because of a risk like this.
+
+</details>
+
+### 44. Leadership measures AI adoption by token spend per engineer and wants every team close to 100% agent-written code. You think it's hurting quality. What do you do, and what would you measure instead?
+
+<details><summary><b>Answer</b></summary>
+
+**What they're probing:** whether you can disagree with leadership about how AI adoption is measured without sounding anti-AI, and whether you replace a bad metric with a better one instead of just objecting.
+
+Go after the metric, not the tools. Token spend per engineer and "percent of code written by agents" are input metrics: they measure how much AI got used, not whether the work got better. Once they become targets, people optimise them, by routing trivial work through agents, accepting diffs nobody reads, and burning tokens to look busy. Large employers have started saying the same thing publicly: Amazon's engineering leadership told staff in October 2026 that input metrics for engineering are deeply flawed and that work AI does not help with is "a finding, not a failing".
+
+A strong answer has four moves:
+
+1. **Bring evidence, not a feeling.** Pull outcome numbers for your own team before and after the push: revert rate, change failure rate, escaped defects, incidents traced to recent changes, review time per PR, and cost per merged change. If quality really is slipping, it will show up there. If it isn't, you have learned something too.
+2. **Propose the replacement metrics.** Keep adoption visible but pair it with guardrails that would catch a quality cost: lead time and revert rate together, defects per change, and the share of agent-written changes that got a substantive human review.
+3. **Separate the work by risk.** Agents on tests, migrations and boilerplate, and a human reading every line of auth, payments and data-model changes. A blanket 100% target ignores that difference.
+4. **Disagree, then commit.** Raise it with your manager and the sponsor in private with the data, agree a review date, and keep using the tools well in the meantime.
+
+Example sketch: "Our org set a target of 80% agent-authored code and published a token-spend leaderboard. Within six weeks our revert rate had roughly doubled, and when I sampled merged PRs, a third had review comments that were just approvals. I took that to my director with a proposal: keep the adoption dashboard, add revert rate and escaped defects next to it per team, and require a human read on anything touching billing. She agreed to try it for a quarter. Adoption stayed high, reverts fell back to baseline, and the leaderboard was quietly dropped."
+
+**Pitfalls:** arguing against AI tools in general, which reads as out of touch; bringing only anecdotes; attacking leadership in a public channel; objecting to the metric without offering one; claiming quality fell without a baseline from before the push.
+
+**Worth sketching.** Optional, but it shows the shift from input to outcome metrics in one picture.
+
+```mermaid
+flowchart LR
+    A["Mandate: token spend<br/>and percent agent code"] --> B["Teams optimise<br/>the input metric"]
+    B --> C["Unread diffs and<br/>rubber-stamp reviews"]
+    C --> D["Revert rate and<br/>escaped defects rise"]
+    D --> E["Proposal: adoption plus<br/>outcome guardrails"]
+    E --> F["Risk-tiered human review"]
+    F --> G["Review after one quarter"]
+```
+
+**Follow-ups:** What if your data shows quality held up and you were wrong? How do you raise this when the mandate came from the CEO? Which single metric would you add first, and why?
+
+</details>
+
+### 45. Tell me about a decision you made without anyone asking you to, where it wasn't obvious the call was yours to make.
+
+<details><summary><b>Answer</b></summary>
+
+**What they're probing:** autonomy and judgement, the two things AI-heavy teams now weigh most. When agents do more of the typing, the scarce skill is knowing which calls are yours to make, making them without waiting, and knowing when to stop and escalate. Anthropic's October 2026 analysis of its own interview scorecards found the biggest growth in interviewer comments for technical candidates was on exactly these two traits.
+
+Pick a story where the call was genuinely ambiguous, not a heroic rescue. The structure that works:
+
+- **The situation and why nobody else was acting.** Owner away, problem between two teams, or something everyone had noticed and assumed someone else would fix.
+- **How you decided it was yours.** Name the test you used. Mine is reversibility and blast radius: a reversible action with a contained blast radius I take and then report. An irreversible one, or one that changes another team's system, I escalate even when I'm confident.
+- **What you did, and who you told, when.** Telling the owner within the hour is part of the judgement, not an afterthought.
+- **The outcome, with a number,** and what you would do differently.
+
+Example sketch: "On a Friday evening I noticed our weekly fine-tune was about to be promoted automatically, and its eval scores had jumped eight points overnight. That was too good. I checked and found part of the eval set had been copied into the new training data by an upstream dedup change. The pipeline belonged to another team whose on-call was off for the weekend. Pausing a promotion is reversible and touches nothing else, so I paused it, posted the evidence in their channel and paged their lead. I did not fix their dedup job, because that was their code and their decision. On Monday they confirmed the leak, fixed the job, and added a contamination check to the promotion gate. I'd been nervous about overstepping, and their lead said the pause was exactly right and the fix would not have been."
+
+**Pitfalls:** stories where you bypassed process and it happened to work out; stories with no real risk; waiting for permission on everything; no mention of who you told; claiming you would act the same way on an irreversible change.
+
+**Follow-ups:** When did you escalate something you could have just fixed? What would have made you stay out of it? How do you decide this when an agent, not a person, is doing the work?
 
 </details>

@@ -1,6 +1,6 @@
 # Multimodal Models - Interview Questions
 
-40 questions: 10 basic, 16 intermediate, 14 advanced.
+43 questions: 10 basic, 16 intermediate, 17 advanced.
 
 > **On the diagrams: drawing is optional.** Some answers include a small sketch you could
 > reproduce on a whiteboard or in a shared doc. You never have to draw anything to score well,
@@ -69,7 +69,7 @@ flowchart LR
 
 The vision encoder emits one embedding per patch, and each of those occupies a sequence position in the LLM exactly like a text token - so token count scales with (resolution ÷ patch size)². More pixels means more patches means more tokens, and you pay for tokens in dollars, latency, and context budget.
 
-Concrete provider math (the schemes change with model generations, so check the current docs before you quote a bill): OpenAI's GPT-4o-class high-detail mode resizes the image and cuts it into 512×512 tiles at ~170 tokens per tile plus 85 base tokens (newer models count small patches, same area-scaling principle); Anthropic charges roughly (width × height) / 750 tokens and downscales to a per-model cap, ~1568px on the long edge and ~1.6k tokens for most models, with newer flagship models allowing higher resolution and a cap of a few thousand tokens; Gemini 2.x charged ~258 tokens per small image or per 768×768 tile, while Gemini 3 replaced the tiling arithmetic with a `media_resolution` setting that fixes a per-image budget, roughly 280 to 2,240 tokens from low to ultra-high. Order of magnitude to keep in your head: **a readable document page is ~1-2k tokens**, so a 100-page PDF sent as images is ~150k tokens per request - that's a real cost and may not even fit the context window.
+Concrete provider math (the schemes change with model generations, so check the current docs before you quote a bill): OpenAI's GPT-4o-class high-detail mode resizes the image and cuts it into 512×512 tiles at ~170 tokens per tile plus 85 base tokens (newer models count small patches, same area-scaling principle); Anthropic counts ceil(width / 28) × ceil(height / 28) visual tokens, and Claude 4.7 and later (the whole current lineup) accept up to 2,576 px on the long edge and 4,784 tokens, against 1,568 px and 1,568 tokens on older models such as Sonnet 4.6 and Haiku 4.5, so the same 1920×1080 screenshot now costs about 2,700 tokens rather than about 1,560; Gemini 2.x charged ~258 tokens per small image or per 768×768 tile, while Gemini 3 replaced the tiling arithmetic with a `media_resolution` setting that fixes a per-image budget, roughly 280 to 2,240 tokens from low to ultra-high. Order of magnitude to keep in your head: **a readable document page downsampled to a modest resolution is ~1-2k tokens**, but a dense page sent at a high-resolution tier can cost several thousand, so a 100-page PDF sent as images is 150k to several hundred thousand tokens per request depending on the resolution you choose - a real cost that may not even fit the context window. State the resolution whenever you quote a per-page figure.
 
 This is why **tiling / dynamic resolution** schemes exist (LLaVA-NeXT's AnyRes, Qwen-VL's dynamic resolution): the model gets a downscaled global view plus native-resolution crops, spending tokens proportional to image size instead of a fixed budget. It's also why resolution is the first knob in any quality-vs-cost tradeoff: OCR accuracy on small text collapses below a legibility threshold, but pixels beyond the encoder's effective resolution buy nothing. A good answer connects this to prefill compute too - image tokens dominate prefill for vision-heavy workloads, which is where prompt caching of repeated images earns its keep.
 
@@ -158,7 +158,7 @@ A few conventions are in play. Most models normalise coordinates into a fixed ra
 
 The consequences follow directly from "it is just text":
 
-- Boxes are sampled. Run grounding at temperature 0 or you will get jittery coordinates across identical calls.
+- Boxes are sampled, so identical calls can return jittery coordinates. On a self-hosted VLM such as the Qwen-VL family, run grounding at temperature 0. Many hosted frontier APIs no longer accept a custom temperature, so stabilise boxes there by sampling several times and taking a median or an IoU-based vote, or by using a deterministic detector or OCR word boxes for the final coordinates.
 - Precision is bounded by the coordinate grid and the encoder's patch size. You will not get pixel-perfect edges out of a 14 px patch encoder, and you should not promise them.
 - If the model emits absolute pixels, they refer to the image *after* the preprocessor resized and padded it. Mapping them back to the original requires the exact transform. This is the single most common bug, followed by mixing up (x1, y1, x2, y2) with (y1, x1, y2, x2). Always sanity-check against an image where you know the answer.
 
@@ -762,7 +762,7 @@ Interaction with training: MLP projectors enable the cheap staged recipe - stage
 
 Set up the unit economics first, then let accuracy requirements pick the point on the curve.
 
-**VLM path**: a page at readable resolution is ~1.5k input tokens, plus prompt; structured output ~500 tokens. 10M pages ≈ ~15B input + ~5B output tokens/month. The rates below are illustrative, so plug in current price sheets, which move every few months. At small-model rates (~$0.15/M input, ~$0.60/M output) that's ~$2k + $3k ≈ **~$5k/month**; at frontier mid-tier rates (~$3/M input, ~$15/M output) it's ~$45k + $75k ≈ **~$120k/month**. Batch APIs typically cut this ~50% if latency allows. Self-hosting an open VLM changes the calculus to GPU-hours: at a conservative ~1-2 s of GPU time per page, 10M pages is ~3-6k GPU-hours/month, which on cloud H100s is roughly $5-20k depending on the hourly rate you get, less on reserved capacity, plus engineering. Well-batched small VLMs, including document-specialised OCR models, do several times better than that per GPU, so measure your own throughput before committing.
+**VLM path**: a page downsampled to a readable resolution is ~1.5k input tokens, plus prompt (sent at a provider's high-resolution tier it can be two to three times that, so fix the resolution before you budget); structured output ~500 tokens. 10M pages ≈ ~15B input + ~5B output tokens/month. The rates below are illustrative, so plug in current price sheets, which move every few months. At small-model rates (~$0.15/M input, ~$0.60/M output) that's ~$2k + $3k ≈ **~$5k/month**; at frontier mid-tier rates (~$3/M input, ~$15/M output) it's ~$45k + $75k ≈ **~$120k/month**. Batch APIs typically cut this ~50% if latency allows. Self-hosting an open VLM changes the calculus to GPU-hours: at a conservative ~1-2 s of GPU time per page, 10M pages is ~3-6k GPU-hours/month, which on cloud H100s is roughly $5-20k depending on the hourly rate you get, less on reserved capacity, plus engineering. Well-batched small VLMs, including document-specialised OCR models, do several times better than that per GPU, so measure your own throughput before committing.
 
 **OCR path**: managed OCR runs ~$1.50 per 1,000 pages for plain text (**~$15k/month**), roughly 10× more with table/form analysis; self-hosted open OCR is near-pure compute at cents per thousand pages. But OCR alone doesn't extract fields - add an LLM pass over the OCR *text* (~500-800 tokens/page instead of 1.5k of image tokens, and cheap models suffice) for a few thousand dollars more.
 
@@ -818,7 +818,7 @@ Defence in depth across four stages - no single layer survives contact with adve
 
 **Training time**: filter the training corpus (NSFW, CSAM via hash-matching against known-material databases like PhotoDNA/NCMEC's, and decide your policy on real people and artist styles) - capability the model never learned is the only filter that can't be jailbroken. **Input time**: prompt classifiers plus policy checks, catching not just explicit requests but circumlocution ("attractive person, no clothes, artistic"); for image inputs (editing/reference features), scan uploads - real-person likeness, minors, and known-CSAM hashes; combining an uploaded face with sexualised or violent prompts is *the* deepfake abuse vector, so face-editing paths deserve the strictest rules. **Output time**: run vision classifiers on every generated image before display (nudity, violence, real-person likeness); this catches emergent unsafe outputs from innocent-seeming prompts. Tune thresholds knowing base rates: at millions of generations/day, a 1% false-positive rate is a support catastrophe - measure both directions.
 
-**Provenance** - know the two mechanisms and their distinct failure modes: **C2PA Content Credentials** attach a cryptographically signed manifest (who made it, with what tool, edit history) - strong when present, but it's metadata: screenshots, re-encodes, and platform stripping remove it, so absence proves nothing. **Invisible watermarking** (Google's SynthID class) embeds a signal in pixels that survives compression, resizing, and mild edits - more robust, but detectable only with the owner's detector and removable by determined adversaries. Ship both; OpenAI, Google, and Meta all do some combination. Say the honest part: provenance lets *your* content be identified; it does not solve deepfake *detection* in the wild - post-hoc classifiers for arbitrary synthetic media are an unreliable arms race, which is why policy (impersonation rules, takedown processes) and regulation (the EU AI Act's Article 50 transparency obligations on marking and disclosing synthetic content, scheduled to apply from August 2026) carry weight that classifiers can't.
+**Provenance** - know the two mechanisms and their distinct failure modes: **C2PA Content Credentials** attach a cryptographically signed manifest (who made it, with what tool, edit history) - strong when present, but it's metadata: screenshots, re-encodes, and platform stripping remove it, so absence proves nothing. **Invisible watermarking** (Google's SynthID class) embeds a signal in pixels that survives compression, resizing, and mild edits - more robust, but detectable only with the owner's detector and removable by determined adversaries. Ship both; OpenAI, Google, and Meta all do some combination. Say the honest part: provenance lets *your* content be identified; it does not solve deepfake *detection* in the wild - post-hoc classifiers for arbitrary synthetic media are an unreliable arms race, which is why policy (impersonation rules, takedown processes) and regulation (the EU AI Act's Article 50 transparency obligations on marking and disclosing synthetic content, in application since 2 August 2026, with a 2 December 2026 marking deadline for systems already on the market before then, and the AI Omnibus ban on systems that generate non-consensual intimate deepfakes or CSAM from the same December date) carry weight that classifiers can't.
 
 Operationally: red-team continuously (jailbreaks evolve weekly), log for abuse-pattern review, human-review appeal paths for false positives, and rate-limit + investigate accounts probing the filters.
 
@@ -1022,9 +1022,9 @@ Kyutai's Moshi is the reference design worth knowing:
 - **Inner monologue.** It predicts time-aligned text tokens for its own speech ahead of the audio tokens, which measurably improves the linguistic quality of what it says.
 - **Latency.** One 80 ms frame plus a small acoustic delay gives a theoretical ~160 ms, around ~200 ms in practice, well under a cascaded pipeline.
 
-Why most products still ship turn-based in 2026: control. With no text midpoint and no discrete turn, it is hard to insert a tool call, run a guardrail on the reply before it is spoken, keep a clean transcript, or enforce a script. Full-duplex models are also usually far smaller than frontier text models, so reasoning and instruction following lag. And training needs large volumes of natural two-channel conversation, which is scarce and often synthesised.
+Why most products still ship turn-based in 2026: control. With no text midpoint and no discrete turn, it is hard to insert a tool call, run a guardrail on the reply before it is spoken, keep a clean transcript, or enforce a script. Full-duplex models are also usually far smaller than frontier text models, so reasoning and instruction following lag. The hosted answer to that gap is a split: a full-duplex voice front end handles listening, speaking and turn-taking, and hands reasoning and tool calls to a backend agent model (OpenAI's `gpt-live-1` works this way, with the backend model billed at its own rates). That recovers control without going back to a turn-based pipeline, but you have to decide where things sit: guardrails and action confirmations belong in the backend agent, before any tool executes, the transcript must record both what the front end said and what the backend decided, and the front end must not promise an outcome the backend has not confirmed. And training needs large volumes of natural two-channel conversation, which is scarce and often synthesised.
 
-Choose full-duplex when naturalness is the product: companionship, language practice, low-stakes conversation. Choose a pipeline or turn-based speech-to-speech when the agent must take actions, follow policy, or be audited. Either way, evaluate turn-taking directly (overlap rate, response gap, interruption handling) alongside content quality.
+Choose full-duplex when naturalness is the product: companionship, language practice, low-stakes conversation. Choose a pipeline or turn-based speech-to-speech when the agent must take actions, follow policy, or be audited, or a full-duplex front end over a backend agent if you need both naturalness and control and can accept two models in the loop. Either way, evaluate turn-taking directly (overlap rate, response gap, interruption handling) alongside content quality.
 
 **Worth sketching.** Both streams advance every 80 ms, which is why there is no endpointing step to tune.
 
@@ -1039,5 +1039,139 @@ flowchart LR
 ```
 
 **Follow-ups:** Why does distilling the first codebook towards semantic features help a speech language model? How would you add a safety filter to a full-duplex model without reintroducing turn latency? What training data would you need to teach backchannelling, and how would you get it?
+
+</details>
+
+### 41. One speech model has to produce five output conventions from the same audio: normalised native script, verbatim, code-mixed, transliterated, and translated to English. How would you train and evaluate it across 22 Indian languages?
+
+<details><summary><b>Answer</b></summary>
+
+This is a real product shape. Sarvam's Saaras V4 (September 2026) offers these output modes. It is built from an audio encoder, a temporal-downsampling adapter, and a 3B hybrid state-space decoder trained from scratch, streaming with a first token in under 150 ms.
+
+**Architecture.** One shared encoder. The decoder is conditioned on a convention token (and optionally a language token), the way Whisper conditions on task tokens. The acoustics are identical across conventions; only the writing differs, so separate models would waste capacity and drift apart. The downsampling adapter matters for cost: fewer audio frames per decoder step means cheaper streaming. A state-space or hybrid decoder keeps per-step cost and state constant as the stream grows, which suits long, live audio.
+
+**Data is the hard part.** You almost never have five parallel transcripts per clip. Build them from one base:
+
+- **Verbatim** human transcripts, with disfluencies and fillers, as the anchor.
+- **Normalised native script**: apply per-language normalisation to the verbatim text (numbers, dates, currency, disfluency removal, spelling standardisation) with rule-based normalisers plus model rewrites, human-checked on a sample.
+- **Code-mixed**: keep English words in Latin script inside the native-script sentence, the way people actually write Hinglish or Tanglish. This needs word-level language tags, which you can bootstrap with a tagger and correct by hand.
+- **Transliterated**: romanise the native output. There is no single correct romanisation, so collect several acceptable spellings for evaluation.
+- **Translated**: English targets from text translation of the normalised transcript, with human post-editing on a held-out set.
+
+Balance across languages deliberately. Hindi and Bengali are data-rich, while some scheduled languages such as Bodo, Dogri or Santali have little. Use temperature-based sampling over languages and track per-language quality, not just the average.
+
+**Evaluation per convention:**
+
+- **Verbatim and normalised**: WER and CER after a fixed per-language normaliser. Report CER for agglutinative languages, where WER over-penalises.
+- **Code-mixed**: accuracy on both script choice and language tag per word, plus mixed-error-rate metrics. A Hindi word written in Latin script is an error here, not a valid alternative.
+- **Transliterated**: match against multiple references, or score at the phonetic level.
+- **Translated**: chrF or COMET plus human adequacy ratings. Streaming makes this hard, because Indian languages are mostly verb-final, so English output may need to wait for the verb.
+- **Across all**: entity accuracy (names, numbers, addresses), the errors users notice. Also convention leakage, where the model is asked for one convention and emits another. That rate should be near zero and is easy to miss.
+
+Slice everything by telephony versus wideband audio, noise, dialect and speaker demographics, and report latency at the first token and at partial stability, not just final accuracy.
+
+**Worth sketching.** Optional, but it shows that one base transcript fans out into five training targets.
+
+```mermaid
+flowchart LR
+    A["Audio clip"] --> V["Verbatim human transcript"]
+    V --> N["Normalised native script"]
+    V --> M["Code-mixed with language tags"]
+    N --> T["Transliterated, multiple references"]
+    N --> E["English translation, post-edited"]
+    V --> TR["Training set with convention tokens"]
+```
+
+**Follow-ups:** How would you detect and measure convention leakage at scale? What latency does streaming translation need for a verb-final source language? How would you weight languages so low-resource ones improve without hurting Hindi?
+
+</details>
+
+### 42. Design file upload for a chat assistant. A user drops a 500-page PDF, a 20-minute video and a spreadsheet into one conversation. How does each one get into the model's context, and what do you do when it does not fit?
+
+<details><summary><b>Answer</b></summary>
+
+Separate ingestion from context assembly. Ingestion turns each file into representations at several granularities, once, asynchronously. Context assembly decides, per turn, what to put in front of the model.
+
+**Ingestion common to all files:**
+
+- Resumable chunked upload with size limits.
+- Type detection by content, not extension.
+- Malware scanning, and for spreadsheets, stripping macros.
+- Decompression limits against archive bombs.
+- Per-tenant storage with retention and deletion that actually cascades to derived artefacts and indexes.
+
+Show progress per file, and let the user start chatting before processing finishes.
+
+**The 500-page PDF:**
+
+- Born-digital pages: extract text with page and position anchors.
+- Scanned pages, or pages with charts and tables: OCR or VLM extraction, plus page images.
+- Cost: as page images alone, 500 pages is hundreds of thousands of tokens (Gemini's default is 560 tokens per PDF page, and high-resolution image tiers cost more). As text, it is often 250K to 350K tokens.
+- If the model's window and budget allow, put the text in a stable prefix so prompt caching makes follow-up questions cheap.
+- Otherwise chunk and index per page for retrieval, keep a per-section summary, and send page images only for pages whose content is visual.
+
+**The 20-minute video:**
+
+- Transcribe the audio with timestamps and diarisation. Speech carries most of the information in most uploads.
+- Sample frames: Gemini's default 1 frame per second is 1,200 frames, about 84K tokens at 70 tokens per frame. For other models, sample keyframes or scene changes and caption them.
+- Store an aligned timeline (transcript segments plus frame captions), so the model can answer "what was on the slide at 12:40" and cite timestamps.
+
+**The spreadsheet:**
+
+- Never dump cells as tokens. Parse sheets into tables, resolving merged cells, header rows, formulas and multiple sheets.
+- Give the model a schema per sheet, a few sample rows and summary statistics.
+- Give it a code-execution or SQL tool over the real data. Arithmetic over 50K rows belongs in pandas, not in attention.
+
+**When it does not fit:**
+
+- Keep a manifest in every prompt: each file's name, type, size, one-paragraph summary and what was indexed.
+- Expose retrieval and file-reading tools, so the model fetches pages, time ranges or queries on demand.
+- For whole-document tasks ("summarise all of it"), use map-reduce over sections.
+- Be honest in the UI about coverage, for example "read pages 1 to 500, 12 pages were unreadable scans".
+
+**Safety and cost.** Uploaded files are untrusted input, so text inside them can carry prompt injection. Keep their content in a data role and gate tool actions. Budget tokens per conversation, and make derived representations reusable across turns so you pay ingestion once.
+
+**Worth sketching.** Optional, but it separates the one-time ingestion path from the per-turn assembly path.
+
+```mermaid
+flowchart LR
+    U["Upload"] --> S["Scan, type detect, store"]
+    S --> P["PDF: text, OCR, page images"]
+    S --> V["Video: transcript, sampled frames"]
+    S --> X["Sheet: parsed tables, schema"]
+    P --> I["Per-conversation index and manifest"]
+    V --> I
+    X --> I
+    I --> C["Per-turn context assembly and tools"]
+```
+
+**Follow-ups:** How do you keep a follow-up question cheap when the PDF is in context? What do you show the user when 40 pages fail OCR? How would you stop instructions hidden in the spreadsheet from triggering tool calls?
+
+</details>
+
+### 43. From 2 December 2026 the EU AI Act, as amended by the AI Omnibus, prohibits AI systems that generate non-consensual intimate deepfakes or CSAM. You run a general-purpose image and video generator. What would you need to show to be confident you are not a prohibited system?
+
+<details><summary><b>Answer</b></summary>
+
+Frame it correctly first. The AI Omnibus (Regulation (EU) 2026/1744, in force since 27 July 2026) adds this prohibition from 2 December 2026, alongside the Article 50 marking duties that already apply. Interpreting the exact legal test is for counsel. The engineering job is to produce evidence that your system is not able, in practice, to be used this way, and that the controls are effective and measured, not just present. A layered filter you have never measured is not evidence.
+
+**The evidence I would assemble:**
+
+- **Training data governance.** Documented filtering of training data: hash matching against known CSAM databases, NSFW and minor-detection filtering, and a recorded policy on real-person imagery, with audit logs. Capability the model never learned is the strongest control.
+- **Model-level behaviour.** Refusal and capability evaluations for sexual content involving real people or minors, run at every model release and blocking the release if they fail.
+- **Input controls.** Prompt classifiers that catch indirect phrasing, not just keywords. Uploaded reference images checked for real-person likeness and apparent minors. The combination of an uploaded real face with sexual intent blocked outright, unless you run a verified-consent flow and can defend it.
+- **Output controls.** Classifiers on every generated image, and on sampled frames across the whole of every video, not just the first frame, plus audio checks where voices are generated. Hash matching on outputs too.
+- **Measured residual risk.** Red-team suites run continuously, with bypass rates tracked over time and against each model version, and external red-teaming before major releases.
+- **Abuse operations.** Account-level enforcement, rate limits on filter probing, reporting to the relevant authorities and child-safety organisations, takedown processes and incident response with time targets.
+- **Customisation surfaces.** Where users can fine-tune, upload LoRAs or reference identities, or call an API, the same controls must apply there. These are the usual bypass routes.
+- **Provenance.** C2PA manifests plus invisible watermarking under Article 50, so misuse can be traced back to your system.
+
+**Video raises the bar.** More frames to check, temporal edits that change content mid-clip, face swaps on real footage, and voice cloning. Budget the classifier compute: sampled frame checks at scale are a real line item.
+
+**Open weights are the hard case.** You cannot control downstream inference. What you can show is training-data filtering, safety tuning, an evaluation of how easily fine-tuning removes the safeguards, and licence terms. That is a weaker position, and you should say so.
+
+Put it all in a technical file a regulator could follow: the controls, their measured effectiveness, the release gates, and who is accountable.
+
+**Follow-ups:** How would you measure the false-negative rate of an output classifier for content you must never generate in testing? What changes when customers can upload LoRAs? How would you sample video frames so a short inserted segment is not missed?
 
 </details>

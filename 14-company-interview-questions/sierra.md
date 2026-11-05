@@ -1,6 +1,6 @@
 # 🏔️ Sierra - AI Engineer Interview Questions
 
-> **Last reviewed: October 2026.** Based only on public information - official pages, engineering blogs, and publicly shared candidate reports. Processes change and vary by team; treat this as a map, not a contract. No confidential or leaked material.
+> **Last reviewed: November 2026.** Based only on public information - official pages, engineering blogs, and publicly shared candidate reports. Processes change and vary by team; treat this as a map, not a contract. No confidential or leaked material.
 
 ## TL;DR
 
@@ -8,23 +8,26 @@
 - Candidate reports add a practical **debugging round** (small agent codebase, find and fix real bugs) and, for Agent Engineer roles, a **take-home agent build** presented onsite. Behavioural/hiring-manager round closes it out; reported timeline 2-5 weeks.
 - Signals they say they're hunting: **agency, judgment, initiative, and system understanding** - one engineer who can scope, build, and ship across the stack with AI leverage, not a syntax athlete.
 - The company's entire engineering culture is **agent reliability**: they invented τ-bench and the pass^k reliability metric, and their "Agent Development Life Cycle" doctrine (declarative guardrails, immutable releases, conversation simulation as regression tests) is the intellectual backdrop for every technical conversation.
-- Languages: Python and TypeScript dominate; Agent Engineer tracks reportedly lean on **TypeScript/React** for the debugging round. Interviews are conducted in-person at their offices - the culture is explicitly in-person-first, and the careers page still states this as of October 2026.
+- Languages: Python and TypeScript dominate; Agent Engineer tracks reportedly lean on **TypeScript/React** for the debugging round. Interviews are conducted in-person at their offices - the culture is explicitly in-person-first, and the careers page still states this as of November 2026.
 - New in 2026: **Ghostwriter**, Sierra's "agent-building agent", generates and edits customer agents from plain-English instructions, SOPs and transcripts, and runs simulations on every change. Expect agent-builder and meta-agent reliability to surface in design conversations, and note the Agent Engineer track now splits by industry vertical (reported, varies).
+- Late 2026 widens the design surface: **Horizon** (long-running agents that work a goal over days, weeks or months), a **Compliance Console** for outbound contact rules, **Poppy** (a draft protocol for consumers' personal agents acting with businesses), the **Anon** acquisition (agents acting on websites with no API), and new voice benchmarks, **tau-i18n** (multilingual) and **tau-Entity** (detail capture). Expect long-horizon, outbound, identity and voice-evaluation questions.
 
 ## Company context
 
-Sierra (founded 2023 by Bret Taylor, former Salesforce co-CEO and OpenAI board chair, and Clay Bavor, former Google VP) builds customer-facing conversational AI agents - chat, voice and email - for brands, on top of its Agent OS platform, Agent SDK, Agent Studio, Experience Manager tooling, and Ghostwriter, an agent that builds and tunes other agents from natural-language descriptions. It is one of the fastest-scaling applied-AI companies (reported valuation moved from ~$10B in September 2025 to over $15B after a $950M raise in May 2026, with ~$150M ARR reported at the time; figures move fast, verify current numbers), with offices in San Francisco, New York, Atlanta, London, Singapore, Tokyo, Paris, Madrid, Toronto, Munich, and Sydney. "AI engineer" at Sierra means **agent engineering**: building production conversational agents that take real actions (refunds, rebookings, order changes) reliably, plus the platform underneath - it is applied product engineering with an evals-heavy reliability culture, not model research (though Sierra does have a research arm, best known for τ-bench).
+Sierra (founded 2023 by Bret Taylor, former Salesforce co-CEO and OpenAI board chair, and Clay Bavor, former Google VP) builds customer-facing conversational AI agents - chat, voice and email - for brands, on top of its Agent OS platform, Agent SDK, Agent Studio, Experience Manager tooling, and Ghostwriter, an agent that builds and tunes other agents from natural-language descriptions. It is one of the fastest-scaling applied-AI companies (reported valuation moved from ~$10B in September 2025 to over $15B after a $950M raise in May 2026; on 30 October 2026 Sierra said it had passed $400M in ARR, adding more than $150M in Q3 alone, and that it works with almost half of the Fortune 50; figures move fast, verify current numbers), with offices in San Francisco, New York, Atlanta, London, Singapore, Tokyo, Paris, Madrid, Toronto, Munich, and Sydney. "AI engineer" at Sierra means **agent engineering**: building production conversational agents that take real actions (refunds, rebookings, order changes) reliably, plus the platform underneath - it is applied product engineering with an evals-heavy reliability culture, not model research (though Sierra does have a research arm, best known for τ-bench).
 
 ## Roles & titles they hire
 
-From Sierra's careers page (July 2026, rechecked October 2026; openings rotate quickly):
+From Sierra's careers page (July 2026, rechecked November 2026; openings rotate quickly):
 
 - **Agent Engineer** - the signature role: builds and tunes customer agents, blends coding, product sense, and customer work (closest to the forward-deployed archetype)
 - **Software Engineer, Agent** - with specialisations: *Agent Architecture*, *Agent Builder*, *Agent Data Platform*. By October 2026 the listings also split by industry vertical (*Financial Services*, *Healthcare*, *Insurance*, *Public Sector*, *Retail*, *Tech, Media & Telecom*, *Travel & Hospitality*) and by customer language
 - **Deployed Infrastructure Engineer** (earlier listings used the title Forward Deployed Infrastructure Engineer)
-- **Software Engineer** - *Frontend*, *Infrastructure*, *Voice*, *Site Reliability (SRE)*, plus newer platform teams such as *Agent Runtime*, *Context Engine*, *Insights* and *Payments Infrastructure*
+- **Software Engineer** - *Frontend*, *Infrastructure*, *Voice*, *Site Reliability (SRE)*, plus newer platform teams such as *Agent Runtime*, *Context Engine*, *Insights*, *Payments Infrastructure*, *Inference*, *Horizon*, *Admin Experience*, *Channels and Experiences* and *Cloud Infrastructure*
+- **Research Engineer (Applied Research)** and **Healthcare Integrations Architect**
 - **Security Engineer**, **Support Engineer**
-- Early-career: internships and an **APX / Early Career Program** (SF onsite; Agent Engineering in SF and NY)
+- Early-career: internships, an **APX / Early Career Program** (SF onsite; Agent Engineering in SF and NY), **Software Engineer, Agent (New Grad 2027)** and an Agent intern role in London (2027)
+- Non-engineering deployment: **Agent Strategist** (see the loop note below)
 
 No "Member of Technical Staff" branding; research roles exist but are a small slice. The Voice track is real and growing - phone agents are a major product line.
 
@@ -44,7 +47,9 @@ Unusually, the onsite core is **officially documented** by Sierra themselves. Ea
 | Hiring manager / behavioural | ~60 min | Ownership, collaboration, customer-facing aptitude, culture fit (reported) |
 | Culture fit + reference checks | Conversations + references | Values alignment (**official** - mentioned in their blog) |
 
-Reported timeline: 2-5 weeks. Onsites happen physically at their offices. Compensation data exists on [levels.fyi](https://www.levels.fyi/companies/sierra).
+Reported timeline: 2-5 weeks. Onsites happen physically at their offices.
+
+**Agent Strategist (non-engineering deployment track).** One November 2026 candidate report describes a different loop: recruiter screen; a values and behavioural interview with another Agent Strategist; a take-home case presented at the onsite; and a live agent-design whiteboard with a PM (define a cancellation agent for a new customer, walking through the user journey and the systems and integrations it needs). A hiring-manager round was still pending at the time of the report. Single report, so treat it as directional. Compensation data exists on [levels.fyi](https://www.levels.fyi/companies/sierra).
 
 ## What they emphasise
 
@@ -269,9 +274,49 @@ Treat the builder as a fast, prolific engineer whose changes you cannot fully tr
 
 **Distrust the inputs.** SOPs contradict each other and go stale; transcripts encode human agents' bad habits, such as unauthorised goodwill credits, so imitating them imports policy violations. Every extracted rule should carry provenance (which SOP line or transcript produced it) and be confirmed by the customer. Uploaded content is data, never instructions to the builder.
 
-**Ship like any other release.** Staged rollout, live monitoring of escalation, resolution and policy-violation rates, automatic rollback on breach. For the self-improvement loop on production traffic, the builder proposes and a human approves, and you track what share of proposals get accepted as a quality signal on the builder itself.
+**Ship like any other release.** Sierra's November 2026 redesign of Agent Studio around Ghostwriter follows this shape: sessions hold changes until they are reviewed and merged, can be forked, and show line-by-line diffs, and releases need approvals and controlled rollouts. Staged rollout, live monitoring of escalation, resolution and policy-violation rates, automatic rollback on breach. For the self-improvement loop on production traffic, the builder proposes and a human approves, and you track what share of proposals get accepted as a quality signal on the builder itself.
 
 **Follow-ups:** How would you tell a genuine improvement from overfitting to last week's failures? A customer wants changes auto-shipped with no review - what, if anything, do you allow?
+
+</details>
+
+### 14. Design an agent that works a loan application over three weeks across calls, texts and email. What state does it keep between contacts, how does it decide when to reach out next, and how do you keep it inside contact windows, frequency caps and opt-outs?
+
+<details><summary><b>Answer</b></summary>
+
+This is the class of work Sierra's Horizon (July 2026) targets: agents that pursue a goal over days, weeks or months, such as loan origination or prior authorisation. The design shift from a support agent is that **the conversation is no longer the unit of work; the case is.**
+
+**State lives outside the model.** A durable case record: goal and stage (documents requested, received, verified, underwriting, decision), an outstanding-items checklist, every contact attempt with channel, time and outcome, commitments made ("I'll send the pay stubs Friday"), consent and channel preferences, and a short running summary for context. Each contact loads the record, not the full transcript history; summaries are regenerated from structured fields so they cannot drift over three weeks.
+
+**Deciding the next contact.** Separate *what to ask for* (the model can reason over the checklist) from *when and how to reach out* (a scheduler with explicit rules). Triggers: a commitment date passes, a document arrives and fails validation, a deadline approaches, or silence exceeds a threshold. The scheduler proposes a contact; the policy layer decides whether it is allowed; only then does the agent compose the message.
+
+**Compliance as a gate in code, not in the prompt.** Sierra's Compliance Console (October 2026) enforces per-channel disclosures, local contact windows (8am to 9pm by default), regional holiday holds, frequency caps and opt-outs. Implement the check at send time in the recipient's local timezone, evaluate caps across all channels, and treat an opt-out on any channel as a hard stop until the record says otherwise. Every blocked send is logged with the rule that blocked it, because regulators and customers will ask.
+
+**Failure modes to name.** Duplicate outreach after a retry (make sends idempotent on case and step); the applicant replies on a different channel than the one the agent used (one inbox per case); a human loan officer changes the case mid-flight (the agent must re-read state before every action); and the agent promising a decision it cannot make.
+
+**Evaluation.** Simulate whole case timelines with a clock you control, simulated applicants who go silent, send wrong documents or opt out, and measure completion rate, time to completion, contacts per completed case, and zero compliance violations as a hard gate.
+
+**Follow-ups:** The applicant says "call me after work" in a text. How does that become state, and what if it conflicts with the contact window? How do you test a three-week flow in CI?
+
+</details>
+
+### 15. Your voice agent captures each field of a form correctly 75% of the time. Why does a three-field form succeed only about half the time, and how would you measure and improve capture across noisy audio and several languages without making calls painfully long?
+
+<details><summary><b>Answer</b></summary>
+
+Because errors compound. If fields are independent, three at 75% gives 0.75^3, about 42%, and Sierra's tau-Entity benchmark (October 2026) observed about 53% three-field success at roughly 75% per field, a little better than independence because some fields help each other. Either way, per-field accuracy that sounds fine produces a form that is wrong half the time.
+
+**Measure the right thing.** Score whole-task success, not per-field accuracy, and score it repeatedly: tau-Entity uses Pass^3 across regular, noise-heavy and speech-heavy conditions, and the best pooled Pass^3 it reported was 34.0%. Slice by entity type (names, emails, addresses, policy numbers and dates fail differently), by noise condition and by language. Sierra's tau-i18n found task completion trailing English by 2.4 points in Spanish, 3.8 in Hindi and 6.4 in Brazilian Portuguese, so an English-only eval overstates quality.
+
+**Improve capture.**
+- **Constrain the space.** Validate against what the system already knows (does the account number exist, does the postcode match the city), and use checksums or formats to reject impossible values before reading them back.
+- **Ask well.** Request spelling for names and emails using a phonetic alphabet where locale-appropriate, chunk long numbers, and confirm the risky fields only.
+- **Verify selectively.** tau-Entity found a prescribed verification sequence added 14 to 31 points but made calls 21 to 28 seconds longer. So read back only fields with low ASR confidence, high consequence, or failed validation, and batch confirmations into one readback.
+- **Fix turn-taking.** In 26 to 60% of tau-i18n calls, agents responded more than three times to backchannels or speech not directed at them; that wastes time and causes over-confirmation loops.
+
+**The trade-off to state.** Every confirmation buys accuracy with call length and caller patience. Pick verification per field by the cost of a wrong value: a wrong delivery address is expensive, a slightly misspelt first name in a callback note is not.
+
+**Follow-ups:** How would you set the ASR-confidence threshold for readback per language? A customer wants zero readbacks to shorten calls - what do you show them? How do you build a test set for addresses in Hindi?
 
 </details>
 
@@ -308,3 +353,9 @@ Treat the builder as a fast, prolific engineer whose changes you cannot fully tr
 - [levels.fyi - Sierra](https://www.levels.fyi/companies/sierra)
 - [Sierra - Ghostwriter product page](https://sierra.ai/product/ghostwriter)
 - [SiliconANGLE - Sierra valued at $15B after $950M round (May 2026)](https://siliconangle.com/2026/05/04/ai-agent-startup-sierra-valued-15b-new-950m-funding-round)
+- [Sierra - Our customers' ambition is accelerating our growth](https://sierra.ai/blog/our-customers-ambition-is-accelerating-our-growth) ($400M+ ARR, October 2026)
+- [Sierra - Horizon](https://sierra.ai/blog/horizon) (long-running agents, July 2026) and [Compliance Console](https://sierra.ai/blog/introducing-compliance-console) (October 2026)
+- [Sierra - Redesigning Agent Studio around Ghostwriter](https://sierra.ai/blog/redesigning-agent-studio-around-ghostwriter) (November 2026)
+- [Sierra - Poppy](https://sierra.ai/blog/poppy) (personal agent protocol draft, October 2026) and [Sierra acquires Anon](https://sierra.ai/blog/sierra-acquires-anon) (November 2026)
+- [Sierra - tau-i18n](https://sierra.ai/blog/tau-i18n) and [tau-Entity](https://sierra.ai/blog/tau-entity-can-voice-agents-get-the-details-right) (voice benchmarks, October 2026)
+- [Aced - Sierra Agent Strategist interview experience](https://www.aced.io/experiences/sierra-ai-deployment-strategist-interview-aec3c9) (single candidate report, November 2026)

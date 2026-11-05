@@ -1,6 +1,6 @@
 # 🛰️ xAI - AI Engineer Interview Questions
 
-> **Last reviewed: October 2026.** Based only on public information - official pages, engineering blogs, and publicly shared candidate reports. Processes change and vary by team; treat this as a map, not a contract. No confidential or leaked material.
+> **Last reviewed: November 2026.** Based only on public information - official pages, engineering blogs, and publicly shared candidate reports. Processes change and vary by team; treat this as a map, not a contract. No confidential or leaked material.
 
 ## TL;DR
 
@@ -9,11 +9,13 @@
 - A distinctive **codebase-reading component** shows up in reports: you're handed a partially implemented (sometimes LLM-related) codebase and asked to complete functions without a full spec.
 - System design skews toward **their scale**: inference batching, rate limiting for LLM APIs, and training/serving infrastructure reasoning shaped by the Colossus GPU buildout.
 - There is **no dedicated behavioural, values, or ethics round** per multiple public reports - a sharp contrast with Anthropic/OpenAI. The real culture filter is pace: in-person, intense, ship-fast. Public info on the loop is thinner and noisier than for other frontier labs; expect variation by team.
-- **2026 context.** xAI merged into SpaceX in February 2026 and rebranded as SpaceXAI in July 2026; Grok kept its name. In March 2026 Musk said xAI was being "rebuilt from the foundations up" and that he and talent lead Baris Akis were going back through interview history to re-contact declined candidates. A 2026 prep-site writeup describes coding rounds as generally AI-permissive, with fundamentals still checked (reported, varies). Ask your recruiter which entity, team and tool policy apply to your loop.
+- **2026 context.** xAI merged into SpaceX in February 2026 and was rebranded as SpaceXAI in July 2026, then as SpaceXSI (SpaceX Super Intelligence) in October 2026; Grok kept its name. Postings now appear under SpaceXSI (the public Greenhouse board is titled "Jobs at SpaceXSI", though its URL path is still /xai), so search job boards under all three names. SpaceX also completed its acquisition of Cursor in August 2026, so Cursor now sits in the same group. In March 2026 Musk said xAI was being "rebuilt from the foundations up" and that he and talent lead Baris Akis were going back through interview history to re-contact declined candidates. A 2026 prep-site writeup describes coding rounds as generally AI-permissive, with fundamentals still checked (reported, varies). Ask your recruiter which entity, team and tool policy apply to your loop.
 
 ## Company context
 
-xAI (operating as SpaceXAI since July 2026, after its February 2026 all-stock merger with SpaceX) builds Grok - a frontier LLM family served in the Grok apps, integrated into X, and available via API - and trains it on Colossus, its self-built GPU supercluster in Memphis (publicly described at 100K+ GPUs with stated plans to scale much further). Engineers join for the compute scale, the tiny-team-huge-blast-radius structure, and the speed of shipping. "AI engineer" at xAI means someone who can operate close to the metal - inference systems, training infrastructure, data pipelines, agent products - rather than someone who only orchestrates model APIs.
+xAI (operating as SpaceXSI since October 2026, and as SpaceXAI from July 2026, after its February 2026 all-stock merger with SpaceX) builds Grok - a frontier LLM family served in the Grok apps, integrated into X, and available via API - and trains it on Colossus, its self-built GPU supercluster in Memphis (publicly described at 100K+ GPUs with stated plans to scale much further). Engineers join for the compute scale, the tiny-team-huge-blast-radius structure, and the speed of shipping. "AI engineer" at xAI means someone who can operate close to the metal - inference systems, training infrastructure, data pipelines, agent products - rather than someone who only orchestrates model APIs.
+
+Recent models: Grok 4.5 (July 2026), Grok 4.6 (August) and Grok 4.7 (September). Grok 4.6 and 4.7 have a 500K-token context, image input and reasoning effort up to xhigh, with higher per-token prices above 200K prompt tokens, and Grok 4.7 always returns encrypted reasoning in the Responses API. Grok 5 has not been released. SpaceX completed its acquisition of Cursor on 14 August 2026; Grok models built with SpaceXAI now ship in Cursor, Grok 4.7 was introduced on Cursor's blog, and its Fast variant is available only in Cursor and Grok Build, not the public API. Coding agents are clearly a strategic bet, so expect agent and coding-tool questions for product and post-training roles.
 
 ## Roles & titles they hire
 
@@ -36,6 +38,7 @@ Public information on xAI's loop is **thinner and less consistent than for OpenA
 | Onsite (in person, Bay Area) | 2-5 rounds: coding with layered extensions, codebase reading/completion, system design | OOD under changing requirements, reading unfamiliar production-style code, infra design at scale (round count varies by report) |
 | Project deep-dive | ~20 min presentation on your hardest technical problem + adversarial Q&A | Depth, ownership, tradeoff honesty, numbers (reported, varies) |
 | Follow-up / HM call | Conversation with hiring manager or team member | Team match, close; the closest thing to a behavioural round |
+| Trial period (single report) | One mid-2026 Member of Technical Staff offer came with a mutual two-week trial period, which the company attributed to the intensity of the job; the same loop opened with a founder-led screen on fine-tuning versus distillation (reported, single source) | Whether you and the team both want to continue |
 
 Logistics note from candidate reports: onsites are in person with real security screening at the door - arrive early.
 
@@ -303,6 +306,52 @@ flowchart TD
 
 </details>
 
+### 13. Design a file uploader for an AI chat app that handles large multimodal uploads (PDFs, images, video, audio) and feeds them into the model's context.
+
+<details><summary><b>Answer</b></summary>
+
+This prompt appears in one 2026 prep-site guide attributed to xAI. Treat it as two systems glued together: a durable upload pipeline and a context-assembly step that decides what the model actually sees.
+
+**Upload path.** Resumable, chunked uploads straight to object storage via pre-signed URLs, so gigabyte videos never pass through your API servers. The client gets an upload ID, sends chunks in parallel, and can resume after a dropped connection. Validate type by content sniffing, not file extension, enforce size and per-user quotas, and scan for malware before anything downstream touches the file.
+
+**Processing pipeline.** An event on upload completion enqueues work by type: PDFs to text extraction and page rendering (scanned pages need OCR or the model's vision path), images to resizing and normalisation, video to frame sampling plus audio transcription, audio to speech-to-text. Each step writes derived artefacts keyed by a content hash, so re-uploading the same file is free. Report progress to the client over the same streaming channel as chat.
+
+**Context assembly.** The hard part. A 300-page PDF or a one-hour video does not fit sensibly in context even with a 500K window, and filling the window costs money and latency on every turn. Options in order: send everything if it is small; send a summary plus a retrieval index over chunks and pull relevant pieces per question; for video, sample frames at a rate tied to the question (scene changes, not every second). Count tokens per modality before sending, because image and frame token costs add up quickly. Cache the processed prefix so follow-up questions about the same file reuse it.
+
+**Failure handling.** Partial processing should still be usable (text ready, video still transcribing), with the model told what is missing rather than silently answering from half the file.
+
+**Security.** Uploaded documents are untrusted input: hidden text in a PDF is a prompt-injection vector, so keep file content clearly delimited as data and do not give the model tool access that the file could hijack. Encrypt at rest, scope access to the conversation owner, and honour deletion all the way through derived artefacts and caches.
+
+**Follow-ups:** A user uploads a 2-hour video and asks about one moment - how do you find it without processing every frame at full resolution? How do you bill or rate-limit uploads that are expensive to process but cheap to send?
+
+</details>
+
+### 14. Explain fine-tuning versus distillation. What are the limits of distilling a small model from a large one?
+
+<details><summary><b>Answer</b></summary>
+
+A mid-2026 candidate report describes this as an opening question in a founder-led screen. It rewards precise definitions and an honest view of what distillation cannot do.
+
+**Fine-tuning** updates a pretrained model's weights on task data with labels from any source: human-written answers, preference pairs, or reward signals. The goal is new behaviour or better behaviour on a target distribution. It can be full-parameter or parameter-efficient (LoRA and similar).
+
+**Distillation** trains a student to imitate a teacher. Two main forms: **sequence-level** (generate outputs from the teacher and fine-tune the student on them, which is really fine-tuning on synthetic data) and **logit-level** (match the teacher's full next-token distribution with a KL loss, which transfers much more information per token because the student sees which wrong answers the teacher considered plausible). Logit distillation needs access to the teacher's logits and a shared or mapped tokenizer.
+
+**Why distil.** Serving cost and latency: a small student can recover most of a large teacher's quality on a narrow distribution at a fraction of the compute per token.
+
+**The limits.**
+- **Capacity.** A student with far fewer parameters cannot store the teacher's breadth of knowledge. It matches the teacher on the distribution you distilled on and degrades elsewhere, often sharply.
+- **Coverage.** The student only learns what your prompts exercise. Rare skills and long-tail facts are lost unless the distillation set covers them.
+- **Reasoning depth.** Copying the teacher's final answers or even its reasoning traces does not guarantee the student can carry out the same multi-step computation; it may learn the surface pattern of reasoning without the reliability.
+- **Teacher errors and biases** transfer, sometimes amplified, and the student cannot exceed the teacher on the teacher's own signal.
+- **Gap too large.** Distilling across a very large size gap often works worse than going through an intermediate model, because the student cannot fit the teacher's distribution.
+- **Licensing.** Many providers' terms forbid using their outputs to train competing models, so check before distilling from an API.
+
+**When to choose which.** Fine-tune when you have good task labels and want new behaviour; distil when you already have a model that does the job and the problem is cost or latency.
+
+**Follow-ups:** How would you measure what the student lost relative to the teacher? When would on-policy distillation (student generates, teacher scores) beat training on teacher outputs?
+
+</details>
+
 ## How to prepare
 
 Priority order for this repo, given xAI's reported loop:
@@ -332,5 +381,10 @@ Company-specific moves:
 - [xAI's public Greenhouse job board](https://job-boards.greenhouse.io/xai) - source of the Member of Technical Staff posting titles cited above
 - [Glassdoor - xAI interview experiences](https://www.glassdoor.com/Interview/xAI-Interview-Questions-E10404667.htm) - aggregated candidate reports (surfaced via search; individual reports unverified)
 - [techinterview.org - xAI Interview Process 2026](https://www.techinterview.org/post/3233474930/xai-interview-process-2026/) - 3-6 week timeline, 4-6 round loop, AI-permissive coding rounds (prep-site writeup, consulted October 2026)
+- [Euronews - Musk to rebrand SpaceXAI as SpaceXSI](https://www.euronews.com/2026/10/05/musk-to-follow-trump-and-rebrand-spacexai-as-spacexsi) - October 2026 rebrand
+- [Tesla North - SpaceXAI becomes SpaceXSI on X](https://teslanorth.com/2026/10/10/spacexai-spacexsi-x-rename/) - October 2026 account rename
+- [Cursor - Joining SpaceX](https://cursor.com/blog/joining-spacex) - August 2026 acquisition completion and Grok models in Cursor
+- [xAI API release notes](https://docs.x.ai/docs/release-notes) - Grok 4.5, 4.6 and 4.7 context, pricing and effort levels
+- [aced.io - AI engineer interview questions](https://www.aced.io/blog/ai-engineer-interview-questions) and [aced.io - xAI MLE interview experience](https://www.aced.io/experiences/x-ai-machine-learning-engineer-interview-861cd7) - single reports: multimodal uploader design prompt, trial period, distillation screen question
 - [Gizmodo - xAI rebrands as SpaceXAI](https://gizmodo.com/xai-is-dead-long-live-spacexai-2000782034) - July 2026 rebrand following the February 2026 SpaceX merger
 - [Yahoo Finance - Musk admits xAI passed on promising candidates, launches hiring review](https://finance.yahoo.com/news/elon-musk-admits-xai-passing-120627338.html) - March 2026 hiring review, rebuild, Cursor hires
