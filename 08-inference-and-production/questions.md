@@ -1,6 +1,6 @@
 # Inference, Serving & Production LLM Systems - Interview Questions
 
-56 questions: 14 basic, 22 intermediate, 20 advanced.
+62 questions: 14 basic, 23 intermediate, 25 advanced.
 
 > **On the diagrams: drawing is optional.** Some answers include a small sketch you could
 > reproduce on a whiteboard or in a shared doc. You never have to draw anything to score well,
@@ -223,7 +223,13 @@ Prefill work depends only on the tokens processed so far, so if two requests sha
 
 Self-hosted: vLLM does hash-based automatic prefix caching over KV blocks; SGLang's RadixAttention keeps a radix tree of cached prefixes and its scheduler routes matching requests to them. Cache hits cut TTFT dramatically (prefill collapses to the uncached suffix) and free compute.
 
-Provider APIs monetise the same mechanism: **cached input tokens are billed at a steep discount**. Anthropic's is explicit (`cache_control` breakpoints): cache writes cost ~1.25× base input, cache reads ~0.1× - a 90% discount - with a ~5-minute refreshing TTL (longer TTL available). OpenAI's is automatic for prompts past a minimum length (~1024 tokens), with the cached-input discount varying by model generation, from ~50% on older models to ~90% on newer ones. Gemini offers both implicit (automatic) caching on recent models and explicit context caching with storage-based pricing. Exact multipliers and TTLs change, so read the current price page rather than memorising them. For an agent re-sending a 20K-token context 30 times per session, caching is the difference between paying for ~600K input tokens and ~600K mostly-discounted ones - often the single largest line-item saving available with zero quality impact.
+Provider APIs monetise the same mechanism: **cached input tokens are billed at a steep discount, and on the newest models writes carry a premium**. As of late 2026:
+
+- **Anthropic** offers automatic caching (one top-level `cache_control` that moves forward as the conversation grows) as well as explicit breakpoints. Writes cost 1.25× base input for the 5-minute refreshing TTL or 2× for 1 hour. Reads cost 0.1× on most models, 0.05× on Opus 5.5 and Sonnet 5.5, and 0.025× on Fable 5.1 and Mythos 5.1.
+- **OpenAI** caches implicitly by default with a 1,024-token minimum. On GPT-5.6 and later you can also place explicit breakpoints (`prompt_cache_breakpoint`, up to four cache writes per request). Writes cost 1.25× input for the default 30-minute lifetime and 2.5× for the 12-hour lifetime added in October 2026. Reads cost 0.1×, or 0.05× on GPT-6.1 Sol and Terra. GPT-5.5 and earlier stay implicit-only with no write fee.
+- **Gemini** caches implicitly by default on 2.5 and newer. Explicit context caching exists only on supported Gemini 3 and 2.5 models, not on Gemini 4 Argon and later, where implicit cache hits are 95% off.
+
+Exact multipliers and TTLs change often, so read the current price page rather than memorising them. The write premium means a prefix that is written and never re-read costs more than no caching at all. For an agent re-sending a 20K-token context 30 times per session, caching is the difference between paying for ~600K input tokens and ~600K mostly-discounted ones - often the single largest line-item saving available with zero quality impact.
 
 The engineering discipline it imposes: **stable prefix first, variable content last**. Any changed byte invalidates everything after it - so no timestamps/request IDs early in the system prompt, deterministic tool-definition ordering, and append-only conversation structure. Cache hit rate belongs on your cost dashboard.
 
@@ -492,7 +498,7 @@ Decode is memory-bound: each token costs a full weight-sweep, while compute idle
 
 Faithfulness comes from the **acceptance rule** (Leviathan et al. 2022; Chen et al. 2023): accept draft token x with probability `min(1, p_target(x)/p_draft(x))`; on rejection, resample from the residual distribution `normalize(max(0, p_target − p_draft))`. This is a rejection-sampling construction whose marginal distribution is *exactly* `p_target` - provable, not approximate. So speculative decoding is purely a latency optimisation: same output distribution, including with temperature sampling. Any implementation that changes outputs (beyond floating-point noise) is buggy or is deliberately doing lossy "relaxed" acceptance.
 
-When it helps: expected tokens per target pass rise with the **acceptance rate** α (how well the drafter matches the target). Predictable text - code, structured output, formulaic prose - drafts well; high-entropy creative text doesn't. It shines at low batch sizes with compute headroom, typically ~2-3× ITL improvement. When it hurts: at high batch, the GPU is already compute-saturated, so verification passes steal throughput; a poorly matched or too-slow drafter can net negative; and the draft model consumes memory. Drafter options: a small same-tokenizer model, self-drafting heads (Medusa, EAGLE), or **n-gram/prompt-lookup** drafting - copying candidate continuations from the prompt itself, essentially free and very effective for extraction/editing workloads.
+When it helps: expected tokens per target pass rise with the **acceptance rate** α (how well the drafter matches the target). Predictable text - code, structured output, formulaic prose - drafts well; high-entropy creative text doesn't. It shines at low batch sizes with compute headroom, typically ~2-3× ITL improvement. When it hurts: at high batch, the GPU is already compute-saturated, so verification passes steal throughput; a poorly matched or too-slow drafter can net negative; and the draft model consumes memory. Drafter options: a small same-tokenizer model, feature-level drafters such as EAGLE-3, a model's own built-in multi-token-prediction (MTP) module, parallel block drafters that propose a whole block in one pass (DFlash, DSpark), or **n-gram/prompt-lookup** drafting - copying candidate continuations from the prompt itself, essentially free and very effective for extraction/editing workloads.
 
 **Worth sketching.** The draft-verify-accept loop with the rejection branch on it is exactly the diagram that proves you understand why output is unchanged.
 
@@ -545,11 +551,11 @@ flowchart TD
 
 <details><summary><b>Answer</b></summary>
 
-Storing the KV cache in fewer bits - FP8 or INT8 instead of FP16, with more aggressive 4-bit variants in research and llama.cpp. It's orthogonal to weight quantization and attacks a different constraint: weights are a *fixed* cost, but KV grows with `sequences × context length`, and on a busy server it's the KV pool, not weights, that caps concurrency.
+Storing the KV cache in fewer bits - FP8 or INT8 instead of FP16, and now 4-bit: NVFP4 KV cache ships in vLLM and TensorRT-LLM and roughly halves KV memory compared with FP8, with under 1% accuracy loss in NVIDIA's benchmarks. NVIDIA's implementation dequantizes to FP8 before attention, so it saves memory and bandwidth but not attention FLOPs. It's orthogonal to weight quantization and attacks a different constraint: weights are a *fixed* cost, but KV grows with `sequences × context length`, and on a busy server it's the KV pool, not weights, that caps concurrency.
 
 The payoff is direct: FP8 KV halves bytes/token - our 70B example drops from ~320 KB to ~160 KB/token - which literally **doubles** either max batch size (throughput) or max servable context at the same memory. It also reduces attention's memory traffic at long contexts, where reading the KV cache (which, unlike weights, doesn't amortise across the batch) becomes the bandwidth bottleneck - so long-context decode gets faster too.
 
-Quality: 8-bit KV (especially FP8) is generally near-lossless and widely used in production; vLLM, TensorRT-LLM, and llama.cpp all support it. Below 8 bits it gets delicate - attention is sensitive to key precision (keys enter the dot-product logits; error there perturbs the softmax over *all* positions), and research consistently finds **keys need gentler treatment than values**, motivating per-channel key quantization and asymmetric K/V schemes. Long multi-step tasks accumulate error, so evaluate on long-context and agentic benchmarks, not short QA.
+Quality: 8-bit KV (especially FP8) is generally near-lossless and widely used in production; vLLM, TensorRT-LLM, and llama.cpp all support it. Below 8 bits it gets more delicate, and vendor accuracy numbers on short benchmarks are not a substitute for your own evals - attention is sensitive to key precision (keys enter the dot-product logits; error there perturbs the softmax over *all* positions), and research consistently finds **keys need gentler treatment than values**, motivating per-channel key quantization and asymmetric K/V schemes. Long multi-step tasks accumulate error, so evaluate on long-context and agentic benchmarks, not short QA.
 
 When to reach for it: (1) KV-bound deployments - high concurrency or long context, where the dashboard shows KV utilization pegged and preemptions climbing; (2) fitting a long-context model on fixed hardware; (3) squeezing more batch out of a GPU already serving 4-bit weights. Caveat: stacking aggressive weight quant + aggressive KV quant compounds error - re-run evals on the combination, not each in isolation.
 
@@ -579,8 +585,8 @@ Decide on workload shape, hardware, and how much engineering you'll invest - not
 
 - **vLLM**: the default open-source choice. PagedAttention, continuous batching, chunked prefill, prefix caching, speculative decoding, quantization support, tensor/pipeline parallelism, OpenAI-compatible server, broad model coverage (including day-one support for most open releases) and multi-hardware backends. Pick it unless you have a specific reason not to.
 - **SGLang**: strongest when requests share prefixes heavily - agentic workloads, multi-turn chat, few-shot batteries - thanks to RadixAttention (tree-structured automatic prefix cache reuse) and a scheduler that exploits it; also known for very fast constrained/structured generation. Often benchmark-competitive or ahead of vLLM on these patterns.
-- **TensorRT-LLM**: NVIDIA's maximum-performance path - heavily tuned kernels, aggressive fusion, first-class FP8/FP4. Since its 1.0 release the PyTorch-based runtime is the default, with the older compiled-engine workflow still available. Best raw numbers on NVIDIA hardware, but you pay in tuning complexity, sometimes slower model onboarding, and NVIDIA lock-in. Choose when serving cost at scale justifies dedicated inference engineers (often behind Triton or NVIDIA's Dynamo orchestration).
-- **TGI (Text Generation Inference)**: Hugging Face's former production server. Hugging Face moved it into maintenance mode in late 2025 and now points users to vLLM and SGLang, so new model architectures will not land there. Treat it as a migration item, not a choice for a new deployment.
+- **TensorRT-LLM**: NVIDIA's maximum-performance path. It is moving to its PyTorch backend only: the TensorRT engine path is gone from the 1.3/1.4 release line and the current docs, so Hugging Face checkpoints load directly (`LLM(model=...)` or `trtllm-serve <model>`) with no engine build or checkpoint conversion. Its edge now comes from NVIDIA-tuned kernels (FP8/NVFP4, MLA, MoE) and serving features rather than ahead-of-time compiled engines. Best raw numbers on NVIDIA hardware, but you pay in tuning effort, NVIDIA lock-in, and how quickly new models are supported. Choose when serving cost at scale justifies dedicated inference engineers (often behind Triton or NVIDIA's Dynamo orchestration).
+- **TGI (Text Generation Inference)**: Hugging Face's former production server. Hugging Face moved it into maintenance mode in late 2025, and the GitHub repository was archived (read-only) on 21 March 2026. Its README recommends vLLM and SGLang, or llama.cpp and MLX for local use, so new model architectures will not land there. Treat it as a migration item, not a choice for a new deployment.
 - **llama.cpp / Ollama / MLX**: the edge/local tier. CPU, Apple Silicon (Metal / MLX), consumer GPUs; GGUF quantized models; trivially easy to run. Right for on-device products, privacy-constrained local inference, and dev laptops - not for high-QPS datacenter serving.
 
 Decision drivers to name: hardware (NVIDIA datacenter vs AMD/TPU vs laptop), workload (prefix-heavy agentic → SGLang; general → vLLM; cost-obsessed at scale → TensorRT-LLM), features needed (structured output, multi-LoRA serving, spec decoding), team ops maturity, and community velocity for new model support. Also mention the "buy" option: managed endpoints (Bedrock, Vertex, Fireworks, Together, etc.) when you don't want to run the stack at all.
@@ -844,7 +850,7 @@ Start from the workload's binding constraint and the software you would have to 
 
 **Match the constraint.** Decode is memory bandwidth and capacity bound, so HBM capacity and TB/s matter more than peak FLOPS. Capacity has a second-order effect people miss: a 192 GB MI300X can hold a model that would need two 80 GB cards, which removes tensor-parallel all-reduces from every layer and can beat the "faster" option. An H200 at 141 GB tells a similar story. Prefill and large-batch serving are compute bound, so there tensor-core throughput and low-precision support (FP8, and FP4 on Blackwell-class parts) is what you are buying.
 
-**Software usually casts the deciding vote.** NVIDIA gets day-one support in vLLM, SGLang and TensorRT-LLM, plus the widest kernel coverage for speculative decoding, LoRA and structured output. ROCm has closed a lot of ground and MI300X is supported in the main open stacks. TPUs are strong for large steady-batch serving through JAX and XLA and can be excellent on price-performance, but the ecosystem is narrower. Inferentia and Trainium need Neuron compilation, so model and feature coverage is the risk you are underwriting; the payoff is unit cost if your model is supported.
+**Software usually casts the deciding vote.** NVIDIA gets day-one support in vLLM, SGLang and TensorRT-LLM, plus the widest kernel coverage for speculative decoding, LoRA and structured output. ROCm has closed a lot of ground: MI355X is in the main open stacks, MI450-based Helios racks are running production workloads for Anthropic, Meta, Microsoft, OpenAI and Oracle Cloud Infrastructure, ROCm 10 is out, and vLLM's Model Runner V2 is the default on ROCm. TPUs can now be served from PyTorch through TorchTPU with vLLM or SGLang as well as through JAX, and can be excellent on price-performance. Trainium has the TorchNeuron PyTorch backend (beta on Trn2 and Trn3) alongside Neuron compilation. So the risk on non-NVIDIA silicon is less a different framework and more operator and kernel coverage, dynamic shapes and maturity; the payoff is unit cost if your model and features are well supported.
 
 **The metric that matters** is dollars per million tokens at your SLO, on your model, with your traffic shape. Sticker price per GPU-hour is meaningless. A cheaper chip that halves your achievable batch size is more expensive, and a chip that misses your latency target at any batch size is infinitely expensive.
 
@@ -909,18 +915,19 @@ flowchart LR
 
 <details><summary><b>Answer</b></summary>
 
-Treat tiers as different points on a price, latency and capacity-guarantee curve, and send each workload to the cheapest tier that still meets its SLO. The model is the same in every tier. What you are buying is scheduling priority and how firmly the provider guarantees capacity.
+Treat tiers as different points on a price, latency and capacity-guarantee curve, and send each workload to the cheapest tier that still meets its SLO. The model is the same in every tier. What you are buying is one of two things: scheduling priority and how firmly the provider guarantees capacity, or faster per-token decode. Keep those axes separate, because they fix different problems.
 
 - **Standard on-demand.** Per-token pricing, shared capacity, best-effort latency, per-organisation rate limits. The default for interactive features at moderate volume.
-- **Priority.** OpenAI's priority `service_tier`, Anthropic's Priority Tier and similar offerings charge a premium or require a commitment in exchange for being scheduled first when the provider is busy, so tail latency and availability at peak improve. Worth it for the latency-critical slice where a P99 miss costs revenue, not for all traffic.
+- **Priority and capacity commitments.** Anthropic's Priority Tier is a capacity commitment, and Gemini prices Priority at 1.8× Standard. These buy being scheduled first when the provider is busy, so tail latency and availability at peak improve. Worth it for the latency-critical slice where a P99 miss costs revenue, not for all traffic.
+- **Speed premium (fast modes).** A separate axis: these cut per-token decode time, not queueing time. OpenAI renamed Priority processing to Fast mode in July 2026 (`service_tier: "fast"`, with `"priority"` still accepted): up to 2.5× faster on GPT-5.6 Sol at twice the price, sharing the Standard rate limits, and traffic that ramps too fast can be downgraded and billed at Standard. OpenAI's Ultrafast, a higher-priced tier with its own rate limits, is offered on GPT-6 Astra and GPT-6.1 Sol. Anthropic sells fast mode on Opus 5.5: up to 2.5× output tokens per second at 2× price, not available with Batch or a Priority Tier commitment. Speed matters most for long outputs and agent loops that make many calls in sequence, so judge it on cost per completed task (or per minute of user waiting saved), not cost per token.
 - **Flex and batch.** Discounted, often around half price, in exchange for slower or asynchronous completion and the chance of being deprioritised or refused at busy times. Flex keeps the synchronous API shape with longer timeouts. Batch takes a file of requests and a completion window. Both suit evals, backfills, enrichment and anything a person is not waiting on.
 - **Provisioned throughput.** Bedrock, Vertex AI, Azure and direct commitments reserve capacity in model units or tokens per minute, billed whether you use it or not. It buys predictable latency and no 429s up to your reservation, and its economics are the self-hosting economics: it pays only at high, steady utilisation.
 
-How to decide: classify traffic by latency tolerance and business value. Fill provisioned capacity up to your sustained baseline, burst on standard, route the critical slice to priority, and push everything deferrable to flex or batch. Review reserved-capacity utilisation weekly, because an unused commitment is pure waste.
+How to decide: classify traffic by latency tolerance and business value. Fill provisioned capacity up to your sustained baseline, burst on standard, route the critical slice to priority, send long sequential agent runs where a person is waiting to a fast mode only if the task-level speedup justifies the price, and push everything deferrable to flex or batch. Review reserved-capacity utilisation weekly, because an unused commitment is pure waste.
 
 Pitfalls:
 
-- Tiers can differ in rate limits and feature support, so test prompt caching, tool use and structured output on each tier you route to.
+- Tiers can differ in rate limits and feature support, so test prompt caching, tool use and structured output on each tier you route to. On Anthropic, requests at different speeds do not share cached prefixes, so falling back from fast to standard is also a cache miss.
 - Flex traffic needs longer timeouts and a defined behaviour when capacity is refused: retry later, fall back to standard, or queue.
 - Prices, discounts and terms change often. Keep the tier routing table in configuration, tag every request with the tier that served it, and attribute cost per tier so the next renegotiation uses real data.
 
@@ -928,9 +935,39 @@ Pitfalls:
 
 </details>
 
+### 37. Prompt caching now has a write price and a choice of lifetimes: 5 minutes or 1 hour on Anthropic, 30 minutes or 12 hours on OpenAI's newest models. Work out the break-even reuse count for an agent that resends a 50K-token prefix, and tell me which TTL and breakpoint placement you would pick and when a cache write never pays for itself.
+
+<details><summary><b>Answer</b></summary>
+
+Write the cost model in units of the base input price. A cache write costs `w` times base (1.25× for Anthropic's 5-minute TTL and OpenAI's 30-minute lifetime on GPT-5.6 and later, 2× for Anthropic's 1 hour, 2.5× for OpenAI's 12 hours). A read costs `r` (0.1× on most models, 0.05× or lower on some of the newest). Over N uses of the same prefix inside one lifetime, caching costs `w + (N - 1)r` against `N` without it. Break-even is `N = (w - r) / (1 - r)`.
+
+- 1.25× write, 0.1× read: N ≈ 1.3. The second use already pays.
+- 2× write, 0.1× read: N ≈ 2.1. You need three uses inside the hour.
+- 2.5× write, 0.1× read: N ≈ 2.7. Three uses inside 12 hours.
+
+**The 50K agent.** Thirty calls per task, illustrative $2 per million input tokens. Uncached: 30 × 50K = 1.5M tokens, $3.00. Cached at the short TTL: one write (62.5K token-equivalents) plus 29 reads (145K) = ~207K, about $0.41, an ~86% saving. In practice the prefix grows each step, so each call reads the old history and writes only the new turn. Put a breakpoint at the end of the latest turn and the write premium lands on a few hundred tokens, not 50K.
+
+**Choosing the TTL is about the gap distribution, not the average.** Anthropic's 5-minute TTL refreshes on every hit, so a busy agent stays warm indefinitely. What hurts is the long gap: a 20-minute human review step or a slow tool. Pay for the longer TTL only when `P(gap > short TTL) × cost of a rewrite` exceeds the extra write premium. The 12-hour lifetime suits prefixes shared across many users all day, such as a large product catalogue or tool manual, where three uses are trivial. For one user's prefix it rarely pays.
+
+**Breakpoint placement.** Stable to volatile: after tools and system prompt, after any large document, at the end of the conversation. OpenAI's explicit mode allows up to four writes per request. Anthropic's automatic mode moves one breakpoint forward as the conversation grows, which is right for chat. Anthropic also lets you pre-warm with `max_tokens: 0` when a user opens a document, taking the write off the critical path at the price of paying for it even if they never ask.
+
+**When a write never pays:**
+
+- The prefix is unique per request, such as a timestamp or request ID near the top.
+- Gaps always exceed the TTL. Every call is then a write at 1.25× or more, worse than no caching.
+- Parallel fan-out fires all requests before the first write lands, so each one writes. Send one, then fan out.
+- The prefix is below the minimum (1,024 tokens on OpenAI, 512 on Anthropic's 5.x models).
+- Calls on different speed tiers or providers do not share cache entries.
+
+Verify with the usage fields (cached versus written tokens) and the providers' cache diagnostics, and track the effective input multiplier per feature.
+
+**Follow-ups:** How does a 2,000-token tool-definition change mid-session affect the bill? Your hit rate is 30% though every prefix is identical: what do you check first? When would you rather summarise history than cache it?
+
+</details>
+
 ## Advanced
 
-### 37. Build the full GPU memory budget for a serving deployment, and show how it determines maximum batch size and concurrency.
+### 38. Build the full GPU memory budget for a serving deployment, and show how it determines maximum batch size and concurrency.
 
 <details><summary><b>Answer</b></summary>
 
@@ -972,7 +1009,7 @@ flowchart TD
 
 </details>
 
-### 38. Design the SLOs for a new LLM-powered feature. What do you promise, and how do you measure it?
+### 39. Design the SLOs for a new LLM-powered feature. What do you promise, and how do you measure it?
 
 <details><summary><b>Answer</b></summary>
 
@@ -993,7 +1030,7 @@ Finally, wire SLOs to action: alerts on budget burn rate (not point-in-time blip
 
 </details>
 
-### 39. Capacity planning: you're told to expect 100 requests/sec at peak with ~2K input and ~300 output tokens per request. Walk me through estimating the GPU fleet.
+### 40. Capacity planning: you're told to expect 100 requests/sec at peak with ~2K input and ~300 output tokens per request. Walk me through estimating the GPU fleet.
 
 <details><summary><b>Answer</b></summary>
 
@@ -1015,7 +1052,7 @@ The trap to avoid: quoting a tokens/s number from a blog benchmark run with 128-
 
 </details>
 
-### 40. GPU cold starts take minutes. How do you autoscale an inference fleet anyway?
+### 41. GPU cold starts take minutes. How do you autoscale an inference fleet anyway?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1047,7 +1084,7 @@ flowchart LR
 
 </details>
 
-### 41. What do you monitor in production LLM serving, and what pages someone at 3 a.m.?
+### 42. What do you monitor in production LLM serving, and what pages someone at 3 a.m.?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1069,7 +1106,7 @@ Two practices worth naming: burn-rate alerting (alert on error-budget consumptio
 
 </details>
 
-### 42. Design the reliability layer for calls to an LLM provider: timeouts, retries, circuit breakers, idempotency.
+### 43. Design the reliability layer for calls to an LLM provider: timeouts, retries, circuit breakers, idempotency.
 
 <details><summary><b>Answer</b></summary>
 
@@ -1096,7 +1133,7 @@ flowchart LR
 
 </details>
 
-### 43. Traffic doubles overnight and you can't get more GPU capacity for a week. What are your graceful-degradation options?
+### 44. Traffic doubles overnight and you can't get more GPU capacity for a week. What are your graceful-degradation options?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1119,7 +1156,7 @@ Two operational notes that distinguish senior answers: every rung needs a **feat
 
 </details>
 
-### 44. How is structured output actually enforced at the serving layer, and what does it cost?
+### 45. How is structured output actually enforced at the serving layer, and what does it cost?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1151,7 +1188,7 @@ flowchart LR
 
 </details>
 
-### 45. Your LLM bill tripled this quarter. Design a cost-engineering programme - attribution, cascades, context management.
+### 46. Your LLM bill tripled this quarter. Design a cost-engineering programme - attribution, cascades, context management.
 
 <details><summary><b>Answer</b></summary>
 
@@ -1172,13 +1209,15 @@ flowchart LR
 
 </details>
 
-### 46. Go deeper on speculative decoding: acceptance-rate math, modern drafters like Medusa/EAGLE, and when it backfires.
+### 47. Go deeper on speculative decoding: acceptance-rate math, modern drafters (EAGLE-3, built-in MTP, n-gram lookup, parallel block drafters), and when it backfires.
 
 <details><summary><b>Answer</b></summary>
 
 **The math.** Let α be the per-token acceptance rate (draft token accepted by the target's rejection-sampling check). Drafting k tokens per cycle, the expected tokens emitted per target forward pass is `(1 − α^(k+1)) / (1 − α)` (Leviathan et al.). At α = 0.8, k = 4: ~3.4 tokens per target pass. Wall-clock speedup ≈ that, divided by the cycle cost `1 + k·c` where c is the drafter's per-token cost relative to the target - so a drafter must be *both* well-aligned (high α) and cheap (low c). α is empirical and domain-dependent: high on code, boilerplate, extraction; lower on open-ended creative text. Larger k has diminishing returns (α^k decay wastes draft work past the first rejection), so k is tuned per workload (~4-8 typical).
 
-**Modern drafters.** Separate small models need a matching tokenizer and still burn sequential time drafting. Self-drafting removes that: **Medusa** bolts extra decoding heads onto the target to predict several future tokens in one pass; **EAGLE** autoregresses in the target's *feature space* (reusing its top-layer representations) which gets substantially better acceptance than token-level heads, verified over a **tree** of candidate continuations rather than a single chain (tree attention verifies multiple branches in one pass - raising expected accepted length). **Prompt-lookup/n-gram** drafting retrieves candidate spans from the existing context - zero model cost, brutal effectiveness on tasks whose outputs copy inputs (editing, extraction, RAG quotes). Models trained with **multi-token prediction (MTP)** modules, DeepSeek-V3 being the well-known example, ship their own drafter, which engines can use directly with no separate training. Engines like vLLM/SGLang/TensorRT-LLM ship several of these.
+**Modern drafters.** Separate small models need a matching tokenizer and still burn sequential time drafting. Self-drafting removes that. **Medusa**, which bolted extra decoding heads onto the target, is now mostly historical context (vLLM removed it in v0.33). **EAGLE**, now at **EAGLE-3**, autoregresses in the target's *feature space* (reusing its internal representations), which gets substantially better acceptance than token-level heads, verified over a **tree** of candidate continuations rather than a single chain (tree attention verifies multiple branches in one pass - raising expected accepted length). **Prompt-lookup/n-gram** drafting retrieves candidate spans from the existing context - zero model cost, brutal effectiveness on tasks whose outputs copy inputs (editing, extraction, RAG quotes). Models trained with **multi-token prediction (MTP)** modules, DeepSeek-V3 being the well-known example, ship their own drafter, which engines can use directly with no separate training.
+
+The newest family drafts in parallel. **DFlash** uses a lightweight block-diffusion model, conditioned on target-model features, to propose a whole block of tokens in one forward pass, and reports over 6× lossless speedup. DeepSeek's **DSpark** pairs a parallel drafter with a lightweight sequential module and sets each request's verification length from confidence estimates; in DeepSeek-V4 serving it runs 60 to 85% faster per user than MTP-1 at matched throughput. Parallel drafting changes the cost term: drafting k tokens no longer costs k sequential drafter steps, so the optimal k is set mainly by acceptance decay and verification cost. Engines have followed by choosing verification length per request from live acceptance estimates (vLLM added this in v0.30) rather than a fixed k. vLLM, SGLang and TensorRT-LLM have all added DFlash and DSpark support alongside EAGLE-3 and MTP.
 
 **When it backfires**: (1) high-batch serving - verification consumes compute that regular decoding of other sequences would have used; when the fleet is compute-bound, spec decoding *reduces* aggregate throughput, so it's primarily a low-batch/latency-tier tool; (2) low α - drafting overhead with nothing accepted (mismatched domains, high temperature settings hurt); (3) memory - a draft model or extra heads eat KV/weight budget that could have been batch size; (4) engineering complexity - two models' KV caches, tree verification correctness, scheduler interaction. Always A/B on production-shaped traffic: measure ITL *and* aggregate goodput *and* cost, per domain.
 
@@ -1186,7 +1225,7 @@ flowchart LR
 
 </details>
 
-### 47. What is prefill/decode disaggregation, and why do large-scale deployments separate the two?
+### 48. What is prefill/decode disaggregation, and why do large-scale deployments separate the two?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1215,7 +1254,7 @@ flowchart LR
 
 </details>
 
-### 48. Design a multi-provider LLM gateway: routing, fallbacks, and the pitfalls teams hit.
+### 49. Design a multi-provider LLM gateway: routing, fallbacks, and the pitfalls teams hit.
 
 <details><summary><b>Answer</b></summary>
 
@@ -1251,7 +1290,7 @@ flowchart LR
 
 </details>
 
-### 49. You run 40 replicas of the same model behind a load balancer, and round-robin gives you a terrible prefix cache hit rate. Design the routing layer.
+### 50. You run 40 replicas of the same model behind a load balancer, and round-robin gives you a terrible prefix cache hit rate. Design the routing layer.
 
 <details><summary><b>Answer</b></summary>
 
@@ -1286,7 +1325,7 @@ flowchart TD
 
 </details>
 
-### 50. How does serving a large sparse mixture-of-experts model differ from serving a dense model, and what does expert parallelism change?
+### 51. How does serving a large sparse mixture-of-experts model differ from serving a dense model, and what does expert parallelism change?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1318,7 +1357,7 @@ flowchart LR
 
 </details>
 
-### 51. You run a shared LLM platform for 30 internal teams on one GPU fleet. Design the tenancy model: fairness, isolation, and cost attribution.
+### 52. You run a shared LLM platform for 30 internal teams on one GPU fleet. Design the tenancy model: fairness, isolation, and cost attribution.
 
 <details><summary><b>Answer</b></summary>
 
@@ -1336,7 +1375,7 @@ flowchart LR
 
 </details>
 
-### 52. Your traffic is shifting from single-turn chat to agents: 20 to 50 model calls per task, tool calls in between, sessions lasting tens of minutes. What does that do to your serving design?
+### 53. Your traffic is shifting from single-turn chat to agents: 20 to 50 model calls per task, tool calls in between, sessions lasting tens of minutes. What does that do to your serving design?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1360,7 +1399,7 @@ Metrics: tokens per task, cache hit rate per step, model vs tool latency split, 
 
 </details>
 
-### 53. After a routine deploy, P99 TTFT went from ~600 ms to ~4 s. Throughput, error rate, GPU utilization and the model version are all unchanged. Debug it.
+### 54. After a routine deploy, P99 TTFT went from ~600 ms to ~4 s. Throughput, error rate, GPU utilization and the model version are all unchanged. Debug it.
 
 <details><summary><b>Answer</b></summary>
 
@@ -1396,7 +1435,7 @@ flowchart TD
 
 </details>
 
-### 54. You are moving from a dense transformer to a Mamba-attention hybrid. What changes in your serving stack?
+### 55. You are moving from a dense transformer to a Mamba-attention hybrid. What changes in your serving stack?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1429,7 +1468,7 @@ flowchart TD
 
 </details>
 
-### 55. Product wants to offer a 1M-token context window on a model you self-host. What breaks in serving, and how do you make it work?
+### 56. Product wants to offer a 1M-token context window on a model you self-host. What breaks in serving, and how do you make it work?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1461,7 +1500,7 @@ flowchart TD
 
 </details>
 
-### 56. What changes in your serving design when the NVLink domain grows from 8 GPUs in a server to 72 GPUs in a rack, as with GB200 NVL72-class systems?
+### 57. What changes in your serving design when the NVLink domain grows from 8 GPUs in a server to 72 GPUs in a rack, as with GB200 NVL72-class systems?
 
 <details><summary><b>Answer</b></summary>
 
@@ -1494,5 +1533,203 @@ flowchart LR
 ```
 
 **Follow-ups:** Why does wide expert parallelism free HBM for KV cache, and how does that change achievable batch size? A single NVLink switch tray fails in the rack: what happens to your serving instance, and how do you design for it?
+
+</details>
+
+### 58. Providers now sell the same model in a 'fast' mode at roughly twice the price for up to 2.5x the output speed. What is the provider changing on the serving side, why does a faster token cost more, which of your traffic deserves it, and what happens when your client falls back to standard speed on a 429?
+
+<details><summary><b>Answer</b></summary>
+
+**What changes on the serving side.** Per-user decode speed is set by how long one decode step takes, and step time rises with batch size and falls with more hardware per sequence. To go faster the provider can run smaller batches, spread the model over more chips (more tensor parallelism inside a big NVLink domain), lean harder on speculative decoding, or put decode on different silicon, such as SRAM-based accelerators. Every one of those moves along the throughput-interactivity curve, which is exactly how MLPerf's endpoint benchmarks now plot it: more tokens per second per user, fewer tokens per second per GPU.
+
+**Why it costs more.** Price per token tracks GPU-seconds per token. Halve the concurrent sequences on a GPU and each token carries twice the hardware cost. A 2× price for a 2.5× speedup is that trade, plus a margin.
+
+**What it does not buy.** Anthropic is explicit that fast mode raises output tokens per second, not TTFT. So:
+
+- A 200-token chat reply at 60 versus 150 tokens/s saves about 2 seconds, mostly invisible next to TTFT and rendering.
+- A 4,000-token agent step saves about 40 seconds.
+- Thirty sequential steps turn that into many minutes of a person waiting.
+
+**Who deserves it.** Long outputs and sequential agent loops where someone is watching: coding agents, interactive report generation, live demos. Never batch, evals or background enrichment. Judge it on cost per completed task against the value of the waiting time saved. If a coding task drops from 12 minutes to 5 for an extra $0.60, it pays for an engineer, not for a nightly job. Priority is a different axis: it buys queue position and availability when the provider is busy. You might want priority, fast, both or neither.
+
+**The 429 fallback is where teams lose money.** Two provider facts matter:
+
+- On Anthropic, requests at different speeds do not share cached prefixes, and fast mode has its own rate limit. Falling back to standard is a full cache miss: on a 150K-token agent context you pay a fresh write and a long prefill, so TTFT jumps just when you were trying to stay fast.
+- On OpenAI, Fast mode shares the Standard rate limits, and traffic that ramps too fast can be downgraded and billed at Standard. You may get standard speed without an error, so log the tier that actually served each request.
+
+**Design:**
+
+- Fall back per session, not per request, so you pay one cache rewrite instead of ping-ponging between pools.
+- Add hysteresis before moving a session back to fast.
+- For long contexts, compare the rewrite cost with a short backoff and retry on fast.
+- Ramp fast traffic gradually.
+- Cap fast spend per tenant.
+
+**Worth sketching.** Optional, but it makes the hidden cost visible: the fallback edge is also a cache boundary.
+
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant F as Fast pool
+    participant S as Standard pool
+    C->>F: Step 12 with 150K cached prefix
+    F-->>C: 429 rate limited
+    C->>S: Same request at standard speed
+    Note over S: No shared cache, full prefill and write
+    S-->>C: Slow TTFT, then tokens
+    C->>S: Step 13 stays on standard, cache now warm
+```
+
+**Follow-ups:** How would you A/B test whether fast mode improves task completion for a coding agent? What metric tells you OpenAI downgraded your traffic? When would you pay for priority and fast mode at once?
+
+</details>
+
+### 59. vLLM now ships an opt-in lossy verification policy for speculative decoding (FLy), reporting roughly 1.04 to 1.31x decode throughput on MI355X and B300. Would you ever turn it on, and how would you prove it is safe for your product?
+
+<details><summary><b>Answer</b></summary>
+
+Start from what you give up. Standard speculative decoding uses an exact rejection-sampling rule, so the output distribution is provably the target model's. That is why it can ship with no eval cycle. A lossy policy relaxes the acceptance test: some draft tokens the exact rule would have rejected are kept, for example ones the target still rates highly. You are no longer serving the target model. You are serving a new model defined by target, drafter and policy together, and it has to be qualified like one. Read the policy's exact definition before reasoning about it.
+
+**Is the gain worth that?** At 4% to 31%, the gain is modest next to what speculative decoding already gives, and it was measured on specific hardware with specific drafters. Benchmark it on your traffic first. If the real gain is under ~10%, cheaper levers usually win: better drafter alignment, a speed tier, prefix caching, or simply more capacity.
+
+**Where I would consider it:**
+
+- Bulk, decode-heavy workloads whose outputs are checked downstream: summarisation pipelines, synthetic data generation, extraction with schema validation, code generation gated by tests.
+- Internal tools where small stylistic drift does not matter.
+
+**Where I would not:**
+
+- Anything sold as "the same model as the provider's".
+- Regulated or audited outputs.
+- Safety-critical refusal behaviour.
+- Evals and graders, where reproducibility is the point.
+- Long agent runs where small per-token deviations compound.
+
+**Proving it is safe:**
+
+1. **Distribution-level checks.** Generate paired outputs with exact and lossy verification from the same prompts and seeds. Compare token-level divergence, output length, refusal rate, format validity and tool-call argument accuracy. Length drift is an early warning: relaxed acceptance can bias towards the drafter's habits.
+2. **Task evals.** Run your product eval suite with paired statistics and a pre-registered non-inferiority margin, broken down by domain, language and temperature. Gains and damage both vary by slice.
+3. **Long-horizon tests.** Multi-thousand-token generations and full agent trajectories, measuring task success rather than per-turn quality.
+4. **Safety evals.** Jailbreak and refusal suites, because a drafter is a smaller, less aligned model and relaxed acceptance lets more of its choices through.
+5. **Staged rollout.** Opt in per route, canary with online quality metrics, keep exact verification as an instant config rollback, and tag every response with the policy that produced it.
+
+Re-qualify on every drafter, target or engine upgrade. Treat it like changing quantization, not like a performance flag.
+
+**Follow-ups:** Why is exact speculative decoding safe to enable without evals while this is not? How would you choose the non-inferiority margin? What would you log so a quality regression can be traced to the verification policy?
+
+</details>
+
+### 60. Design a serving path where prefill runs on GPUs or Trainium and decode runs on an SRAM-based accelerator from another architecture, as in NVIDIA's pairing of Vera Rubin GPUs with Groq 3 LPX, or the Trainium plus Cerebras design AWS has announced. What crosses the boundary, how do you size each pool, and what happens to prefix caching and failure handling?
+
+<details><summary><b>Answer</b></summary>
+
+Why do it at all? Prefill is compute-bound and loves big matrix engines. Batch-1 decode is bound by memory bandwidth, and SRAM-based chips have far more on-chip bandwidth per user than HBM. So the pairing buys very high per-user tokens per second without giving up efficient prefill. The cost: SRAM capacity is small, so the model is sharded across many decode chips and KV space is scarce.
+
+**What crosses the boundary depends on where you split.**
+
+- **Handoff once.** Prefill builds the KV cache and ships it to the decode tier, as in homogeneous disaggregation. Across architectures the KV layout, paging scheme and precision usually differ, so you need a conversion step or an agreed format, and its cost sits on TTFT. Send the request's sampling state with it: sampling parameters, stop sequences, structured-output grammar state, and LoRA or adapter identity.
+- **Split by operation.** If attention and the KV cache stay on GPUs and the decode accelerator runs the rest of each layer, as NVIDIA describes for Rubin plus LPX, the KV never moves. Activations cross the link on every decode step instead, so link latency, not bandwidth, sets your floor, and the two tiers are coupled step by step.
+
+**Sizing.** Size each pool from its own demand:
+
+- Prefill: peak input tokens per second ÷ measured prefill throughput per unit at your TTFT SLO, with headroom for long prompts.
+- Decode: concurrent streams × target tokens per second, against each unit's capacity at that speed and context mix.
+
+Then accept that you cannot rebalance by switching roles, as SGLang now allows within one GPU pool. The chips are different, procurement cycles differ, and a traffic shift towards long-context agents can strand capacity on one side. Keep a degraded mode where the GPU pool also decodes, slower, so one tier can absorb the other's loss.
+
+**Prefix caching.** The cache lives where the KV lives. Under the handoff split, prefix hits skip prefill compute but still pay the transfer. Multi-turn chat adds a subtlety: the next turn needs KV for tokens the decode tier generated. Ship it back, or recompute those output tokens on the prefill side, which is usually cheap next to the full history. Cache-aware routing now applies on both tiers.
+
+**Failure handling.** If a decode unit dies mid-stream, resume by re-prefilling prompt plus generated-so-far on the GPU pool and continue, de-duplicating tokens to the client. Two vendors means two firmware and driver stacks, two observability systems, and two numerical implementations of the same model. Evaluate the cross-vendor path as its own model variant, because logits will not match bit for bit.
+
+**Worth sketching.** Optional, but drawing both split points shows the interviewer you know the boundary is a design choice.
+
+```mermaid
+flowchart LR
+    R["Request"] --> P["GPU or Trainium prefill pool"]
+    P -->|"handoff: KV plus sampling state, once"| D["SRAM decode pool"]
+    P -->|"op split: activations every step"| D
+    D --> S["Streamed tokens"]
+    D -->|"decode failure: re-prefill prompt plus output"| P
+    D -->|"new turn: output KV back or recompute"| P
+```
+
+**Follow-ups:** Estimate the per-step activation traffic for the operation-split design and say what link latency you can tolerate. How would you route a 400K-token prompt in this topology? What would make you abandon the split and decode on GPUs?
+
+</details>
+
+### 61. CUDA graphs and overlapped scheduling are on, but batch-1 decode is still well below the bandwidth roofline. What would a persistent megakernel change, and why might an inference vendor argue that megakernels are the wrong target for production traffic?
+
+<details><summary><b>Answer</b></summary>
+
+CUDA graphs remove launch overhead, but the kernel boundaries remain, and at batch 1 they are where the time goes:
+
+- Each kernel writes its output to HBM and the next reads it back.
+- Each kernel ends with a tail where most SMs sit idle while the last thread blocks finish.
+- The next layer's weight loads cannot start until the previous kernel has drained.
+
+On a small step, these ramps and drains can be a large fraction of the roofline gap.
+
+**A persistent megakernel** launches once per step, or once per many steps, and keeps every SM busy, pulling work from a task graph covering the whole forward pass. Dependencies are tracked with fine-grained counters in memory, not kernel boundaries. So the next layer's weight prefetch overlaps the current layer's compute, intermediates stay on chip where they fit, and tail gaps disappear. SGLang added opt-in NVIDIA megakernel and AMD monokernel plugins in late 2026 that run DeepSeek-V4.1-Flash decode this way, reporting up to 44% faster single-user decode on GB300 and 75% on MI350X. vLLM added a ROCm monokernel path too.
+
+**The case against.** Together AI argued in November 2026 that fusing everything into one kernel is the wrong design goal, and reported 1.7× over open-source megakernels at batch 1 with its own compiler. Whatever you make of a vendor's benchmark, the engineering argument is sound:
+
+- **Production is not batch 1.** Batch size changes every step, chunked prefill mixes in, speculative verification adds odd shapes. At batch 32 and above, launch and tail overhead is already amortised and you are bound by bandwidth or compute. A batch-1 megakernel optimises a regime most fleet hours are not in.
+- **Data-dependent work.** MoE routing and sparse attention decide work at runtime. A static megakernel schedule either over-provisions or stalls.
+- **Brittleness.** One kernel per model, hardware and configuration is expensive to write, slow to update for new architectures, and fights dynamic features: paged KV, LoRA swaps, structured-output masks, new quantization formats.
+- **The alternative** is to generate specialised kernels per shape and regime continuously, and pick the right one at runtime, rather than one fused program.
+
+**What I would do.** Measure how many decode-hours actually run at batch 1 to 4. That is premium speed tiers, single-user on-prem or edge, and latency-critical interactive routes. If it is a big slice for a stable model, a megakernel path for that route is worth it, behind a flag, with fallback to the standard path for anything it does not support. If traffic is mostly large-batch, spend the effort on scheduling, speculative decoding and kernel selection instead. Confirm the gap first with a profile showing kernel tails and HBM round trips, not just low utilisation.
+
+**Follow-ups:** How would you show from a profile that kernel tails, not launch overhead, are the remaining gap? Why does MoE make static megakernel scheduling hard? What would you need from a megakernel before running it behind a production speed tier?
+
+</details>
+
+### 62. A model can now return close to a million output tokens from one request, as with Gemini 4 Argon's long-decode mode. What changes for serving, streaming, timeouts, cost control and evaluation?
+
+<details><summary><b>Answer</b></summary>
+
+Gemini 4 Argon has a 1,048,576-token unified input-output limit. Default synchronous output is 65,536 tokens, and a long-decode mode with a continuation protocol allows up to about 1M output tokens. Current Claude models accept up to 300K output tokens on the Message Batches API with a beta header. At that length a request is no longer a request. It is a job.
+
+**Time.** At 100 tokens/s, 1M tokens takes about 2.8 hours; at 50 tokens/s, about 5.5. Everything built around request-response breaks:
+
+- Load balancer and proxy idle timeouts.
+- Client retries that restart from zero and double the bill.
+- Deploys that kill in-flight streams.
+- Rate limits measured per minute.
+
+Treat it as a durable job. Checkpoint generated output server-side, use the provider's continuation protocol (or your own: resend prompt plus output so far and continue), and make the client reconnect to a stream position rather than reissue the request.
+
+**Self-hosted serving.** One sequence holds a KV allocation that grows to the full window for hours. That is concurrency taken from everyone else, and a preemption target the scheduler will eventually pick. Run long-decode work in a dedicated pool or priority class, with preemption that swaps KV to host memory instead of discarding hours of work. Use chunked or paged KV with offload, and bound concurrent long jobs per node explicitly.
+
+**Cost control.** At an illustrative $10 per million output tokens, one full-length response is $10, before reasoning tokens or surcharges. A bug that loops it across a tenant's traffic is a real incident. So:
+
+- Set per-request `max_tokens` deliberately, not to the maximum.
+- Set per-tenant budgets on burn rate.
+- Detect degeneration online: n-gram repetition, falling novelty, format breakage. Stop early, because the most expensive tokens are the ones after the model starts looping.
+- Prefer the batch API for anything nobody is watching.
+
+**Evaluation.** Nobody reads a million tokens, so:
+
+- Structural checks: the outline is followed, cross-references resolve, the schema stays valid to the end.
+- Task-level checks where possible: the generated codebase builds and passes tests, the dataset passes validators.
+- Sampled sections graded for quality and instruction adherence, deliberately weighted to the late part of the output, where drift shows up.
+- A baseline: an agent loop that plans, then generates bounded sections. It is checkpointable, parallelisable and cache-friendly. One long decode has to beat it on global coherence to justify itself.
+
+Long single decodes win when coherence across the whole output matters and re-prefilling for each section would cost more than it saves. Otherwise the bounded-section loop is usually the better design.
+
+**Worth sketching.** Optional, but it shows the job-not-request shape the interviewer is looking for.
+
+```mermaid
+flowchart TD
+    J["Submit long-decode job"] --> G["Generate a segment"]
+    G --> K["Checkpoint output and position"]
+    K --> Q["Quality and budget checks"]
+    Q -->|"looping or over budget"| X["Stop early and report"]
+    Q -->|"healthy, not done"| C["Continue from checkpoint"]
+    C --> G
+    Q -->|"done"| F["Assemble, validate, deliver"]
+```
+
+**Follow-ups:** How would you detect degeneration cheaply while streaming? What should the client see if the job dies at token 600K? When is a plan-then-generate agent loop strictly better than one long decode?
 
 </details>
