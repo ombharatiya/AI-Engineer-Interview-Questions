@@ -36,25 +36,25 @@ One theme per week; coding challenges spread throughout so implementation skills
 ### Week 1 - Foundations & the model
 - Days 1-2: [01-ml-and-dl-foundations](01-ml-and-dl-foundations/) - full pass.
 - Days 3-5: [02-llm-fundamentals](02-llm-fundamentals/) - full pass, including Advanced.
-- Weekend: challenges [01 attention](12-coding-challenges/), 02 BPE, 03 sampling, 04 positional encodings, 05 layernorm/softmax.
+- Weekend: challenges [01 attention](12-coding-challenges/), 02 BPE, 03 sampling, 04 positional encodings, 05 layernorm/softmax, 15 beam search.
 
 ### Week 2 - Context: prompting, RAG, fine-tuning
 - Days 1-2: [03-prompt-engineering-and-context](03-prompt-engineering-and-context/) - full pass.
 - Days 3-4: [04-rag-and-retrieval](04-rag-and-retrieval/) - full pass.
 - Day 5: [05-fine-tuning-and-alignment](05-fine-tuning-and-alignment/) - crash course + Basic/Intermediate.
-- Weekend: challenges 08 semantic search/RAG, 09 chunking; finish fine-tuning Advanced questions.
+- Weekend: challenges 08 semantic search/RAG, 09 chunking, 17 hybrid search and rerank, 14 LoRA adapter; finish fine-tuning Advanced questions.
 
 ### Week 3 - Agents, evals, production
 - Days 1-2: [06-agents-and-tool-use](06-agents-and-tool-use/) - full pass.
 - Day 3: [07-evaluation-and-observability](07-evaluation-and-observability/) - full pass. Do not skip this; it's the most senior-signalling topic in the repo.
 - Days 4-5: [08-inference-and-production](08-inference-and-production/) - full pass.
-- Weekend: challenges 06 KV cache, 10 agent loop, 11 rate limiter, 12 eval metrics.
+- Weekend: challenges 06 KV cache, 10 agent loop, 11 rate limiter, 12 eval metrics, 16 semantic cache.
 
 ### Week 4 - Design, safety, polish
 - Day 1: [09-safety-security-and-responsible-ai](09-safety-security-and-responsible-ai/) + [10-multimodal](10-multimodal/) crash courses.
 - Days 2-3: [11-ai-system-design](11-ai-system-design/) - framework, then 3 case studies as [mock interviews](13-interview-process-and-behavioral/mock-interview-kit.md#round-3-ai-system-design-45-60-minutes): 45 minutes talking into a doc *before* reading the solution.
 - Day 4: [13-interview-process-and-behavioral](13-interview-process-and-behavioral/) - write your 5-7 STAR stories down.
-- Day 5: challenges 07 mini-GPT forward, 13 streaming parser (the hard ones).
+- Day 5: challenges 07 mini-GPT forward, 13 streaming parser, 18 constrained JSON decoding, 19 speculative decoding (the hard ones).
 - Weekend: full [mock loop](13-interview-process-and-behavioral/mock-interview-kit.md) - one coding challenge cold, one design prompt from the rapid-fire list, behavioural answers out loud. Hand the kit to a friend, or record yourself and score it a day later. Then [CHEATSHEET.md](CHEATSHEET.md).
 
 ---
@@ -72,7 +72,7 @@ Weeks 5-8:
 |------|-------|
 | 5 | Depth: re-do every **Advanced** section across topics 02, 04, 05, 06, 08. Read 5-6 foundational papers from [resources](resources/) (Attention, InstructGPT, LoRA, DPO, ReAct at minimum). |
 | 6 | Projects: polish one portfolio project to "shows evals + error analysis + tradeoff writeup" standard (see project ideas in [13-interview-process-and-behavioral](13-interview-process-and-behavioral/)). |
-| 7 | System design: all 8 case studies in [11-ai-system-design](11-ai-system-design/) as [timed mocks](13-interview-process-and-behavioral/mock-interview-kit.md#round-3-ai-system-design-45-60-minutes). All 13 coding challenges done cold. |
+| 7 | System design: all 10 case studies in [11-ai-system-design](11-ai-system-design/) as [timed mocks](13-interview-process-and-behavioral/mock-interview-kit.md#round-3-ai-system-design-45-60-minutes). All 19 coding challenges done cold. |
 | 8 | Interview simulation: [mock loops](13-interview-process-and-behavioral/mock-interview-kit.md) with a friend, or alone with the [self-mock protocol](13-interview-process-and-behavioral/mock-interview-kit.md#self-mock-protocol-no-partner); behavioural stories rehearsed; company-specific research; [CHEATSHEET.md](CHEATSHEET.md) passes. |
 
 ---
