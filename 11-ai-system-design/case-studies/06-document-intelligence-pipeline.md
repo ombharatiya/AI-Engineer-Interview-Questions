@@ -61,7 +61,7 @@ flowchart TB
 |---|---|---|
 | Layout understanding | Sees tables, checkboxes, stamps, handwriting, logos natively | Lost unless OCR emits layout (hOCR/word boxes) and you re-serialize it |
 | Pipeline complexity | One model call | Two stages, two failure modes, error compounding |
-| Cost | Image tokens: a few hundred to ~2k tokens/page, depending on provider and resolution setting | OCR ~$0.0005-0.0015/page (zero for born-digital PDFs with a text layer) + fewer LLM tokens |
+| Cost | Image tokens: a few hundred to several thousand tokens/page, depending on provider and resolution setting (current Claude models bill ceil(w/28) x ceil(h/28) and accept up to 2,576 px on the long edge, so a dense full-resolution page can approach ~4.8k) | OCR ~$0.0005-0.0015/page (zero for born-digital PDFs with a text layer) + fewer LLM tokens |
 | Provenance (bboxes) | Weaker - must ask model for locations or align post-hoc | Strong - OCR gives word-level boxes for free |
 | Degraded scans | Better - trained on messy images | OCR errors poison everything downstream |
 | Auditability | "Model said so" | Can show exactly which OCR text produced a value |
@@ -199,7 +199,7 @@ The major providers' batch APIs (e.g., OpenAI Batch, Anthropic Message Batches) 
 
 ## Cost estimate (rough token math)
 
-Assumed ~prices for illustration: mid-tier VLM ~$1/M input, ~$4/M output; batch −50%; frontier ~$3/M in, ~$15/M out; page image ≈ ~1,600 tokens.
+Assumed ~prices for illustration: mid-tier VLM ~$1/M input, ~$4/M output; batch −50%; frontier ~$3/M in, ~$15/M out; page image ≈ ~1,600 tokens (pages rendered or downsampled to a fixed size, not sent at the model's maximum resolution).
 
 **Invoices (240k/day, ~1.3 pages avg, ~90% on batch - 5% interactive plus deadline-driven sync overflow):**
 - Per doc input ≈ 1.3 × 1,600 ≈ ~2,100 uncached image tokens, plus a cached prefix of ~3k (1,200 instructions + schema, ~2k few-shots). Output ≈ 500 tokens JSON.
@@ -223,7 +223,7 @@ Assumed ~prices for illustration: mid-tier VLM ~$1/M input, ~$4/M output; batch 
 1. **Automation rate** (human cost dominates): better calibration and evidence-quoting beat any token optimisation by 10×.
 2. **Batch vs sync mix:** every doc that can wait overnight halves its model cost.
 3. **Model tiering:** digital-native single-page invoices from known vendors don't need the same model as blurry photos of handwritten receipts - route by (quality score, layout familiarity) to cheap/expensive extraction tiers.
-4. **Image token budget:** downscale to the minimum DPI that holds accuracy (measure it - the accuracy/resolution curve is usually flat well below default rendering), crop whitespace, skip terms-and-conditions pages for invoice schemas. For born-digital contracts, parse from the PDF text layer and send only layout-heavy pages (tables, signature blocks, scanned exhibits) to the VLM.
+4. **Image token budget:** set the render size explicitly, because newer models default to higher-resolution tiers and a page sent at native size can cost around three times what the same page cost on older models. Downscale to the minimum DPI that holds accuracy (measure it - the accuracy/resolution curve is usually flat well below default rendering), crop whitespace, skip terms-and-conditions pages for invoice schemas. For born-digital contracts, parse from the PDF text layer and send only layout-heavy pages (tables, signature blocks, scanned exhibits) to the VLM.
 5. **Prompt caching:** instructions + schema + few-shots are identical across millions of calls; keep them as the cached prefix and the variable page images last.
 6. **Distillation:** the endgame - fine-tuned open-weights VLM for the stable 80% of traffic at ~10× lower unit cost.
 

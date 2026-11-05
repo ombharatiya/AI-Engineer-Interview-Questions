@@ -34,6 +34,13 @@ Almost every AI engineer loop now includes an "implement it from scratch" round.
 | 18 | [18_constrained_json_decoding.py](18_constrained_json_decoding.py) | Hard | Masking invalid tokens against a schema during decode | Masking before softmax, why constrained decoding shifts the distribution, DFA vs pushdown for nested JSON |
 | 19 | [19_speculative_decoding.py](19_speculative_decoding.py) | Hard | Draft-and-verify with the exact rejection-sampling rule | Why it is lossless, why accept-if-argmax-matches is not, why it is a bandwidth win not a FLOPs win |
 
+## Formats these files don't cover yet
+
+Two formats show up in 2025-2026 loops that a build-from-scratch file can't fully rehearse. Practise them on top of the files above.
+
+- **Async fan-out with safe retries.** Reported online assessments ask you to write an async function that calls several APIs at once and to explain how retries avoid repeating an operation. The full version: fan out N LLM calls under a concurrency cap (`asyncio.Semaphore`), a per-call timeout, exponential backoff with jitter on 429s and 5xx only, an idempotency key per logical operation so a retry never repeats a side effect, and cancellation of the remaining calls when a time or token budget runs out. To practise, port [11_rate_limiter_and_retry.py](11_rate_limiter_and_retry.py) to `asyncio` and add those four pieces, with a test that a cancelled batch leaves no orphaned tasks.
+- **Find the planted bugs.** Some onsites hand you a working-looking implementation with several bugs and ask you to find and fix each one and write the test that would have caught it. One reported research-engineer round used a transformer with four marked regions, and some AI-enabled rounds use a small multi-file repo with 4-5 sub-questions. To practise, have someone plant bugs in [01_attention.py](01_attention.py) or [07_mini_gpt_forward.py](07_mini_gpt_forward.py) (mask applied after softmax, missing √d_k, wrong transpose axis, residual connection dropped) and remove the tests first: the skill on display is writing the test that catches each one.
+
 ## Running
 
 ```bash

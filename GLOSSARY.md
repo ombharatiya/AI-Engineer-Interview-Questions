@@ -54,7 +54,7 @@ The acronym table below is for scanning when someone drops an initialism you hal
 
 ## A
 
-- **A2A** - Agent2Agent, the Linux Foundation-hosted protocol for calling a peer agent across a team or company boundary, built on Agent Cards and long-running tasks. MCP connects an agent to tools, A2A connects it to other agents. [06 Agents](06-agents-and-tool-use/README.md)
+- **A2A** - Agent2Agent, the protocol for calling a peer agent across a team or company boundary, built on Agent Cards and long-running tasks, and hosted by the Agentic AI Foundation alongside MCP since August 2026. MCP connects an agent to tools, A2A connects it to other agents. [06 Agents](06-agents-and-tool-use/README.md)
 - **A/B test** - an online experiment splitting users between variants to see which one moves the real product metric. [07 Evals](07-evaluation-and-observability/README.md)
 - **Accuracy** - the share of predictions that are correct, and a liar on imbalanced data, where always predicting the majority class can score 99%. [01 ML foundations](01-ml-and-dl-foundations/README.md)
 - **ACL filtering** - enforcing per-user permissions inside the retrieval query itself, never by asking the model to withhold results. [04 RAG](04-rag-and-retrieval/README.md)
@@ -62,8 +62,8 @@ The acronym table below is for scanning when someone drops an initialism you hal
 - **AdamW** - Adam with weight decay decoupled from the adaptive update, which is why it is the transformer default. [01 ML foundations](01-ml-and-dl-foundations/README.md)
 - **Agent** - a model plus tools plus context, running in a loop with stop conditions, deciding for itself what to do next. [06 Agents](06-agents-and-tool-use/questions.md)
 - **Agent Card** - JSON metadata served at `/.well-known/agent-card.json` declaring an A2A agent's identity, skills, endpoint and auth requirements, so peers can discover it without a bespoke integration. [06 Agents](06-agents-and-tool-use/README.md)
-- **Agent Skills** - an open format for packaging procedural knowledge: a folder holding a `SKILL.md` plus optional scripts, references and assets, loaded by progressive disclosure (name and description at startup, the body when the task matches, bundled files only when needed). [06 Agents](06-agents-and-tool-use/README.md)
-- **Agentic AI Foundation (AAIF)** - the Linux Foundation body set up in December 2025 to host open agent standards, MCP and AGENTS.md among them. [06 Agents](06-agents-and-tool-use/questions.md)
+- **Agent Skills** - an open format for packaging procedural knowledge: a folder holding a `SKILL.md` plus optional scripts, references and assets, loaded by progressive disclosure (name and description at startup, the body when the task matches, bundled files only when needed). Governed under the Agentic AI Foundation since October 2026. [06 Agents](06-agents-and-tool-use/README.md)
+- **Agentic AI Foundation (AAIF)** - the Linux Foundation body that hosts open agent standards, set up in December 2025 with MCP, goose and AGENTS.md. As of October 2026 it hosts ten projects, including A2A (joined August 2026) and Agent Skills, Open Responses, OpenEnv and OpenSandbox (all joined October 2026). [06 Agents](06-agents-and-tool-use/questions.md)
 - **Agentic RAG** - retrieval exposed as a tool the model calls in a loop, refining the query between calls instead of retrieving once. [04 RAG](04-rag-and-retrieval/README.md)
 - **AGENTS.md** - a repository-level instruction file that coding agents load on every session: build and test commands, conventions and no-go areas, scoped to one repo, unlike a skill that loads on demand. [03 Prompting](03-prompt-engineering-and-context/questions.md)
 - **ALiBi** - positional handling that adds a linear distance penalty to attention scores instead of using position embeddings. [02 LLM fundamentals](02-llm-fundamentals/README.md)
@@ -161,7 +161,7 @@ The acronym table below is for scanning when someone drops an initialism you hal
 - **Fine-tuning** - further training that changes form, style and narrow skill, and the wrong tool for injecting facts. [05 Fine-tuning](05-fine-tuning-and-alignment/README.md)
 - **FlashAttention** - an IO-aware exact attention implementation that tiles into on-chip SRAM and never materialises the full score matrix. [02 LLM fundamentals](02-llm-fundamentals/README.md)
 - **Flow matching** - training a generator to predict the velocity that carries noise to data along a near-straight path, now the usual objective for image and video models because it needs fewer sampling steps. [10 Multimodal](10-multimodal/README.md)
-- **FP4 (NVFP4 / MXFP4)** - four-bit floating-point formats with fine-grained block scales, natively accelerated on Blackwell-class GPUs, the next step down from FP8 for weights. [08 Inference](08-inference-and-production/README.md)
+- **FP4 (NVFP4 / MXFP4)** - four-bit floating-point formats with fine-grained block scales, natively accelerated on Blackwell-class GPUs, the next step down from FP8 for weights and, increasingly, for the KV cache. [08 Inference](08-inference-and-production/README.md)
 - **FP8 / INT8** - eight-bit formats that shrink weights and, when activations are quantized too, accelerate the matmuls on tensor cores. [08 Inference](08-inference-and-production/README.md)
 - **FSDP / ZeRO** - sharding optimizer states, gradients and parameters across GPUs so a model too large for one device can still train. [05 Fine-tuning](05-fine-tuning-and-alignment/README.md)
 
@@ -187,6 +187,7 @@ The acronym table below is for scanning when someone drops an initialism you hal
 - **Hallucination** - confident fabrication, structural because the training objective rewards plausible next tokens rather than truth. [02 LLM fundamentals](02-llm-fundamentals/README.md)
 - **Handoff** - transferring conversation control to a specialist agent, the multi-agent pattern that suits distinct domains like support triage. [06 Agents](06-agents-and-tool-use/README.md)
 - **HBM** - the GPU's high-bandwidth memory, whose bandwidth sets the hard ceiling on batch-1 decode speed. [08 Inference](08-inference-and-production/README.md)
+- **Hidden Context Exposure** - the OWASP 2026 category (LLM08) that replaces system prompt leakage and widens it to developer instructions, tool and function schemas and retrieved policy text: anything in the context the user was never meant to see. [09 Safety](09-safety-security-and-responsible-ai/README.md)
 - **HITL** - human in the loop, the review queue and approval gate for low-confidence outputs and high-risk actions. [11 System design](11-ai-system-design/README.md)
 - **HNSW** - a multi-layer navigable small-world graph index, the standard high-recall ANN structure, tuned with M and ef_search. [04 RAG](04-rag-and-retrieval/README.md)
 - **HumanEval** - a set of 164 Python problems scored with pass@k, now saturated and small. [07 Evals](07-evaluation-and-observability/README.md)
@@ -214,7 +215,7 @@ The acronym table below is for scanning when someone drops an initialism you hal
 - **KL penalty** - the term keeping an RL-tuned policy near its frozen reference, and the thing whose removal invites reward hacking. [05 Fine-tuning](05-fine-tuning-and-alignment/README.md)
 - **KTO** - preference tuning that works on binary good and bad labels, so you do not need paired comparisons. [05 Fine-tuning](05-fine-tuning-and-alignment/README.md)
 - **KV cache** - stored keys and values for every past token, turning quadratic recompute into linear lookups at a large memory cost. [02 LLM fundamentals](02-llm-fundamentals/questions.md)
-- **KV cache quantization** - storing keys and values in FP8 or INT8, a lever that directly buys batch size and therefore throughput. [08 Inference](08-inference-and-production/README.md)
+- **KV cache quantization** - storing keys and values in FP8 or INT8, and on recent engines in 4-bit formats such as NVFP4 (roughly half the memory of FP8, dequantized before attention, so it saves memory and bandwidth rather than compute), a lever that directly buys batch size and therefore throughput. [08 Inference](08-inference-and-production/README.md)
 
 ## L
 
@@ -272,7 +273,7 @@ The acronym table below is for scanning when someone drops an initialism you hal
 - **Orchestrator-worker** - the subagent pattern whose real payoff is context isolation: a worker burns tokens and returns a short summary. [06 Agents](06-agents-and-tool-use/README.md)
 - **ORPO** - preference optimisation folded into the SFT loss, with no separate reference model. [05 Fine-tuning](05-fine-tuning-and-alignment/README.md)
 - **Over-refusal** - refusing benign requests, the failure mode that makes a model trivially safe and commercially useless. [09 Safety](09-safety-security-and-responsible-ai/README.md)
-- **OWASP Top 10 for LLM Applications** - the shared vocabulary of AI security reviews, from prompt injection through unbounded consumption. [09 Safety](09-safety-security-and-responsible-ai/questions.md)
+- **OWASP Top 10 for LLM Applications** - the shared vocabulary of AI security reviews, from prompt injection (LLM01) through improper output handling (LLM10) in the 2026 edition. Quote IDs with their year, because the numbering changed between editions. [09 Safety](09-safety-security-and-responsible-ai/questions.md)
 
 ## P
 
@@ -343,6 +344,7 @@ The acronym table below is for scanning when someone drops an initialism you hal
 - **SigLIP** - the sigmoid-loss successor to CLIP, now a common vision backbone for VLMs. [10 Multimodal](10-multimodal/README.md)
 - **SKILL.md** - the required file at the root of an Agent Skill: YAML frontmatter with at least a name and description, which is all the agent sees until the skill activates, followed by the instructions. [06 Agents](06-agents-and-tool-use/README.md)
 - **SLO** - the latency or quality objective you size capacity against, for example P99 TTFT under 800 ms. [08 Inference](08-inference-and-production/README.md)
+- **Spec-driven development** - agentic delivery where a written spec (intent, constraints, acceptance criteria) is agreed and reviewed before an agent writes code, then kept as the source of truth the plan and diff are checked against. [15 Role guides](15-role-guides/forward-deployed-engineer.md)
 - **Speculative decoding** - a cheap drafter proposes tokens the target model verifies in parallel, speeding up decode without changing the output distribution. [08 Inference](08-inference-and-production/questions.md)
 - **SPLADE** - learned sparse retrieval, where a transformer emits weighted term expansions so an inverted index captures some semantics while keeping exact-match strength. [04 RAG](04-rag-and-retrieval/questions.md)
 - **Spotlighting** - marking untrusted content with delimiters, encoding or per-line prefixes so the model can tell data from instructions, which lowers injection success but enforces nothing. [03 Prompting](03-prompt-engineering-and-context/questions.md)
@@ -353,7 +355,7 @@ The acronym table below is for scanning when someone drops an initialism you hal
 - **SWE-bench** - resolving real GitHub issues. The Verified subset has aged into saturation and contamination, so harder variants such as SWE-bench Pro now carry the signal, and every score depends heavily on the agent harness. [07 Evals](07-evaluation-and-observability/questions.md)
 - **Sycophancy** - telling users what they want to hear, agreeing with stated positions or flattering instead of correcting, a predictable side effect of optimising for human preference. [07 Evals](07-evaluation-and-observability/questions.md)
 - **SynthID** - Google's watermarking family, which biases token sampling for text or embeds a signal in pixels for images, so a detector holding the key can test for it statistically. [09 Safety](09-safety-security-and-responsible-ai/questions.md)
-- **System prompt leakage** - assume it happens, so never put secrets or unenforced authorisation logic in it. [09 Safety](09-safety-security-and-responsible-ai/README.md)
+- **System prompt leakage** - assume it happens, so never put secrets or unenforced authorisation logic in it. OWASP's 2026 list folds it into Hidden Context Exposure. [09 Safety](09-safety-security-and-responsible-ai/README.md)
 
 ## T
 
