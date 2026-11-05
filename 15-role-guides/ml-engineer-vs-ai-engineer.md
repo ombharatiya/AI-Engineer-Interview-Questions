@@ -11,6 +11,7 @@ The titles are a mess and the loops are not. "ML Engineer" postings now regularl
 - **Fine-tuning questions shifted from "how" to "whether."** Interviewers care less about your LoRA hyperparameters and more about whether you can justify fine-tuning against prompting/RAG with an eval and a cost model. "We fine-tuned because we could" is a downlevel answer in both loops. The 2026 extension is reinforcement fine-tuning with programmatic graders (GRPO-style trainers in open source, managed offerings from some providers and clouds): the question is no longer "can you run it" but "can you write a grader worth optimising against."
 - **AI-assisted coding rounds arrived, and AI-tool fluency is graded.** Meta has run an AI-enabled coding round since October 2025, Google began piloting a Gemini-assisted code-comprehension round for some SWE roles in 2026, and Amazon has added AI-assisted repository tasks to some assessments (all reported, varies by team and role family). AI-native companies often allow Cursor, Claude Code or similar throughout the practical. For MLEs the twist is that assistants write ML code that runs and prints a plausible number, so the round rewards catching leakage and evaluation bugs, not typing speed. Ask which mode each round uses.
 - **The hybrid question became standard:** "when do you replace the LLM API with a trained model?" Distillation, cascade routing, and cost-crossover math sit exactly on the MLE/AI-engineer boundary, and both roles now get asked about them.
+- **Customer-facing and post-training titles multiplied (late 2026).** One company's careers page can now list Applied AI Architect, Applied AI Engineer, Forward Deployed Engineer, Applied AI Demo Engineer and Applied AI Research Engineer side by side, as Anthropic's does. FDE itself split into specialist tracks (inference and post-training at Together AI, Model Customization and Optimization at AWS), and application companies started posting "AI Engineer" roles for post-training and verifiers: Glean's AI Engineer - Quality and Post-Training asks for hands-on SFT plus DPO, PPO or GRPO. The JD table below covers the new rows.
 - **Research Engineer and Applied Scientist loops split further away.** RE loops went deeper into distributed training and performance engineering; AS loops kept stats and experiment-design depth. Neither converged with the app layer - mistaking one of these loops for an AI engineer loop is the worst-case prep error.
 
 ## The four titles, decoded
@@ -52,7 +53,12 @@ The titles are a mess and the loops are not. "ML Engineer" postings now regularl
 | "GenAI Engineer" / "LLM Engineer" | AI Engineer |
 | "Agent Engineer" / "Applied AI Engineer (agents)" | AI Engineer with agent depth: tool design, long-running runs, evals over trajectories rather than single answers |
 | "Forward Deployed Engineer" / "Applied AI Engineer, Deployed" | AI engineering plus customer-facing discovery; see the [FDE guide](./forward-deployed-engineer.md) |
-| "post-training, RL environments, reward design, graders" | Post-training team: closer to Research Engineer than AI Engineer, even when the req says "ML Engineer" |
+| "Forward Deployed Engineer, Post-Training" / "Model Customization" | FDE who runs SFT, DPO and RL engagements on open-weight models for customers. Customer skills from the FDE guide plus [05](../05-fine-tuning-and-alignment/) at deep depth |
+| "Forward Deployed Engineer, Inference" | FDE who tunes serving engines (vLLM, TensorRT-LLM, SGLang) to win customer benchmarks. Customer skills plus [08](../08-inference-and-production/) at deep depth |
+| "Forward Deployed Data Scientist" | SQL, statistics and AI evaluation in front of customers: closer to Applied Scientist than to FDE |
+| "Applied AI Architect" / "Solutions Architect, AI" | Pre-sales and design: reference architectures, scoping and technical credibility in the deal, with less production code than an FDE. Expect system design and customer role-play more than a coding round |
+| "Demo Engineer" / "Applied AI Demo Engineer" | Builds demos, templates and reusable packages (skills, plugins) for sales and customers. Expect a live build and a "bespoke or shared?" judgement question |
+| "post-training, RL environments, reward design, graders" | Post-training team: closer to Research Engineer than AI Engineer, even when the req says "ML Engineer". Since late 2026 application companies also post this work as "AI Engineer - Post-Training" or "AI Engineer - Data and Evals" (verifiers calibrated against human labels, simulation environments, results with confidence intervals): prep [05](../05-fine-tuning-and-alignment/) and [07](../07-evaluation-and-observability/) deep, whatever the title says |
 | "ML Engineer (LLM applications / GenAI team)" | AI Engineer wearing an MLE title - the most common mislabel of 2025-2026 |
 | "Full-stack AI Engineer" | Product engineer: prompts + APIs + React. Expect more frontend than ML |
 | "MLOps Engineer / ML Platform" | Infrastructure role - more Kubernetes than models |
@@ -348,6 +354,25 @@ How to catch them fast, narrating as you go: overfit a tiny batch to near-zero l
 Use the assistant for the checks, not just the code: ask it to write the leakage assertions and the shuffled-label test, then read them, because a generated test can assert the wrong thing just as confidently. The skill on display is the one MLE loops always graded, applied to code you didn't type: a number that looks too good is a bug report until proven otherwise.
 
 **Follow-ups:** The assistant's fix lifted validation accuracy from 81% to 96%. What do you check before believing it? Which of these checks would you make permanent in CI?
+
+</details>
+
+### 15. This company posts Applied AI Architect, Applied AI Engineer, Forward Deployed Engineer and Demo Engineer roles side by side. What does each one own, which loop are you preparing for, and why this one?
+
+<details><summary><b>Answer</b></summary>
+
+The interviewer is checking that you read the posting rather than the brand, so answer with ownership, not adjectives. The dividing lines are who the customer is, whether you write production code, and whether you own the outcome after the deal.
+
+- **Applied AI Architect** owns the design during the sale: discovery, a reference architecture, the answer to the CISO, a scoped plan. The output is a credible design and a signed deal. Light code, heavy system design and customer role-play.
+- **Applied AI Engineer** usually builds with or for customers at the platform level: harder integrations, evals, cookbooks, sometimes product feedback loops. More code than the architect, less embedding than the FDE. At some companies this is the internal AI-application role instead, so check.
+- **Forward Deployed Engineer** owns production outcomes inside one customer's environment: code that runs in their stack, evals that decide renewal, handover to their team. The loop is decomp, live build, technical depth and adversarial role-play. Watch for specialist variants: post-training and inference FDE tracks test training or serving depth that the generalist loop never touches.
+- **Demo Engineer** owns reusable showcases: demos, templates, skills and plugins that sales and customers self-serve. The judgement question is when a request deserves a bespoke build and when it should become a shared asset. Expect a live build graded on polish and reusability.
+
+Then place yourself honestly. "I've shipped two agent deployments where I owned the evals and the handover, and I want to keep owning outcomes after the deal, so FDE, not architect" is a strong answer. "They're all basically the same" tells the interviewer you'll be disappointed in month two. If your history fits a neighbouring title better, say so and say why you are moving: hiring managers often route good candidates between these loops, and naming the trade-off shows you understand the org.
+
+Close with the two questions that settle it with the recruiter: what does a typical week look like, and what is this role measured on (deal velocity, production adoption, or reuse of what you build)?
+
+**Follow-ups:** You interview for FDE and the panel thinks you're a better architect - how do you respond? What would make you move from FDE to Applied AI Engineer after a year?
 
 </details>
 

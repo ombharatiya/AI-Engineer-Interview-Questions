@@ -14,6 +14,7 @@ You're not being hired to design model architectures. You're being hired to run 
 - **A platform-as-product framing is probed explicitly.** Can you design rate limits, budgets, key management, model routing, and fallbacks as a *self-serve internal product* for dozens of teams - not a bespoke integration per team? This is where staff-level candidates separate.
 - **Kubernetes grew native vocabulary for inference.** Dynamic Resource Allocation (stable since Kubernetes 1.34) for GPU claims, the Gateway API Inference Extension for model-aware routing, and llm-d or NVIDIA Dynamo for disaggregated prefill/decode now come up by name. Nobody expects API-level detail, but "I'd write a custom scheduler" when the ecosystem already ships one reads as out of date.
 - **The platform team now owns AI developer tooling.** Rolling coding agents out to the whole engineering org, running them unattended in CI, keeping an approved list of MCP servers, and attributing their spend is a new design prompt. Expect "what can an agent touch, with whose credentials, and who reviews what it merges?"
+- **Agent platforms and agent-scale delivery became their own hiring category (late 2026).** Labs and application companies now post roles for agent runtimes, sandboxing fleets, environment infrastructure for RL and agent identity (Anthropic's sandboxing and agent runtime roles, Glean's agentic runtime, Vercel's agent auth, Scale's RL environments). Two adjacent prompts follow: source control and CI when agents write most of the changes, and AI SRE agents joining the on-call rotation. Expect at least one of these at companies that run agents in production.
 - **AI-assisted coding rounds arrived, and AI-tool fluency is graded.** Meta piloted an AI-enabled coding round in October 2025 and expanded it through 2026, typically alongside one classic no-AI round. Google began piloting a Gemini-assisted round for some SWE roles in 2026, and Amazon has added an AI-assisted repository task to some online assessments (all reported, varies by team). For infra candidates the task is often a repo with a broken Terraform module, Helm chart or CI workflow. You're judged on how precisely you direct the tool and whether you catch what it gets wrong: wildcard IAM policies, a plan that destroys and recreates a stateful resource, hallucinated flags, deprecated API versions. Ask the recruiter which rounds allow assistants and practise both modes.
 - **De-emphasised:** Kubernetes trivia for its own sake (CKA-style API minutiae), classic "design a CI system for microservices" with no AI twist, and deep ML theory - nobody asks a platform engineer to derive attention. Terraform/K8s fluency is assumed as a floor, not tested as a ceiling, and with an assistant in the room the bar on how much you finish rises with it.
 
@@ -313,10 +314,10 @@ Treat every agent run as untrusted code execution driven by untrusted input, bec
 - **Identity.** The agent has its own bot identity, never a human's token. Credentials are short-lived and repo-scoped, issued per run via OIDC federation, and cloud access is limited to a read-only test account. Every push is attributable to a run.
 - **Egress.** Default-deny outbound, with allowlists for the model gateway, the package registry proxy and the git host. This is the main defence against prompt-injected exfiltration, such as a poisoned issue telling the agent to post environment variables somewhere. The registry proxy also blocks hallucinated or typosquatted package names.
 - **Model access through the gateway.** Per-run token budgets, step caps, and spend attributed to the requesting team, like any other consumer.
-- **Merge policy.** Agents open PRs and never merge. Branch protection, CODEOWNERS and required review apply unchanged, and changes to workflow files, CI config or CODEOWNERS go through a stricter review path, because that's how an agent escalates its own privileges.
+- **Merge policy.** Agents open PRs and never merge. Branch protection, CODEOWNERS and required review apply unchanged, and changes to workflow files, CI config or CODEOWNERS go through a stricter review path, because that's how an agent escalates its own privileges. If AI reviewers are in the loop too, tier human approval by the risk of the change, and never let an agent's approval count as a person's.
 - **Audit.** Log every command, tool call and MCP server used per run, and pull the agent's own telemetry (many coding agents can export OpenTelemetry) into the existing stack.
 
-The surprise is capacity: agent-generated PRs can multiply CI load, so meter it and give agents a lower-priority runner pool.
+The surprise is capacity: agent-generated PRs can multiply CI load, so meter it and give agents a lower-priority runner pool. The numbers are no longer hypothetical. Anthropic reported merged changes going from about 2,500 a day in May 2026 to more than 30,000 a day in September, with about 25M CI checkouts a day, and GitHub's Octoverse put agent-started PRs above 40% of all PRs that month. At that volume git mirrors, checkout traffic and a globally locked merge queue fall over before the runners do: Anthropic moved to an in-house version control system and replaced the global merge-queue lock with post-merge and pre-deploy testing.
 
 **Worth sketching.** Where each control sits on the path from task to merge.
 
@@ -332,6 +333,62 @@ flowchart LR
 ```
 
 **Follow-ups:** An on-call team wants the agent to read production logs while debugging incidents - how do you grant that? How do you measure whether agent PRs are worth the review time they consume?
+
+</details>
+
+### 16. Leadership wants an AI SRE agent on the pager to triage alerts, investigate, and propose or apply mitigations. What may it do without a human, and how do you evaluate it before you trust it at 3 a.m.?
+
+<details><summary><b>Answer</b></summary>
+
+Split the job into investigate, propose and act, and grant autonomy separately for each. Most of the value is in investigation, and that is also where the industry has landed: an October 2026 survey of AI SRE tools (Rootly, incident.io, ResolveAI, and in-house systems at Monzo, Stripe, OpenAI and Google) found most of them focus on speeding up investigation, and whether they should write fixes is still argued over. OpenAI's Sevbot suggests mitigations but never executes them.
+
+**What it may do alone.** Read-only investigation from day one: query metrics, logs, traces and deploy history, correlate the alert with recent changes, and post a running summary in the incident channel. That alone cuts time to the first good hypothesis. Executing actions comes later and only for a short list of pre-approved, reversible, blast-radius-limited runbook steps: roll back the last deploy of the affected service, flip a feature flag off, add replicas. Anything irreversible or cross-cutting (database failover, data repair, network or IAM changes, touching another team's service) stays a proposal a human approves. Some teams go further, with agents owning incidents and rolling back a bad change in about 30 seconds, but they pair that with deliberate fault injection to prove the recovery path works.
+
+**Controls.** The agent has its own service identity with read-only credentials. Action tools go through a policy engine that checks the action against the allowlist, the service and the time window, not through the model's judgement. Every call is logged and there is a kill switch the incident commander can hit. Treat logs and alert payloads as untrusted input: an attacker who can write a log line can try to steer the agent.
+
+**Failure modes to design for.** Anchoring: a single agent tends to confirm its first suspicion. ResolveAI added an independent Verifier agent after its single-agent design hit context saturation in long incidents and kept doing exactly that. Stale memory: notes from past incidents go wrong as the system changes, which is why Rootly quarantines memory notes that later evidence contradicts. Confident wrongness is worse than silence at 3 a.m., so the agent should state its confidence and the evidence for it.
+
+**Evaluating it.** Three stages before it touches production. Replay: run it on your postmortem archive with the telemetry as it was, and score whether it reached the actual root cause, how fast, and how often it was confidently wrong. Shadow: on live pages it writes notes only, and the on-call engineer rates them after each incident. Game days: inject known faults and check both diagnosis and, for the allowed actions, that it rolled back the right thing. Promote an action type to autonomous only after the shadow data supports it, and track harmful-suggestion rate as a first-class metric next to time to mitigation.
+
+**Worth sketching.** Optional, but it makes the autonomy boundary obvious.
+
+```mermaid
+flowchart TD
+    A["Alert fires"] --> B["Agent investigates<br/>read-only tools"]
+    B --> C["Independent verifier<br/>checks the hypothesis"]
+    C --> D["Proposed mitigation"]
+    D --> E{"Policy engine"}
+    E -->|"reversible and allowlisted"| F["Agent executes"]
+    E -->|"anything else"| G["On-call approves"]
+    G --> F
+    F --> H["Verify recovery<br/>or roll back"]
+```
+
+**Follow-ups:** The agent's suggestion was right but the on-call engineer ignored it and the outage ran an extra hour - what do you change? How do you stop two agents (yours and another team's) taking conflicting actions in the same incident?
+
+</details>
+
+### 17. Design the sandbox platform behind a hosted agent product and an RL training fleet: thousands of environment types, millions of rollouts. Pick the isolation primitive, then cover startup latency, density, snapshots and warm pools, packaging, egress, credentials, and escape response.
+
+<details><summary><b>Answer</b></summary>
+
+This is now a hiring category of its own: labs post dedicated sandboxing roles covering startup time, density, snapshot and restore, warm pools, egress controls and per-session credentials, and RL environment teams describe throughput measured in millions of rollouts. The design has to serve two customers with different priorities: the product wants low startup latency, the training fleet wants density and reproducibility.
+
+**Isolation primitive.** The code is untrusted by definition, so a plain container (runc) sharing the host kernel isn't enough on its own. My default is a KVM microVM such as Firecracker: a hardware-virtualisation boundary, small memory overhead and fast boot. gVisor is the lighter option, a user-space kernel that intercepts syscalls, and is fine for workloads that are not syscall-heavy or need broader compatibility. Full QEMU VMs are kept for environments that need devices or kernels the microVM can't provide. Whatever you pick, add seccomp and a minimal guest image on top, because one boundary is one bug away from failure.
+
+**Startup latency.** Cold boot plus dependency install is seconds to minutes, which the product can't afford. Two levers. Warm pools of pre-booted sandboxes per popular environment type, sized from demand forecasts. Snapshot and restore: boot once, load the dependencies, snapshot memory and disk, and restore clones from it in well under a second. The catch with cloning is shared state: every clone starts with the same RNG seed, clock and identifiers, so reseed entropy and regenerate IDs on restore, or you get colliding session keys.
+
+**Density.** Copy-on-write root filesystems layered on shared base images, memory ballooning and careful overcommit, and scheduling that packs short RL rollouts tightly while keeping product sessions on less contended hosts. Checkpointing lets long agent sessions idle without holding memory: suspend to snapshot while the user is away, restore when they return.
+
+**Packaging and versioning.** An environment is an immutable, content-addressed image plus a manifest: tool versions, fixture data, the task definition and the grader version. Every rollout records the environment version it ran on, because an RL result you can't reproduce is a result you can't trust, and a silent environment change looks like a training regression. Keep the grader outside the sandbox, or the policy will learn to read or edit it.
+
+**Egress.** Default deny. Product sessions get a per-environment allowlist through a proxy that also enforces DNS. RL environments usually get no internet at all, with mocked services inside, because an agent in training will find and use any real endpoint it can reach.
+
+**Credentials.** Nothing long-lived inside the sandbox. Per-session, short-lived, narrowly scoped tokens, ideally injected by the egress proxy on the way out so the code never holds the secret it uses.
+
+**Escape detection and response.** Signals: seccomp violations, unexpected syscalls or KVM exits, egress denials, canary tokens planted inside the sandbox showing up anywhere outside it, and host integrity checks. Response is drilled in advance: kill the sandbox, cordon and drain the host, preserve memory and disk for forensics, rotate anything the host could reach, and re-image before it rejoins the pool. Treat a successful escape during RL training as a safety finding as well as a security one, since the model learned to do it.
+
+**Follow-ups:** Snapshot restore is fast but RL results became non-deterministic across clones - where do you look? The product team wants GPU access inside sandboxes - what does that do to your isolation story?
 
 </details>
 

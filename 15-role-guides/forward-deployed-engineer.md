@@ -5,6 +5,7 @@ The breakout AI role of 2025-2026. Palantir invented the title, OpenAI and Anthr
 ## How this role's interviews changed (2024 → 2026)
 
 - **The role went from niche to everywhere.** In early 2024, "FDE" loops existed mostly at Palantir. By 2025-2026, OpenAI, Anthropic, and a long tail of applied-AI startups run dedicated FDE loops, most of them visibly forked from Palantir's playbook (decomp interview + technical depth + customer role-play). If you interview for "Solutions Architect," "Applied AI Engineer, Deployed," or "Member of Technical Staff - Customer," it's usually the same loop.
+- **FDE started splitting into specialist tracks in late 2026.** AWS set up a dedicated Forward Deployed Engineering organisation in October 2026, and its senior postings list "agentic and spec-driven development at production scale" as a basic qualification. Alongside it sits a Model Customization and Optimization FDE track for post-training open-weight models. Together AI posts separate Strategic Inference and Post-Training FDE roles, Databricks opened AI FDE roles across Europe in November 2026, and Intercom hires a Forward Deployed Data Scientist next to its FDEs. The generalist application-layer loop below is still the most common, but read the posting: a post-training or inference track tests very different depth.
 - **The decomposition ("decomp") interview became a standard stage.** You get a deliberately vague prompt - "a logistics company wants to reduce missed deliveries" - and the interviewer plays a customer stakeholder. You're graded on how you carve ambiguity into a scoped, buildable v1, not on the final architecture. In 2024 this was a Palantir signature; now it's table stakes across the role.
 - **Live build / rapid-demo rounds appeared.** A 60-120 minute session (or tightly timeboxed take-home): here's an API key and some messy sample data, build something a customer could see. Interviewers watch what you cut, how you narrate tradeoffs, and whether the thing runs - not code aesthetics.
 - **Customer role-plays got adversarial.** Expect injected objections mid-scenario: "our CISO says no data leaves our network," "the demo hallucinated in front of my VP," "why can't we just fine-tune it?" The 2024 version was a friendly Q&A; the 2026 version tests whether you can push back without losing the room.
@@ -40,8 +41,8 @@ Day-to-day: a typical week mixes on-site and remote. Morning debugging the custo
 **Not expected - stop preparing this:**
 
 - Deriving backprop, attention math, or optimizer internals. A one-paragraph intuition of how transformers predict tokens is plenty.
-- Training or fine-tuning experience beyond knowing *when to recommend against it* (which is most of the time).
-- GPU/CUDA-level inference optimization. Know latency/cost levers at the API level (caching, model tiering, streaming); leave kernel fusion to the inference teams.
+- Training or fine-tuning experience beyond knowing *when to recommend against it* (which is most of the time), **for application-layer FDE roles**. Post-training FDE tracks at model-platform companies are the exception: Together AI's Post-Training FDE, AWS's Model Customization and Optimization track and, to a lesser degree, Databricks' AI FDE roles expect you to run SFT, DPO and RL engagements, choose base models, design evals that separate a real gain from noise, and size the compute. On those tracks, study [05](../05-fine-tuning-and-alignment/) at deep depth (Q20 to Q23, Q37, Q38, Q49 to Q53 are the core).
+- GPU/CUDA-level inference optimization. Know latency/cost levers at the API level (caching, model tiering, streaming); leave kernel fusion to the inference teams. The carve-out is inference FDE roles at serving providers, such as Together AI's Strategic Inference track. They still don't ask for CUDA or kernels, but they do expect engine-level work: choosing and configuring vLLM, TensorRT-LLM or SGLang, tuning the KV cache, speculative decoding, tensor and pipeline parallelism and quantization to hit a customer's throughput and latency target, and benchmarking in a way the customer can trust. In [08](../08-inference-and-production/), Q19 to Q24, Q30, Q37 and Q46 cover those levers.
 - Research fluency. You will never be asked to discuss the latest paper; you will absolutely be asked what you'd do when retrieval quality drops on scanned PDFs.
 
 If you've shipped one real LLM feature to real users and can talk about its failures honestly, you're better prepared than someone who read every survey paper. Calibrate accordingly.
@@ -54,10 +55,10 @@ If you've shipped one real LLM feature to real users and can talk about its fail
 | [02-llm-fundamentals](../02-llm-fundamentals/) | 🟡 solid (practical half) | Tokens, context windows, sampling/temperature, why models hallucinate - you explain these to customers weekly. Skim the architecture internals. |
 | [03-prompt-engineering-and-context](../03-prompt-engineering-and-context/) | 🟡 solid | Your fastest lever on-site. Prompt iteration, context budgeting, and structured outputs fix most "the model is wrong" complaints before anything heavier. |
 | [04-rag-and-retrieval](../04-rag-and-retrieval/) | 🟢 deep | The default first deployment at almost every enterprise. You must debug retrieval on messy customer data live - chunking, hybrid search, reranking, grounding failures. |
-| [05-fine-tuning-and-alignment](../05-fine-tuning-and-alignment/) | ⚪ skim | Know the decision framework well enough to talk customers *out* of fine-tuning. You'll rarely run one. |
+| [05-fine-tuning-and-alignment](../05-fine-tuning-and-alignment/) | ⚪ skim | Know the decision framework well enough to talk customers *out* of fine-tuning. On application-layer tracks you'll rarely run one; on post-training FDE tracks (Together AI, AWS Model Customization) this becomes 🟢 deep, because running SFT, DPO and RL engagements is the job. |
 | [06-agents-and-tool-use](../06-agents-and-tool-use/) | 🟢 deep | The 2026 deployment surface. Tool design against customer systems, guardrails, human-in-the-loop, failure recovery - core interview material. |
 | [07-evaluation-and-observability](../07-evaluation-and-observability/) | 🟡 solid | "How do we know it works?" is the question that decides renewals. Golden sets, LLM-as-judge, tracing - you build these for every engagement. |
-| [08-inference-and-production](../08-inference-and-production/) | 🟡 solid | API-level production concerns: latency, cost tiering, caching, rate limits, fallbacks. Skip the GPU internals. |
+| [08-inference-and-production](../08-inference-and-production/) | 🟡 solid | API-level production concerns: latency, cost tiering, caching, rate limits, fallbacks. Skip kernel-level GPU internals, but on an inference FDE track go deep on engine choice, KV cache, speculative decoding, parallelism, quantization and load testing. |
 | [09-safety-security-and-responsible-ai](../09-safety-security-and-responsible-ai/) | 🟡 solid | Prompt injection, data boundaries, and the CISO conversation. FDEs field security objections before the security team does. |
 | [10-multimodal](../10-multimodal/) | ⚪ skim | Useful when a customer's "documents" turn out to be scans and screenshots - know that vision-capable ingestion exists and when to reach for it. |
 | [11-ai-system-design](../11-ai-system-design/) | 🟢 deep | The case studies are gold for FDE - they're rehearsals for decomp interviews and real engagements alike. |
@@ -334,6 +335,59 @@ sequenceDiagram
 ```
 
 **Follow-ups:** The vendor's MCP server exposes sixty tools and you need four - how do you constrain it? Security asks how to revoke the agent's access for one user within five minutes - what's your answer?
+
+</details>
+
+### 16. You'll lead agentic, spec-driven development on this engagement. What goes in the spec before an agent writes any code, what does the team review, how do you stop spec and code drifting apart over six weeks, and when is it overkill?
+
+<details><summary><b>Answer</b></summary>
+
+Spec-driven means the written spec, not the prompt or the diff, is the artifact everyone agrees on. Agents are fast enough that the bottleneck moves to deciding what to build, so that is where review effort should go. AWS now lists it as a basic qualification for senior FDE roles, so expect to be asked how you run it, not what it is.
+
+**What goes in the spec.** The problem and the user it serves, in the customer's words. Acceptance criteria written so they can become tests ("a PO over 10k routes to approval", not "handles large orders"). Interfaces and contracts: the customer APIs the code may call, schemas, error behaviour. Constraints and non-goals: data that must not leave the tenant, systems that are read-only, what v1 deliberately doesn't do. For the AI parts, the eval set and the pass threshold. And open questions with an owner, because an agent will happily invent an answer to anything you leave ambiguous.
+
+**What gets reviewed, and by whom.** The spec gets the most attention, and the customer's domain owner signs it off, because that is where a wrong assumption costs weeks. The plan the agent produces from it (files touched, sequence, test strategy) gets a quick tech-lead read: it is cheap to fix a bad plan and expensive to fix the code it produces. Diffs are still reviewed, but against the spec and the tests rather than line by line for intent, with depth scaled to risk: a change to the write path into their ERP gets a careful human read, a new report column does not.
+
+**Keeping them in sync.** The spec lives in the repo next to the code and is versioned with it. Behaviour changes go spec-first: if the customer changes their mind on Thursday, the spec PR lands before the code PR, and every code PR cites the spec section it implements. Acceptance criteria are compiled into tests, so CI fails when code and spec disagree, which is the only drift check that survives week five. I hold a short weekly walk-through of spec changes with the customer, which doubles as the expectation-management meeting.
+
+**When it's overkill.** Spikes, the 48-hour demo, data exploration and one-off migration scripts. Writing a formal spec for something you'll throw away is ceremony. The test I use: if the customer's engineers will maintain it after I leave, it gets a spec. If not, a clear task description is enough.
+
+**Worth sketching.** Optional, but it shows where human review sits.
+
+```mermaid
+flowchart LR
+    A["Spec (customer signs off)"] --> B["Agent plan"]
+    B -->|"tech lead review"| C["Agent writes code"]
+    C --> D["Tests from acceptance criteria"]
+    D -->|"fail"| C
+    D -->|"pass"| E["Risk-scaled diff review"]
+    E --> F["Merge"]
+    G["Customer changes mind"] -->|"spec PR first"| A
+```
+
+**Follow-ups:** The customer's engineers want to review every diff line by line, which kills the speed gain - how do you negotiate that? An agent implements something that passes every test but isn't what the stakeholder meant - what does that tell you about the spec?
+
+</details>
+
+### 17. A regulated customer requires zero data retention, but the frontier model they want requires 30-day retention for safety monitoring. What are your options, and how do you explain the trade-off?
+
+<details><summary><b>Answer</b></summary>
+
+This is now a real conflict, not a hypothetical. As of late 2026 some frontier models ship with their own data-handling terms: Anthropic's Claude Fable 5 and 5.1 require 30-day retention and aren't available under zero data retention unless Anthropic expressly authorises it, and OpenAI's GPT-6 Astra runs asynchronous misalignment monitoring on supported Responses API requests, which can raise alerts or pause a conversation for review. The account's standing ZDR agreement doesn't automatically cover the newest model, so check each model's terms before anyone promises it in a demo.
+
+First, find out what the requirement protects. "Zero retention" in a security policy usually means one of three things: no copy outside the jurisdiction, no human at the vendor able to read it, or nothing persisted at all. The options differ by which of those it is.
+
+1. **Use the best ZDR-eligible model and quantify the gap.** Run both on the customer's own eval set. If the gap is two points on their task, the conversation is over. If it's fifteen points on the hard cases, you have a number to take to the risk owner, which is far better than an opinion.
+2. **Ask the provider.** Express authorisation exists for a reason. A regulated customer with a clear use case and a strong security posture can sometimes get it, but it takes weeks, so start early and don't plan the timeline around it.
+3. **Route by data class.** Send regulated data (patient records, client financials) to a ZDR-eligible model, and let the frontier model handle work on non-sensitive or de-identified inputs: drafting from public sources, code generation, reasoning over already-redacted summaries. That needs a classification step you can defend, and redaction lowers the risk without removing it, so don't sell it as equivalent to ZDR.
+4. **Accept the retention, with eyes open.** Some customers will, once they know the retained data is used for safety monitoring, how long it is kept, where, and who can access it. That decision belongs to their risk owner and legal team, documented, not to you on a call.
+5. **Check the hyperscaler listing.** The same model through Bedrock, Vertex AI or Foundry can have different terms. Read them rather than assuming in either direction.
+
+How I'd frame it to the customer: the retention is the price of that capability tier, because the provider holds the data to watch for misuse of its most capable model. Here is what the next tier down costs you in quality on your own data, and here are the routes that keep most of the gain. Then let them choose.
+
+One design consequence either way: if a model can pause a conversation for review, the application needs a paused state, a user-facing message and a fallback path, or a safety hold looks like an outage.
+
+**Follow-ups:** The customer's CISO accepted ZDR-only, but six months later the business wants the frontier model - how do you reopen it? How do you prove to an auditor which model saw which class of data?
 
 </details>
 
