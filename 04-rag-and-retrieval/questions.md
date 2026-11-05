@@ -1,6 +1,6 @@
 # RAG & Retrieval - Interview Questions
 
-60 questions: 15 basic, 23 intermediate, 22 advanced.
+62 questions: 15 basic, 23 intermediate, 24 advanced.
 
 > **On the diagrams: drawing is optional.** Some answers include a small sketch you could
 > reproduce on a whiteboard or in a shared doc. You never have to draw anything to score well,
@@ -1329,7 +1329,7 @@ flowchart LR
 
 <details><summary><b>Answer</b></summary>
 
-The hard constraint first: embeddings from different models live in **incompatible vector spaces**. There is no shared coordinate system, so you cannot mix old and new vectors in one index. A partially reindexed index does not degrade gracefully, it returns nonsense, because the distance between a new query vector and an old document vector is meaningless. So this is a full reindex or nothing.
+The hard constraint first: embeddings from different models live in **incompatible vector spaces**. There is no shared coordinate system, so you cannot mix old and new vectors in one index. A partially reindexed index does not degrade gracefully, it returns nonsense, because the distance between a new query vector and an old document vector is meaningless. So this is a full reindex or nothing. The one exception is a family deliberately trained into a shared space, such as Cohere's Embed 5 Pro and Fast tiers (September 2026), where either model can query an index built with the other. That lets you mix tiers within one generation, after checking the loss on your own golden set, but it does not make a new model generation compatible with an old index.
 
 **Justify it first.** Reindexing 400M chunks is not free: embedding inference at that scale, plus index build, plus double storage during cutover, plus the engineering weeks. Before spending it, evaluate the new model on my golden set at my own scale. Leaderboard deltas routinely evaporate on a real domain corpus, and 'slightly better on MTEB' is not a reason to spend that budget.
 
@@ -1652,5 +1652,66 @@ flowchart LR
 ```
 
 **Follow-ups:** How would you build near-miss unanswerable questions without contaminating the corpus? The abstain rate doubled overnight with no deploy: what are your first three checks?
+
+</details>
+
+### 61. Your embedding provider ships a large and a small model that share one embedding space, so you can index with the large one and query with the small one. When is that worth doing, how do you verify the compatibility claim on your own corpus, and what does it change about the reindex-or-nothing rule for model migrations?
+
+<details><summary><b>Answer</b></summary>
+
+The default rule still stands: two independently trained embedding models have no shared coordinate system, so a model swap means a full reindex. A family trained into one space on purpose is the deliberate exception. Cohere's Embed 5 (September 2026) is the current example: its Pro and Fast tiers share a space, either can query an index built by the other, and Cohere reports average cross-model losses of 1.6% when Fast queries a Pro-built index and 2.7% the other way round. Its own recommendation is to index with Pro and query with Fast.
+
+**Why the asymmetry pays.** Indexing happens once per chunk, offline and batched, so latency does not matter and the big model's quality is cheap to buy. Query embedding sits on the hot path of every request. Paying for quality where it is amortised and for speed where it is not is the whole trade. Secondary wins: a cheaper query tier for free users, a fallback encoder if the large endpoint degrades, and query encoding close to the user.
+
+**When it is not worth it.** If query embedding is 15 ms of a 2-second request dominated by reranking and generation, the saving is noise and you have added a configuration to test. And vendor averages are averages: on code, legal text or a low-resource language the cross-model loss can be much larger than 1.6%.
+
+**Verifying it on your corpus.** Build both indexes over a realistic sample (the candidate pool behind your golden set, plus distractors at production density) and run four configurations: large/large, small/small, large index with small queries, small index with large queries. Then check:
+
+- Recall@k and nDCG at the first stage, *and* after the reranker. A first-stage loss the reranker recovers may not matter.
+- Per-slice results: short keyword queries, long natural-language queries, each language, image or mixed inputs if you use them. A small average loss can hide a large loss on one slice.
+- Score distributions. Similarity thresholds for abstention or dedup were calibrated on one configuration and will shift on another, so refit them.
+- Matching settings. Both sides must use the same output dimension and precision. Embed 5 offers 2048 down to 256 dimensions in float, int8 or binary, and a mismatch there is a bug, not a compatibility result.
+
+**What changes about migrations.** Within a shared-space family, the query encoder becomes independently deployable: you can move queries between tiers, or roll back the query side, without touching 400M stored vectors. Across generations nothing changes. A new generation is a new space until the vendor says otherwise and your eval agrees. Make this explicit in the system: every index records model id, dimension and precision, and the query service refuses any encoder-index pair that is not on an allowlist backed by an eval run. Also be clear about lock-in: the shared space is vendor-specific, so leaving the vendor is still a full reindex.
+
+**Worth sketching.** Drawing it is optional, but it makes the offline and hot-path split obvious.
+
+```mermaid
+flowchart LR
+    A["Documents"] --> B["Large encoder<br/>(offline, batched)"]
+    B --> C["Vector index<br/>model id, dim, precision"]
+    D["User query"] --> E["Small encoder<br/>(hot path)"]
+    E --> F{"Pair on the<br/>eval allowlist?"}
+    F -->|"yes"| G["ANN search and rerank"]
+    C --> G
+    F -->|"no"| H["Refuse and alert"]
+```
+
+**Follow-ups:** How would you detect a silent cross-tier regression after the vendor updates only the small model? Would you ever index with the small model and query with the large one? How does this interact with binary quantisation of the stored vectors?
+
+</details>
+
+### 62. Your agents work over a large enterprise document estate. When does chunked agentic RAG win, when does a browsable knowledge tree win, and when does a typed domain ontology win? Why can the ontology be both more accurate and cheaper per task, and what does it cost to build?
+
+<details><summary><b>Answer</b></summary>
+
+A useful public data point: Sarvam's knowledge-fabric write-up (October 2026) compared the three on Harvey's LAB firm-knowledge benchmark. Rubric criteria met went from 55.1% (agentic RAG over chunks) to 74.4% (knowledge tree) to 84.2% (ontology), while cost per task went $0.64, $1.18 and $0.28. Harvey separately reports up to 30% higher rubric pass rate and up to about 50% lower task cost from Harvey Graph, which pairs a case-law knowledge graph with a per-workspace context graph. These are vendor numbers on one domain, so treat them as a hypothesis to reproduce, but the shape is explainable.
+
+**Agentic RAG over chunks.** The agent searches, reads fragments, reformulates and searches again. It needs no upfront modelling, handles any question, and stays fresh as documents change. Its weakness is relational questions ("which matters for this client used the older indemnity clause, and who signed off?"): the relations are scattered across documents, so the agent reconstructs them by reading, cost grows with exploration, and it misses joins it never thought to make.
+
+**Knowledge tree.** Hierarchical summaries (estate, collection, document, section) that the agent browses top-down. It fixes "where would this be?" and gives the agent orientation, which is why accuracy rises. It is also why cost rises: browsing means reading many summary nodes per task before reaching evidence.
+
+**Typed ontology.** Entities and relations (matter, client, party, clause, version, author, approval date) extracted and resolved once, then queried. A relational question becomes a query plus a few targeted reads instead of twenty exploratory ones. Accuracy goes up because entity resolution and supersession were done carefully at build time, not improvised mid-task. Cost per task goes down because the expensive reasoning moved out of the query path.
+
+**What it costs to build:**
+
+- Schema design with domain experts, which is weeks, and the schema encodes assumptions that will be wrong somewhere.
+- An extraction pipeline over the whole corpus (LLM extraction per document is a one-off cost proportional to corpus size), plus entity resolution and a human audit of a sample.
+- Incremental updates as documents change, and permission propagation: an edge between two documents must not leak the existence of one the user cannot see.
+- Schema evolution, and a fallback: questions outside the schema still need chunked retrieval, so you run both.
+
+**Choosing.** Look at the query mix. Lookup and "find the passage" questions are well served by chunked RAG. Orientation-heavy questions over sprawling estates favour a tree. Repeated relational and aggregate questions in a stable domain favour an ontology. Then do the break-even sum: with the numbers above, the ontology saves about $0.36 per task against agentic RAG, so a $60k build and audit pays back after roughly 170k tasks, before counting the accuracy gain. Low-volume or fast-changing domains may never get there.
+
+**Follow-ups:** How would you keep the ontology's permission model consistent with the source system's ACLs? Which questions would you put in an eval set to show the ontology is not just overfitting to the benchmark? When would you add a tree on top of the ontology rather than choosing one?
 
 </details>

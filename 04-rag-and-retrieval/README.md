@@ -140,7 +140,7 @@ Typical online budget: query embed ~10-50ms, ANN search ~5-50ms, rerank ~50-300m
 
 ## Interview questions
 
-See [questions.md](questions.md) - 60 questions with detailed answers, from basics to production war stories.
+See [questions.md](questions.md) - 62 questions with detailed answers, from basics to production war stories.
 
 ## Red flags interviewers watch for
 

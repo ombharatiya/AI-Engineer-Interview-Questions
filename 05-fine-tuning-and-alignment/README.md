@@ -67,7 +67,7 @@ When the task isn't verifiable you need a learned reward: an **outcome reward mo
 
 ## Interview questions
 
-All 56 questions with detailed answers: [questions.md](questions.md)
+All 61 questions with detailed answers: [questions.md](questions.md)
 
 ## Red flags interviewers watch for
 
