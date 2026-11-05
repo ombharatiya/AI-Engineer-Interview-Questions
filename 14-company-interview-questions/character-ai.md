@@ -1,6 +1,8 @@
 # 🎭 Character.AI - AI Engineer Interview Questions
 
-> **Last reviewed: October 2026.** Based only on public information - official pages, engineering blogs, technical reports, and publicly shared candidate reports. Processes change and vary by team; treat this as a map, not a contract. No confidential or leaked material.
+> **Last reviewed: November 2026.** Based only on public information - official pages, engineering blogs, technical reports, and publicly shared candidate reports. Processes change and vary by team; treat this as a map, not a contract. No confidential or leaked material.
+
+> **Status, November 2026.** Character Technologies (Character.AI) filed for Chapter 11 in Delaware on 12 October 2026. Disney is the $20M stalking-horse bidder for a non-exclusive, perpetual licence to its IP, and other bidders can top that offer. A sale is expected by late November or early December 2026, and the app may be shut down if no buyer continues it. Legal filings cited by Gizmodo say Disney is looking to hire 66 employees, a majority of the workforce, and former CEO Karandeep Anand became Disney's Senior EVP and CTO, a newly created role, on 2 October 2026. Treat the role list and interview loop below as **historical** until the sale outcome is known. The technical questions are kept because the inference-economics and safety material stays useful for consumer-chat interviews elsewhere.
 
 ## TL;DR
 
@@ -16,7 +18,7 @@ Character.AI is a consumer AI entertainment platform: users create characters an
 
 ## Roles & titles they hire
 
-From their public Ashby job board (checked October 2026; unchanged since August):
+Historical: from their public Ashby job board as checked in October 2026, before the Chapter 11 filing (unchanged since August). Check the board and the bankruptcy outcome before assuming any of these are open:
 
 - **Machine Learning Infrastructure Engineer** (Technical Staff - ML, Redwood City)
 - **Research Engineer, Post-Training (All Industry Levels)** (Redwood City or New York)
@@ -27,11 +29,11 @@ From their public Ashby job board (checked October 2026; unchanged since August)
 - **Software Engineer, Core Product** / **Software Engineer, Backend** / **Software Engineer, Monetization**
 - **Staff Data Scientist, Monetization** and **Technical Program Manager, AI Infrastructure**
 
-The board is small (roughly 10-15 open roles at a time) and heavily weighted towards Redwood City. Compensation data points exist on [levels.fyi](https://www.levels.fyi/companies/characterai/jobs).
+Before the filing the board was small (roughly 10-15 open roles at a time) and heavily weighted towards Redwood City. Compensation data points exist on [levels.fyi](https://www.levels.fyi/companies/characterai/jobs).
 
 ## The interview loop
 
-**Public information here is thin.** Glassdoor carries only a small number of Character.AI interview reports, and the detailed stage breakdowns circulating on third-party prep sites read as partly generic. Treat the table below as the **typical shape for a mid-size consumer AI product company with a strong research bench**, reconciled with what candidates have reported, rather than as a documented process.
+**Historical, pending the sale outcome.** This describes the loop as reported before October 2026. **Public information here is thin.** Glassdoor carries only a small number of Character.AI interview reports, and the detailed stage breakdowns circulating on third-party prep sites read as partly generic. Treat the table below as the **typical shape for a mid-size consumer AI product company with a strong research bench**, reconciled with what candidates have reported, rather than as a documented process.
 
 | Stage | Format | What's evaluated |
 |---|---|---|
@@ -439,12 +441,15 @@ Treat identity and style as separate conditioning signals, train on data where t
 
 1. Read both parts of their inference series and the Kaiju post on the Character.AI blog closely enough to argue with them. These are the clearest public statement of what they value technically, and the numbers in them (8x from MQA, 20x combined, 95% cache hit rate, 33x cost reduction) are the vocabulary of the ML rounds.
 2. Use the product for a genuinely long conversation, 100-plus turns, and notice where memory, persona consistency, and safety behaviour show their seams. Being able to say "I ran a 200-turn session and here is where it degraded" is a much stronger opening than a benchmark opinion.
-3. Have a real position on engagement versus wellbeing before you walk in. Given the company's 2025 product changes and the surrounding scrutiny, a candidate who has not thought about it reads as either naive or evasive. Neither passes.
-4. Practise the cost arithmetic until it is reflexive: H100 bandwidth, weight bytes per decode step, KV bytes per token under MQA versus GQA, and cost per million messages from a GPU hourly rate.
-5. For post-training and safety roles, know how safety training interacts with a conversational persona - why RLHF on generic helpfulness data can flatten a character's voice, and what online preference methods change about that.
+3. If you are interviewing at Disney or another buyer for a team that came from Character.AI, or at any consumer-chat company, use this page for the technical bar, and be ready to talk about unit economics honestly: court filings cited losses of roughly $8-9M a month, which is the cost-per-message problem in its starkest form.
+4. Have a real position on engagement versus wellbeing before you walk in. Given the company's 2025 product changes and the surrounding scrutiny, a candidate who has not thought about it reads as either naive or evasive. Neither passes.
+5. Practise the cost arithmetic until it is reflexive: H100 bandwidth, weight bytes per decode step, KV bytes per token under MQA versus GQA, and cost per million messages from a GPU hourly rate.
+6. For post-training and safety roles, know how safety training interacts with a conversational persona - why RLHF on generic helpfulness data can flatten a character's voice, and what online preference methods change about that.
 
 ## Sources
 
+- [The Star (Reuters) - Character.AI files for bankruptcy, agrees to sell some assets to Disney for $20 million (October 2026)](https://www.thestar.com.my/tech/tech-news/2026/10/13/characterai-files-for-bankruptcy-agrees-to-sell-some-assets-to-disney-for-20-million) and [CBS News coverage](https://cbsnews.com/news/character-ai-files-bankruptcy-disney-license/) (Chapter 11, stalking-horse licence, sale timeline, monthly losses)
+- [Disney - Karandeep Anand named Chief Technology Officer](https://thewaltdisneycompany.com/press-releases/karandeep-anand-chief-technology-officer/) and [Gizmodo - Disney wants to hire most of the employees from bankrupt Character.AI](https://gizmodo.com/disney-wants-to-hire-most-of-the-employees-from-bankrupt-character-ai-2000827460)
 - [Character.AI blog - Optimizing AI Inference at Character.AI](https://blog.character.ai/optimizing-ai-inference-at-character-ai-2/) (fetched August 2026; MQA, hybrid attention horizons, cross-layer KV sharing, stateful cache, 20,000+ QPS, 33x cost reduction)
 - [Character.AI blog - Optimizing AI Inference at Character.AI (Part Deux)](https://blog.character.ai/optimizing-ai-inference-at-character-ai-part-deux-2/) (int8 attention kernels, warp specialisation, query-head packing)
 - [Character.AI blog - Inside Kaiju: building conversational models at scale](https://blog.character.ai/inside-kaiju-building-conversational-models-at-scale/) (model sizes, int8 QAT, classifier head and classifier-guided decoding, shift towards open-source models)

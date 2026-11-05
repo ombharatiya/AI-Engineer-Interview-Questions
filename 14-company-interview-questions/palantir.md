@@ -1,6 +1,6 @@
 # 🔮 Palantir - AI Engineer Interview Questions
 
-> **Last reviewed: October 2026.** Based only on public information - official pages, engineering blogs, and publicly shared candidate reports. Processes change and vary by team; treat this as a map, not a contract. No confidential or leaked material.
+> **Last reviewed: November 2026.** Based only on public information - official pages, engineering blogs, and publicly shared candidate reports. Processes change and vary by team; treat this as a map, not a contract. No confidential or leaked material.
 
 ## TL;DR
 
@@ -12,7 +12,7 @@
 
 ## Company context
 
-Palantir builds data platforms for large institutions: Foundry (data integration + the Ontology, a semantic layer of an organisation's objects, links, and actions), Gotham (government/defence), and AIP - the Artificial Intelligence Platform that connects LLMs and agents to enterprise data and operations through the Ontology, with tooling like AIP Logic, Agent Studio, and AIP Evals. The Ontology is now also reachable from outside the platform: Ontology MCP (documented as beta) exposes an application's object types, action types and query functions as Model Context Protocol tools that external agents can call, scoped per application. Engineers join for outsized ownership: the forward-deployed model puts you at a customer site solving a real operational problem end-to-end, often as the de-facto CTO of that deployment. "AI engineer" at Palantir means shipping production LLM workflows on top of the Ontology - pipelines, ontology-grounded RAG, agents that take governed write actions - not model research.
+Palantir builds data platforms for large institutions: Foundry (data integration + the Ontology, a semantic layer of an organisation's objects, links, and actions), Gotham (government/defence), and AIP - the Artificial Intelligence Platform that connects LLMs and agents to enterprise data and operations through the Ontology, with tooling like AIP Logic, Agent Studio, and AIP Evals. The Ontology is now also reachable from outside the platform: Ontology MCP (documented as beta) exposes an application's object types, action types and query functions as Model Context Protocol tools that external agents can call, scoped per application. Autumn 2026 added agents that do FDE-style work themselves. **AI FDE** is an interactive agent that operates Foundry under the user's permissions: it creates and changes pipelines, data connections, ontology object types, links and actions, functions and OSDK React apps, branches by default, and proposes changes as Global Branch proposals or pull requests. **AIP Evolve** (GA September 2026) coordinates fleets of AI FDE agents against a target, an optimisation goal, a validation strategy and constraints, with a human reviewing before merge. Pipeline Builder evaluation suites for LLM nodes (exact match and LLM-as-judge) also went GA in September. So human FDE work increasingly includes supervising agents that change a customer's pipelines, ontology and apps; no public change to the interview loop itself has been reported. Engineers join for outsized ownership: the forward-deployed model puts you at a customer site solving a real operational problem end-to-end, often as the de-facto CTO of that deployment. "AI engineer" at Palantir means shipping production LLM workflows on top of the Ontology - pipelines, ontology-grounded RAG, agents that take governed write actions - not model research.
 
 ## Roles & titles they hire
 
@@ -288,6 +288,28 @@ The tradeoff to name: MCP brings the ontology to wherever users already work, wh
 
 </details>
 
+### 14. An AI agent can now change a customer's pipelines, ontology and apps, proposing each change on a branch. As the human forward-deployed engineer, what would you let it change unattended, how would you review its proposals, and how would you evaluate a fleet of such agents optimising one workflow?
+
+<details><summary><b>Answer</b></summary>
+
+This is the AI FDE and AIP Evolve shape: an agent that operates Foundry with the user's permissions and proposes changes as branch proposals or pull requests, and a coordinator that runs many such agents against a goal, a validation strategy and constraints, with a human reviewing before merge. The FDE's job shifts from writing every transform to setting the rules, the tests and the review bar.
+
+**What can merge unattended.** Decide by blast radius and reversibility, not by how confident the agent sounds:
+
+- *Unattended, behind automated checks:* changes on the agent's own branch that do not touch production, such as new exploratory transforms, draft apps, documentation and tests.
+- *Human review required:* anything that changes production pipelines feeding decisions, ontology schemas (new or changed object types, properties, links), action types that write to source systems, and permissions or markings. Schema changes break every downstream consumer, and actions touch real operations.
+- *Never by an agent:* changing its own permissions, data markings, or the validation strategy it is graded against. An optimiser allowed to edit its own test will find that shortcut.
+
+**Reviewing proposals.** Require every proposal to carry evidence: what changed (a diff of logic and schema, not just code), why (the goal or metric it targets), and proof (validation run on the branch against held-out data, before and after metrics, and the downstream lineage it affects). Review the lineage first: which datasets, objects and apps sit downstream, and who uses them. Look for Goodhart patterns: a pipeline "fixed" by filtering out the hard rows, or an extraction score raised by narrowing what counts as a match. Merge in small increments with an owner and a rollback path, as you would for a junior engineer whose output volume is very high.
+
+**Evaluating a fleet.** Treat it like an optimisation experiment. Fix the validation suite before the run, and keep part of it hidden from the agents, so they cannot overfit what they can see. Track the target metric plus guard metrics (cost, latency, row counts, null rates, downstream consumer checks) and treat any guard regression as a failure. Compare the best proposal against a simple baseline and against variance across runs, since with many agents some will look good by chance. Measure reviewer load too: if humans reject 80% of proposals, the constraints or the goal are badly specified, and fixing those beats adding agents.
+
+**Governance hooks.** Agents act under the invoking user's permissions, so a well-scoped service identity per workflow matters. Platform controls such as allowlisted mandatory markings (AIP can block LLM requests from sessions outside the allowlist, including AI FDE) keep sensitive data out of agent sessions entirely. Audit every proposal and merge, and who approved it.
+
+**Follow-ups:** An agent's proposal improves the target metric 15% but changes an ontology property type used by three apps. What do you do? How would you explain to a customer executive what the agents are and are not allowed to change? How do you stop reviewers rubber-stamping after the hundredth good proposal?
+
+</details>
+
 ## How to prepare
 
 **Repo topics, in priority order:**
@@ -304,10 +326,11 @@ The tradeoff to name: MCP brings the ontology to wherever users already work, wh
 **Company-specific moves:**
 
 1. Read Palantir's own "Getting Hired" pages end-to-end - they publish per-stage guidance most companies keep internal - plus the official blog posts "Interviewing at Palantir" and "Dev versus Delta," and decide which track you're actually interviewing for before the recruiter call.
-2. Read the public AIP and Foundry docs (Ontology, AIP Logic, Agent Studio, AIP Evals, Ontology MCP) until you can explain the ontology → LLM → governed action loop in your own words; it's the vocabulary of every AI design conversation there.
+2. Read the public AIP and Foundry docs (Ontology, AIP Logic, Agent Studio, AIP Evals, Ontology MCP, AI FDE, AIP Evolve) until you can explain the ontology → LLM → governed action loop in your own words; it's the vocabulary of every AI design conversation there.
 3. Drill decomposition out loud: once or twice a week, take a messy operational problem (hospital bed allocation, port congestion, food-bank logistics), set 30 minutes, and practise scope → constraints → data model → staged plan, ideally with someone injecting constraints midway.
-4. Read Nabeel Qureshi's "Reflections on Palantir" for an unvarnished ex-FDE view of the Delta/Dev split and what the culture actually selects for.
-5. Prepare the mission conversation like a technical round: know Palantir's public positions, know your own, and have specifics - this is reportedly where otherwise-strong candidates get filtered.
+4. Consider Palantir's own AI certifications as structured prep. The **Associate AI Engineer** certification (published September 2026) is a timed multiple-choice exam at certification.palantir.com, valid for two years, covering AI functions, agents, retrieval systems and workflows. A hands-on **AI Engineer Specialist** exam, with AI tooling allowed, is delivered by Ontologize. Neither is an interview requirement, but the syllabus maps well onto AI design conversations.
+5. Read Nabeel Qureshi's "Reflections on Palantir" for an unvarnished ex-FDE view of the Delta/Dev split and what the culture actually selects for.
+6. Prepare the mission conversation like a technical round: know Palantir's public positions, know your own, and have specifics - this is reportedly where otherwise-strong candidates get filtered.
 
 ## Sources
 
@@ -316,6 +339,8 @@ The tradeoff to name: MCP brings the ontology to wherever users already work, wh
 - [Interviewing at Palantir: Our advice - Palantir Blog](https://blog.palantir.com/interviewing-at-palantir-advice-from-palantirians-88444a90e7c4)
 - [AIP Overview - Palantir Documentation](https://www.palantir.com/docs/foundry/aip/overview)
 - [Ontology MCP Overview - Palantir Documentation](https://palantir.com/docs/foundry/ontology-mcp/overview/) - ontology resources exposed as MCP tools for external agents, application scopes, beta status
+- [AI FDE overview - Palantir Documentation](https://palantir.com/docs/foundry/ai-fde/overview/) - agent operating Foundry under user permissions, branch-based proposals
+- [Foundry announcements, September 2026](https://palantir.com/docs/foundry/announcements/2026-09/) and [October 2026](https://palantir.com/docs/foundry/announcements/2026-10/) - AIP Evolve GA, Pipeline Builder eval suites, Associate AI Engineer certification
 - [Palantir Interview Process 2026 - Ophy AI](https://ophyai.com/blog/company-guides/palantir-interview-guide) - 90 min HackerRank variant of the technical screen, reported no-AI policy (updated September 2026)
 - [Palantir's Interview Process & Questions - interviewing.io](https://interviewing.io/palantir-interview-questions)
 - [Palantir's Interview Process (2026) - TechPrep](https://www.techprep.app/blog/palantir-interview-process)

@@ -1,6 +1,6 @@
 # 🟩 NVIDIA - AI Engineer Interview Questions
 
-> **Last reviewed: October 2026.** Based only on public information - official pages, engineering blogs, and publicly shared candidate reports. Processes change and vary by team; treat this as a map, not a contract. No confidential or leaked material.
+> **Last reviewed: November 2026.** Based only on public information - official pages, engineering blogs, and publicly shared candidate reports. Processes change and vary by team; treat this as a map, not a contract. No confidential or leaked material.
 
 ## TL;DR
 
@@ -13,7 +13,7 @@
 
 ## Company context
 
-NVIDIA builds the compute layer of the AI industry: GPUs (Hopper, Blackwell and Blackwell Ultra in volume, with the Vera Rubin generation ramping from the second half of 2026), the CUDA platform, networking (NVLink, InfiniBand/Spectrum-X), and an increasingly thick software stack on top - TensorRT-LLM, Dynamo (datacenter-scale inference orchestration with disaggregated prefill/decode and KV-aware routing), Dynamo-Triton (formerly Triton Inference Server), NIM microservices, NeMo, Omniverse, and full AI "blueprints" for enterprises. Engineers want in because it's the rare place where the hardware, compiler, kernel, and serving layers are all first-party - you can chase a performance problem from PyTorch down to the SM. "AI engineer" at NVIDIA usually means *making models run fast and shipping the software that makes that repeatable* - inference optimization, framework internals, DL libraries, or customer-facing architecture - much more often than training frontier models.
+NVIDIA builds the compute layer of the AI industry: GPUs (Hopper, Blackwell and Blackwell Ultra in volume, with the Vera Rubin platform ramping into full production in the second half of 2026 and racks running at cloud partners, at 288 GB of HBM4 per Rubin GPU), the CUDA platform, networking (NVLink, InfiniBand/Spectrum-X), and an increasingly thick software stack on top - TensorRT-LLM, Dynamo (datacenter-scale inference orchestration with disaggregated prefill/decode, KV-aware routing and, since late 2026, components for Groq 3 LPX decode hardware), Dynamo-Triton (formerly Triton Inference Server), NIM microservices, NeMo, Omniverse, and full AI "blueprints" for enterprises. Two 2026 moves widen the inference story: NVIDIA Groq 3 LPX, a dedicated interactive-inference accelerator from the Groq asset deal, was in full production by August 2026, and in September 2026 NVIDIA agreed to acquire Hugging Face (pending, with public commitments that the Hub stays open and does not require NVIDIA compute). Engineers want in because it's the rare place where the hardware, compiler, kernel, and serving layers are all first-party - you can chase a performance problem from PyTorch down to the SM. "AI engineer" at NVIDIA usually means *making models run fast and shipping the software that makes that repeatable* - inference optimization, framework internals, DL libraries, or customer-facing architecture - much more often than training frontier models.
 
 ## Roles & titles they hire
 
@@ -92,13 +92,13 @@ Levers to shrink it further: FP8 KV cache (halves it, usually negligible quality
 
 <details><summary><b>Answer</b></summary>
 
-Three core mechanisms. First, **graph and kernel fusion**: fusing patterns like GEMM + bias + activation into single kernels, and in TRT-LLM, fused multi-head attention kernels - this cuts kernel-launch overhead and, more importantly, avoids round-trips of intermediate tensors through HBM. Second, **precision optimization**: running layers in FP8/INT8/INT4 with calibration or pre-quantized checkpoints, using tensor cores at lower precision for 2-4× GEMM throughput and proportionally less weight traffic. Third, **kernel auto-tuning**: for each op, shape, and target GPU, selecting the best implementation ("tactic") from a library, so the engine is specialised to your hardware and shapes.
+First, separate the two products, because they have diverged. **TensorRT** is still an ahead-of-time compiler, used mostly for non-LLM models (vision, speech, recommenders, encoders). It does three things. **Graph and kernel fusion**: patterns like GEMM + bias + activation become single kernels, which cuts launch overhead and, more importantly, avoids round-trips of intermediate tensors through HBM. **Precision optimization**: layers run in FP8/INT8/INT4 with calibration or pre-quantized checkpoints, using lower-precision tensor cores for 2-4× GEMM throughput and proportionally less weight traffic. **Tactic auto-tuning**: for each op, shape and target GPU it picks the fastest implementation, so the resulting engine is specialised to your hardware and shapes.
 
-TensorRT-LLM adds LLM-serving machinery on top: in-flight (continuous) batching, paged KV cache, speculative decoding support, and tensor/pipeline parallelism - arguably these scheduler-level features matter more for LLM throughput than kernel selection does.
+**TensorRT-LLM** no longer compiles TensorRT engines. The engine backend is being removed (it is gone from the 1.3/1.4 release candidates and the current docs, and `trtllm-build` is replaced by loading Hugging Face checkpoints directly), so it is now a PyTorch-native LLM runtime. Its speed comes from custom kernels (fused attention, FP8/NVFP4 GEMMs tuned per GPU generation) plus serving machinery: in-flight (continuous) batching, paged KV cache, speculative decoding, tensor/pipeline/expert parallelism and disaggregated prefill/decode. For LLM throughput these scheduler-level features usually matter more than kernel selection.
 
-When it won't help: (1) batch-1 decode that's already bandwidth-bound streaming weights - fusion trims overhead but the ceiling is HBM bandwidth, so quantization is the lever, not compilation; (2) highly dynamic shapes or control flow that defeat shape-specialised engines; (3) models dominated by unsupported ops that fall back to unfused implementations; (4) workloads where the bottleneck is elsewhere - tokenization, retrieval, network. Profile before compiling.
+When it won't help: (1) batch-1 decode that's already bandwidth-bound streaming weights - fusion trims overhead but the ceiling is HBM bandwidth, so quantization is the lever, not compilation; (2) for TensorRT, highly dynamic shapes or control flow that defeat shape-specialised engines; (3) models dominated by unsupported ops that fall back to unfused implementations, or brand-new LLM architectures whose optimised kernels have not landed yet; (4) workloads where the bottleneck is elsewhere - tokenization, retrieval, network. Profile before optimising.
 
-**Follow-ups:** How would you verify a fused engine is numerically equivalent enough to the source model? What's your process when a TRT engine is *slower* than the PyTorch baseline?
+**Follow-ups:** How would you verify a quantized deployment is numerically equivalent enough to the source model? When would you pick TensorRT-LLM over vLLM or SGLang for the same model, and how would you benchmark the choice fairly?
 
 </details>
 
@@ -317,7 +317,7 @@ Repo topics, in priority order for NVIDIA specifically:
 Company-specific moves:
 
 1. **Read the NVIDIA Technical Blog** ([developer.nvidia.com/blog](https://developer.nvidia.com/blog/)) - the TensorRT-LLM, Dynamo, and NIM posts are effectively the interview syllabus for inference roles, written by the teams that interview you.
-2. **Run the stack yourself.** Quantize and serve a Llama-class model with [TensorRT-LLM](https://github.com/NVIDIA/TensorRT-LLM) (or vLLM for contrast) on any cloud GPU: build an engine, enable in-flight batching, measure tokens/sec at several batch sizes. "I benchmarked it" beats "I read about it" in every domain round.
+2. **Run the stack yourself.** Serve a Hugging Face checkpoint of a Llama-class model with [TensorRT-LLM](https://github.com/NVIDIA/TensorRT-LLM) (`trtllm-serve` or the LLM API) on any cloud GPU, enable FP8 or NVFP4 where the GPU supports it, and measure tokens/sec and TTFT at several batch sizes, with vLLM as a comparison. "I benchmarked it" beats "I read about it" in every domain round.
 3. **Learn one GPU generation's numbers cold.** Pick H100 (or Blackwell): memory capacity, HBM bandwidth, FP16/FP8 tensor-core throughput, NVLink bandwidth - from the public architecture whitepapers. Most performance-math questions are unanswerable without these anchors, and knowing them signals you live in this world.
 4. **Refresh C++ and read some CUDA.** Even a weekend with a matrix-multiply kernel tutorial (tiling, shared memory, coalescing) covers the CUDA-literacy bar for most AI-application roles; DevTech/kernel roles need far more.
 5. **Watch GTC talks for your target team** - sessions are public and show you exactly what the team ships and how they talk about tradeoffs; useful both for the domain round and for a credible "why NVIDIA."
@@ -334,6 +334,9 @@ Compensation: no numbers here - see [levels.fyi](https://www.levels.fyi/companie
 - [NVIDIA Careers](https://jobs.nvidia.com/) - role titles and job-description requirements (TensorRT, PyTorch, CUDA, Triton)
 - [NVIDIA Technical Blog](https://developer.nvidia.com/blog/) - TensorRT-LLM, Triton, and NIM engineering posts underpinning the domain-focus claims
 - [TensorRT-LLM on GitHub](https://github.com/NVIDIA/TensorRT-LLM) - in-flight batching, paged KV cache, quantization feature set
+- [NVIDIA Q2 FY27 results (August 2026)](https://investor.nvidia.com/news/press-release-details/2026/NVIDIA-Announces-Financial-Results-for-Second-Quarter-Fiscal-2027/) - Vera Rubin ramping into full production at partners, Groq 3 LPX in full production
+- [TensorRT-LLM: TensorRT backend removal](https://nvidia.github.io/TensorRT-LLM/latest/legacy/tensorrt-backend-removal.html) - PyTorch as the sole execution backend, `trtllm-build` replaced by direct Hugging Face checkpoint loading
+- [NVIDIA to acquire Hugging Face (NVIDIA blog, September 2026)](https://blogs.nvidia.com/blog/nvidia-to-acquire-hugging-face/)
 - [NVIDIA Dynamo on GitHub](https://github.com/ai-dynamo/dynamo) - disaggregated prefill/decode, KV-aware routing, orchestration above vLLM, SGLang and TensorRT-LLM
 - [NVIDIA Dynamo-Triton](https://developer.nvidia.com/dynamo-triton) - Triton Inference Server's current name and feature set
 - [levels.fyi - NVIDIA](https://www.levels.fyi/companies/nvidia) - compensation data

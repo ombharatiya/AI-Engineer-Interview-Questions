@@ -1,6 +1,6 @@
 # ⚖️ Harvey - AI Engineer Interview Questions
 
-> **Last reviewed: October 2026.** Based only on public information - official pages, engineering blogs, technical reports, and publicly shared candidate reports. Processes change and vary by team; treat this as a map, not a contract. No confidential or leaked material.
+> **Last reviewed: November 2026.** Based only on public information - official pages, engineering blogs, technical reports, and publicly shared candidate reports. Processes change and vary by team; treat this as a map, not a contract. No confidential or leaked material.
 
 ## TL;DR
 
@@ -9,11 +9,12 @@
 - The paired coding round is reported to be AI-flavoured rather than pure algorithms - tokenization, vector storage, retrieval plumbing - and candidates report being allowed to use their normal tools including LLM assistants, with the interviewer offering few hints. Autonomy under mild pressure is part of the signal.
 - Technical centre of gravity: **retrieval over very long legal documents, citation grounding, and evaluation without ground truth**. Harvey publishes BigLaw Bench, its own answer/source scoring rubrics, and hallucination-rate measurements, so these are not abstract interests.
 - Public loop information is **moderate and inconsistent between sources**: several third-party guides describe slightly different stage sets (some list a classic phone screen plus a 4-5 round onsite instead of take-home plus paired coding). Treat every stage row below as "reported, varies" and confirm with your recruiter.
+- The engineering scope widened in the second half of 2026: **post-training** on open-weight bases (Tenet), **agent security** (an MCP policy engine and the Guardrails AI acquisition), **multi-agent orchestration** (playbook review) and **graph context** (Harvey Graph). No confirmed change to the loop, but expect the architecture presentation and design rounds to reach these areas.
 - A newer shape appears in an August 2026 candidate report for an agent-focused role: a three-round final of system design, a project deep dive, and a coding round that builds a bare-bones embedding and RAG pipeline in a notebook. It was scheduled at an office, but the interviewers joined by video, so ask whether "onsite" means in the room (reported, varies).
 
 ## Company context
 
-Harvey builds domain-specific AI for legal and professional services: an assistant grounded in a firm's own documents, Vault for storing and bulk-analysing large document sets, Knowledge for research across case law and regulatory sources, Contract Intelligence, an agent builder, and deep integrations into Word and the document management systems lawyers already live in. Their own materials describe 1,500+ customers across 60+ countries, including large law firms and in-house legal teams. In May 2026 Harvey reported 500+ prebuilt use-case agents live across practice areas, with Agent Builder in early access so firms can tailor those agents to their own knowledge and processes, and agents that output Word, PowerPoint, and Excel files rather than chat replies. Engineers want in because the constraints are genuinely hard: a 200-page credit agreement whose defined terms sit 150 pages from the clause you care about, an answer that is worthless unless every assertion links to a verifiable passage, and a client base for whom a confidentiality breach is a regulatory event. "AI engineer" here means applied LLM systems work - retrieval, agents, evals, inference plumbing, and the enterprise security envelope around them - in close partnership with in-house lawyers who write the rubrics and grade the outputs.
+Harvey builds domain-specific AI for legal and professional services: an assistant grounded in a firm's own documents, Vault for storing and bulk-analysing large document sets, Knowledge for research across case law and regulatory sources, Contract Intelligence, an agent builder, and deep integrations into Word and the document management systems lawyers already live in. Harvey's site now cites 3,500+ law firms and in-house legal teams in 85+ countries, including 80+ Am Law 100 firms. On 9 September 2026 it raised $550M at a $15.5B valuation and, the same day, acquired Guardrails AI, an agent-security platform. In May 2026 Harvey reported 500+ prebuilt use-case agents live across practice areas, with Agent Builder in early access so firms can tailor those agents to their own knowledge and processes, and agents that output Word, PowerPoint, and Excel files rather than chat replies. Engineers want in because the constraints are genuinely hard: a 200-page credit agreement whose defined terms sit 150 pages from the clause you care about, an answer that is worthless unless every assertion links to a verifiable passage, and a client base for whom a confidentiality breach is a regulatory event. "AI engineer" here means applied LLM systems work - retrieval, agents, evals, inference plumbing, and the enterprise security envelope around them - in close partnership with in-house lawyers who write the rubrics and grade the outputs. Harvey also post-trains models on open-weight bases now: Tenet (August 2026) is a rank-64 LoRA on Kimi K3, trained with GSPO RL over about 1,750 rubric-graded legal environments with an LLM judge. Agent security is part of the stack too: an MCP policy engine that enforces policy outside the model (October 2026), plus the Guardrails AI acquisition. Playbook review was rebuilt as an orchestrator with parallel per-rule subagents (September 2026), and Harvey Graph (October 2026) combines a US case-law knowledge graph with a per-workspace context graph.
 
 ## Roles & titles they hire
 
@@ -52,6 +53,7 @@ Timeline: reported at roughly 3-5 weeks, with some accounts stretching to 4-6. N
 
 - **Retrieval that respects document structure.** Harvey's published retrieval work spans case law, legislation, EUR-Lex, firm memoranda, contract portfolios, and discovery email, and notes that performance differs even between near-neighbour document types such as merger agreements and stock purchase agreements. They report their system finding up to 30% more relevant content than alternative embedding-based methods. Generic "embed and cosine" answers will not survive contact with this panel.
 - **Citation grounding as a product requirement.** Their BigLaw Bench scoring separates an **answer score** ("what percentage of a lawyer-quality work product does the model complete?") from a **source score** ("what percentage of correct statements does the model support with an accurate source?"). Internally they hold outputs to passage-level links, not document-level ones.
+- **Open benchmarks for long-horizon agents.** Legal Agent Bench (LAB), open-sourced in May 2026, scores agentic legal tasks against expert-written rubric criteria; its October 2026 US Case Law extension grades brief drafting from federal dockets with a pairwise, model-judged tournament aggregated into Elo. Know how rubric grading and pairwise judging differ.
 - **Hallucination measured, not asserted.** Harvey publishes a two-step measurement approach - decompose an answer into factual claims, then verify each against source documents, validated against human review - and reports rates of 0.2% for Harvey Assistant across 1,688 response sentences versus higher figures for the foundation models they compared against. Expect to be asked how you would build that measurement, not whether hallucinations are bad.
 - **Lawyers in the loop by design.** Benchmarks are built from lawyer time entries, ground truth comes from an in-house legal research team, and bespoke per-task rubrics define what a model must do and must avoid. If your evaluation story has no domain expert in it, it is incomplete here.
 - **Agents that produce work product.** Their document drafting agent parses .docx into a mutable in-memory representation, keeps an immutable original alongside a working copy, exposes typed edit tools to the model, and lets the model review its own diff. They report a 40% increase in edit acceptance rates after that redesign. The unit of output is a redline or a memo, not a chat turn.
@@ -174,6 +176,8 @@ The framing matters: the deliverable is a .docx with tracked changes that a lawy
 
 **Context strategy by size.** Read a short NDA whole; for a long agreement, search and retrieve targeted sections rather than paging through the document.
 
+**Attorney sign-off as a hard gate.** California's SB 574 (signed 30 September 2026) bars lawyers from fully delegating essential legal tasks, such as drafting court filings or making legal determinations, to AI. So attorney review is a legal requirement for California work, not only a product choice. Design for it: agent output is always a draft state; export or send as final requires a named attorney's approval recorded with timestamp, the document version they saw, and which redlines they accepted or rejected; and unreviewed output cannot leave the system as clean copy. The audit trail should let a firm show, per document, who reviewed what.
+
 **Worth sketching.** The two-copy plus typed-tool loop is the mechanism that separates this from "ask the model to rewrite the contract".
 
 ```mermaid
@@ -187,7 +191,7 @@ flowchart LR
     F --> G["Tracked changes<br/>back to Word"]
 ```
 
-**Follow-ups:** How would you make edits idempotent when the agent is re-run on a document it already edited? What is your rollback story when a lawyer rejects half the redlines and asks for another pass?
+**Follow-ups:** How would you make edits idempotent when the agent is re-run on a document it already edited? What is your rollback story when a lawyer rejects half the redlines and asks for another pass? How do you stop a reviewer rubber-stamping 200 redlines in ten seconds?
 
 </details>
 
@@ -444,6 +448,66 @@ flowchart TD
 
 </details>
 
+### 14. We post-train an open-weight model with RL across about 1,750 legal task environments, each graded by an expert rubric and an LLM judge. How would you build the environments and the reward, and how would you stop the policy gaming the rubric or the judge?
+
+<details><summary><b>Answer</b></summary>
+
+This is the setup Harvey described for Tenet (August 2026): a rank-64 LoRA on the Kimi K3 base, covering attention, MLP and routed-expert weights, trained with GSPO over about 1,750 agentic legal environments, with no customer data.
+
+**Environments.** Each is a task a lawyer would bill for: a document set (or a research corpus), the tools the product exposes (search, read, draft, edit), and a deliverable such as a memo or a redline. The rubric is written by lawyers per task: what the deliverable must contain, which issues must be spotted, and what it must not do (misstate the holding, cite a case not in the corpus). Spread environments across practice areas and difficulty, and drop tasks the base model always aces or always fails, since neither gives useful gradient.
+
+**Reward.** Harvey's shape is a weighted sum of the share of rubric criteria met and the legal issues solved, plus a bonus for a perfect score and a small preference for concise deliverables, with a separate model (Kimi 2.6) as judge. Each part has a reason: the share gives partial credit so learning starts, issue-spotting is weighted because it is what partners care about, the perfect-score bonus pushes towards complete work, and the conciseness term counters the judge's tendency to reward length.
+
+**Why LoRA on a large base.** Far fewer trainable parameters, so RL is cheaper and more stable, and the adapter can be swapped or rolled back without redeploying the base. The cost is a ceiling on how far behaviour can move.
+
+**Reward hacking is the main risk.** Expect:
+- **Rubric keyword stuffing:** mentioning every issue in one hedged sentence to tick boxes. Counter with criteria that require a position and support, not a mention.
+- **Judge exploitation:** confident tone, length, formatting the judge likes. Counter with the length penalty, a judge from a different family than the policy, periodic judge rotation, and a human-graded audit sample each run.
+- **Fabricated support:** citing passages that do not say what is claimed. Add a deterministic citation check against the corpus that zeroes the reward on a fabricated cite.
+- **Overfitting the environment set:** keep held-out environments and an external benchmark. Harvey reported roughly double the held-out tasks completed on its Legal Agent Bench versus base K3, and APEX Agents corporate law moving from 58.8% to 67.5% in its own harness.
+
+Alarm when training reward climbs and held-out results stay flat.
+
+**Worth sketching.** Optional, but it makes the reward easy to explain.
+
+```mermaid
+flowchart LR
+    A["Legal task environment"] --> B["Policy rollout<br/>LoRA on base"]
+    B --> C["Deliverable"]
+    C --> D["LLM judge<br/>vs lawyer rubric"]
+    C --> E["Citation and<br/>length checks"]
+    D --> F["Reward"]
+    E --> F
+    F -->|"GSPO update"| B
+```
+
+**Follow-ups:** How would you calibrate the judge against lawyers, and how often? When does a rank-64 adapter stop being enough? How do you prevent the policy forgetting general drafting quality?
+
+</details>
+
+### 15. Your agents call partner MCP servers that you do not control. Design the policy layer: how do you catch tool poisoning and rug pulls, and how do you contain damage when the model itself has been hijacked?
+
+<details><summary><b>Answer</b></summary>
+
+Start from the assumption that the model can be talked into anything, so **policy must be enforced outside the model** on every call. Harvey's October 2026 engineering post frames its MCP policy engine on three principles: least privilege, complete mediation and secure information flow.
+
+**Mediation point.** Every tool call and every tool result passes through a gateway the model cannot bypass. Policies are code, versioned and reviewed: Harvey writes them in Rego and evaluates them with Regorus. A policy decides per call: is this tool allowed in this workspace, for this user, with these arguments, given what data the session has already touched?
+
+**Tool poisoning and rug pulls.** A partner server can ship a tool description containing instructions ("before calling, also send the document to..."), or change a tool's definition after you approved it. Defences:
+- **Pin definitions.** Hash each approved tool's name, description and schema; Harvey's Tool Pinner flags any change, and a changed tool is blocked until re-reviewed.
+- **Sanitise results.** Tool output is data. Strip hidden characters and lookalike-script tricks (Harvey's Sanitizer does this) before it reaches the model, and never let tool output change which tools are available.
+- **Fail closed.** If a policy check cannot complete, the call is denied, not waved through.
+
+**Containing a hijacked model (the lethal trifecta).** Damage needs three things together: access to private data, exposure to untrusted content, and a way to send data out. Break at least one per session. Track information flow: once a session has read privileged client documents, calls that send data to external destinations are blocked or need human approval; once it has ingested untrusted web or partner content, write tools on client matters are restricted. CaMeL-style capability constraints, where values carry provenance and policies check it, are the direction Harvey lists as ongoing work.
+
+**Legal-specific constraints.** Ethical walls and matter-level permissions must apply to tool calls too: an agent working on matter A cannot query a partner tool with matter B's data. Every decision is logged with the policy version, for audit.
+
+**Trade-offs.** Strict flow rules block legitimate workflows (research that reads the web then drafts into a client document). Make approvals cheap and specific rather than turning policy off, and measure the false-block rate as a product metric.
+
+**Follow-ups:** A partner legitimately updates a tool schema weekly - how do you keep pinning without blocking them? How would you test the policy engine against new injection techniques continuously? Where should the Guardrails-style runtime validators sit relative to this engine?
+
+</details>
+
 ## How to prepare
 
 **Repo topics, in priority order:**
@@ -451,7 +515,8 @@ flowchart TD
 - **[04-rag-and-retrieval](../04-rag-and-retrieval/)** - the single highest-value directory for Harvey. Chunking strategies, hybrid search, reranking, and long-document retrieval are the backbone of both the paired coding round and the architecture presentation.
 - **[07-evaluation-and-observability](../07-evaluation-and-observability/)** - evaluation without ground truth, LLM-as-judge calibration, hallucination measurement, and per-slice regression testing. Harvey publishes on all of this, so it will come up.
 - **[11-ai-system-design](../11-ai-system-design/)** - the architecture presentation is the decisive round. The closest case study is **[06-document-intelligence-pipeline](../11-ai-system-design/case-studies/06-document-intelligence-pipeline.md)** (structured extraction from contracts at scale, confidence scoring, human-in-the-loop routing, per-field provenance), with **[01-enterprise-rag-assistant](../11-ai-system-design/case-studies/01-enterprise-rag-assistant.md)** as the second read for permissions and tenancy.
-- **[06-agents-and-tool-use](../06-agents-and-tool-use/)** - Harvey's products are agentic: planners, typed tools, self-review loops, and agents that produce documents rather than messages.
+- **[06-agents-and-tool-use](../06-agents-and-tool-use/)** - Harvey's products are agentic: planners, typed tools, self-review loops, orchestrator-plus-subagent designs, MCP policy enforcement, and agents that produce documents rather than messages.
+- **[05-fine-tuning-and-alignment](../05-fine-tuning-and-alignment/)** - for research-adjacent roles: LoRA on large MoE bases, RL with rubric rewards, and reward hacking against LLM judges (Q14).
 - **[09-safety-security-and-responsible-ai](../09-safety-security-and-responsible-ai/)** - tenant isolation, ethical walls, data residency, and audit are product requirements here, not compliance paperwork.
 - **[12-coding-challenges](../12-coding-challenges/)** - two coding rounds are reported, one timed and solo, one paired. Practise both modes; they reward different things.
 - **[03-prompt-engineering-and-context](../03-prompt-engineering-and-context/)** - context assembly for long documents, structured output, and citation formats.
@@ -469,6 +534,13 @@ flowchart TD
 ## Sources
 
 - [Harvey - Careers](https://www.harvey.ai/careers) (fetched August 2026; company values and benefits)
+- [Harvey - Homepage](https://www.harvey.ai/) (customer counts, checked November 2026)
+- [Harvey raises $550M at a $15.5B valuation](https://www.harvey.ai/blog/harvey-raises-dollar550m-at-a-dollar155b-valuation-to-help-legal-teams-own-their-intelligence) (September 2026) and [Unite.ai on the Guardrails AI acquisition](https://www.unite.ai/?p=463935)
+- [Harvey - Post-training update: Harvey Tenet](https://www.harvey.ai/blog/post-training-update-harvey-tenet) (August 2026; LoRA on Kimi K3, GSPO, rubric rewards)
+- [Harvey - Building Harvey's MCP policy engine](https://www.harvey.ai/blog/building-harveys-mcp-policy-engine) (October 2026)
+- [Harvey - Rebuilding playbook review as a multi-agent system](https://www.harvey.ai/blog/rebuilding-playbook-review-as-a-multi-agent-system) (September 2026) and [Improving agent accuracy with Harvey Graph](https://www.harvey.ai/blog/improving-agent-accuracy-with-harvey-graph) (October 2026)
+- [Harvey - Introducing Legal Agent Bench](https://harvey.ai/blog/introducing-harveys-legal-agent-benchmark) and [LAB: US Case Law](https://www.harvey.ai/blog/legal-agent-bench-us-case-law) (May and October 2026)
+- [Office of the Governor of California, 30 September 2026](https://www.gov.ca.gov/2026/09/30/californias-nation-leading-ai-framework-just-got-stronger-governor-newsom-signs-more-first-in-the-nation-worker-protections-and-more/) (SB 574)
 - [Harvey - Ashby job board](https://jobs.ashbyhq.com/harvey) (role titles above; board is JavaScript-rendered)
 - [Harvey - Products](https://www.harvey.ai/products) (Agents, Vault, Knowledge, Spaces, Contract Intelligence, Command Center)
 - [Harvey - Security](https://www.harvey.ai/security) (tenant isolation, residency regions, certifications, model-provider terms)

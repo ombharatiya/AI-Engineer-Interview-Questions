@@ -1,6 +1,6 @@
 # 🌀 OpenAI - AI Engineer Interview Questions
 
-> **Last reviewed: October 2026.** Based only on public information - official pages, engineering blogs, and publicly shared candidate reports. Processes change and vary by team; treat this as a map, not a contract. No confidential or leaked material.
+> **Last reviewed: November 2026.** Based only on public information - official pages, engineering blogs, and publicly shared candidate reports. Processes change and vary by team; treat this as a map, not a contract. No confidential or leaked material.
 
 ## TL;DR
 
@@ -13,7 +13,9 @@
 
 ## Company context
 
-OpenAI builds frontier models (the GPT-5 family, which absorbed the separate o-series reasoning line in 2025, plus Sora and voice) and ships them as products - ChatGPT at consumer scale, the API/platform business, Codex, and a fast-growing enterprise deployment arm. Engineers want in because it is one of the few places where product engineering sits directly on top of a frontier lab: the model you serve is the model your colleagues trained. "AI engineer" there means anything from serving-infrastructure work at extreme scale, to applied engineers shipping ChatGPT features, to Forward Deployed Engineers building production systems inside customer environments - it is much more often *engineering around models* than training them, unless you're explicitly on a research track.
+OpenAI builds frontier models (the GPT-6 family since September 2026, with GPT-6 Astra as the flagship and lower-cost Sol, Terra and Luna models below it; before that, the GPT-5 family absorbed the separate o-series reasoning line in 2025), plus Sora and voice (the full-duplex GPT-Live 1 alongside GPT-Realtime-2.1), and ships them as products - ChatGPT at consumer scale, the API/platform business, Codex, and a fast-growing enterprise deployment arm. Engineers want in because it is one of the few places where product engineering sits directly on top of a frontier lab: the model you serve is the model your colleagues trained. "AI engineer" there means anything from serving-infrastructure work at extreme scale, to applied engineers shipping ChatGPT features, to Forward Deployed Engineers building production systems inside customer environments - it is much more often *engineering around models* than training them, unless you're explicitly on a research track.
+
+As of November 2026 the API lineup is GPT-6 Astra (3 September), GPT-6 Sol and GPT-6 Luna (22 September), GPT-6.1 Sol (29 September, at DevDay) and GPT-6.1 Terra (26 October, aimed at visual reasoning and computer use), with GPT-6 Instant in ChatGPT. Specialised models sit behind trusted access: GPT-6 Rosalind for life sciences and GPT-6-Cyber through the Daybreak programme. OpenAI says Astra is its first model at the Critical cybersecurity level under its Preparedness Framework, and it rolled out in phases by plan and through a Trusted Access Program, so staged access and capability gating are live topics. DevDay 2026 products interviewers may probe: the Decisions API (now GA, gpt-6-luna only, typed predicate, choice and score answers with probabilities), Ultrafast mode, the dots personal agent, Sign in with ChatGPT, Codex Cloud and Codex Security Cloud. On the platform side, the Assistants API shut down on 26 August 2026 and the Agents API (a managed Codex harness handling session orchestration, compaction and recovery) entered public beta on 10 September, adding hosted computer use on 29 September. Check the changelog before quoting any of this in an interview, because it moves monthly.
 
 ## Roles & titles they hire
 
@@ -21,7 +23,7 @@ OpenAI builds frontier models (the GPT-5 family, which absorbed the separate o-s
 - **Member of Technical Staff (MTS)** - umbrella title used across engineering and research
 - **Research Engineer** - engineering for training, data, and experimentation; ML depth expected
 - **Research Scientist** - publication/paper-driven track; different loop, out of scope here
-- **Applied AI Engineer / Solutions Architect** - customer-facing technical roles on the platform side
+- **Applied AI Engineer / Solutions Architect / Applied AI Architect** - customer-facing technical roles on the platform side (secondhand October 2026 reports list India openings such as Applied AI Architect and Partner AI Deployment Engineer, AWS, in Delhi, Mumbai and Bengaluru)
 - **Forward Deployed Engineer (FDE)** - embedded with enterprise customers building on OpenAI models; one of the largest publicly known FDE hiring pushes in the industry
 
 ## The interview loop
@@ -37,7 +39,7 @@ Public confidence here is comparatively high: OpenAI publishes an official inter
 | Work trial / take-home | ~48-hour practical project, e.g. a small production-grade service, sometimes followed by a walkthrough or deep-dive session (reported, varies) | Reliability, code quality, testing - not feature count |
 | System design screen | ~60 min, often on a shared whiteboard tool (reported, varies) | Architecture tradeoffs, scaling, deep probing of every decision |
 | Final loop | 4-6 hours, 4-6 interviewers, 1-2 days, virtual by default (official guide) | Mix of coding, system design, project deep dive, behavioural |
-| Role-specific rounds | Research: ML fundamentals / paper discussion (two technical screens reported for RE tracks: one general coding, one ML coding). FDE: customer-scenario + LLM-deployment design. Some loops: project presentation with slides (reported, varies) | Track-specific depth |
+| Role-specific rounds | Research: ML fundamentals / paper discussion (two technical screens reported for RE tracks: one general coding, one ML coding). FDE: customer-scenario + LLM-deployment design. Security infrastructure (one reported Staff L6 loop, around August 2026): LeetCode-hard online assessment, hiring-manager call, then a five-round onsite covering agentic system design, agent memory internals, graph vs semantic search, and making an agent's access match the user it acts for. Some loops: project presentation with slides (reported, varies) | Track-specific depth |
 | Agentic coding (beta) | Existing codebase, tasks sized beyond hand-coding, AI agent provided; screen-share and narrate (reported, beta - not all candidates get it) | How you decompose work for the agent, verify its output, and keep judgement in the loop; wholesale delegation is penalised |
 | Decision | ~1 week after finals; references may be requested (official guide) | - |
 
@@ -50,6 +52,8 @@ End-to-end timelines reported publicly range from ~3 to 8 weeks.
 - **Depth behind every decision.** System design interviewers reportedly probe hard on tradeoffs; name-dropping a technology you can't defend is a known failure mode. Expect "why?" three levels deep.
 - **Full-stack LLM literacy.** Especially for FDE/applied roles: prompting vs RAG vs fine-tuning tradeoffs, evals for deployed systems, and inference-pipeline debugging (is the slowness token generation, network, or preprocessing?).
 - **Cross-functional collaboration and mission fit.** Behavioural rounds - sometimes two, one with senior leadership - probe how you work with researchers, product, and (for FDE) customers, plus a genuine, specific view on where AI is going and where it could go wrong.
+- **Current API mechanics, not last year's.** Applied and platform rounds can probe how the GPT-6 generation changed request design: reasoning effort levels (none to max on Sol and Luna, low to max on Astra), no custom temperature, top_p or logprobs on Astra, tool calling only through the Responses API on Astra, prompt caching that bills writes (1.25x for 30 minutes, 2.5x for the 12-hour TTL) with explicit breakpoints, and the Fast and Ultrafast tiers (Fast mode replaced Priority processing in July 2026). Knowing why each knob moved matters more than memorising prices.
+- **Containment and disclosure.** OpenAI disclosed in July 2026 that models in a cyber evaluation used a zero-day in a package registry cache proxy to leave the sandbox, and in October Wikimedia documented agents it believes OpenAI operated across its projects. Safety, security and research-engineering rounds are likely to probe evaluation containment, egress control and incident disclosure.
 - **Math when it's relevant.** Candidates for research-adjacent roles report probability/information-theory questions (cross-entropy, KL divergence, expectations) woven into coding rounds.
 
 ## Representative questions
@@ -239,7 +243,7 @@ Default order: prompting → RAG → fine-tuning, escalating only on measured fa
 
 **RAG when knowledge exceeds context or changes often.** This is almost always the right call for a knowledge base: it handles freshness (index update vs retraining), scales to millions of documents, respects per-user ACLs (filter retrieval by permissions - impossible to do reliably with fine-tuned-in knowledge), and gives citations, which enterprise users demand for trust. Costs: retrieval infrastructure, chunking/indexing pipeline, and a new failure mode (bad retrieval → wrong answer), so you need retrieval-specific evals (recall@k) separate from answer quality.
 
-**Fine-tuning is not for knowledge.** Facts injected by fine-tuning are unreliable, unattributable, instantly stale, and un-permissioned. Fine-tune for *behaviour*: consistent tone/format, domain-specific jargon handling, reliably following a complex output schema, or distilling a large model's behaviour onto a smaller one for cost. The strongest deployments combine them: RAG for facts, a light fine-tune (or good few-shot prompting) for voice and format.
+**Fine-tuning is not for knowledge** (and check which models support it at all: the GPT-6 frontier model pages list fine-tuning as unsupported). Facts injected by fine-tuning are unreliable, unattributable, instantly stale, and un-permissioned. Fine-tune for *behaviour*: consistent tone/format, domain-specific jargon handling, reliably following a complex output schema, or distilling a large model's behaviour onto a smaller one for cost. The strongest deployments combine them: RAG for facts, a light fine-tune (or good few-shot prompting) for voice and format.
 
 Give the customer a decision test: "Does the model need to *know* something (→ RAG) or *behave* differently (→ fine-tune)?" Then commit to an eval set before building either.
 
@@ -321,6 +325,38 @@ Close by stating what is done, what is verified and how, and what you would do n
 
 </details>
 
+### 15. Your new model is the first to cross a "Critical" cybersecurity capability threshold. Design the staged rollout across the API and the product: who gets access first, what you monitor, and what would make you pause.
+
+<details><summary><b>Answer</b></summary>
+
+OpenAI said GPT-6 Astra was its first model at the Critical cybersecurity level under its Preparedness Framework, and rolled it out in phases by plan and through a Trusted Access Program. The question is how you turn a capability evaluation into an access policy that can be reversed.
+
+**Separate capability from access.** The model's capability is fixed at release; what you control is who can reach which capability, through which surface, with what monitoring. Write that down as tiers before launch, each with entry criteria and an exit condition.
+
+**Order the tiers by how much you can see and revoke.** A reasonable sequence: internal red teams and vetted external testers, then enterprise customers under contract with known identities, then paid consumer plans, then the broad API. Cyber-specific uses (vulnerability research, exploit work) go through a separate vetted programme with identity checks and a purpose-trained variant, rather than loosening the general model's safeguards for everyone. The API comes later than the product because API traffic is harder to attribute and easier to automate at scale.
+
+**Monitor what you said you were worried about.** Asynchronous classifiers on supported requests that flag misuse patterns (exploit development against systems the caller does not own, mass scanning, credential harvesting), per-account anomaly scoring, and the ability to pause a conversation or account for review. Track refusal and over-refusal rates per tier too: a rollout that blocks legitimate defenders is a failure of a different kind. Keep evaluation numbers and incident counts on one dashboard, so the decision to widen access is made from data.
+
+**Pre-commit pause criteria.** Examples: a confirmed real-world harm traced to the model, misuse classifier recall dropping below an agreed floor, a jailbreak that removes the safeguards and spreads publicly, or a regulator or partner notification duty being triggered. Pausing should be one switch per tier, rehearsed before launch, with a customer communication plan ready.
+
+**Plan the disclosure.** Decide in advance who is told what and when if an incident happens: affected parties, partners, and any regulator with an incident-reporting regime. Disclosing late, after a journalist asks, does lasting damage to trust.
+
+**Worth sketching.** Drawing this is optional, but a simple gate diagram makes the reversibility point quickly.
+
+```mermaid
+flowchart LR
+    A["Internal and external red teams"] -->|"evals pass"| B["Enterprise under contract"]
+    B -->|"no incidents, classifiers healthy"| C["Paid product plans"]
+    C -->|"misuse rate under threshold"| D["General API"]
+    B --> E["Vetted cyber programme"]
+    D -->|"pause criterion hit"| F["Pause tier and review"]
+    C -->|"pause criterion hit"| F
+```
+
+**Follow-ups:** How do you stop a vetted cyber customer from reselling access? What would you measure to show the safeguards are not just blocking legitimate defenders?
+
+</details>
+
 ## How to prepare
 
 Repo topics, in priority order for OpenAI specifically:
@@ -336,9 +372,9 @@ Company-specific moves:
 
 1. **Read OpenAI's own interview guide** (openai.com/interview-guide) - few companies publish one; theirs states the loop shape and the explicit grading criteria (design, code quality, performance, *test coverage*).
 2. **Practise practical coding, not LeetCode patterns.** Build a rate limiter, an in-memory KV store with TTL, a job scheduler, a webhook dispatcher - each in ~45 timed minutes with tests, then practise extending it live as "requirements change." The progressive-gate format rewards getting a working v1 fast.
-3. **Use their platform seriously.** Build something real against the API - the Responses API with function calling and structured outputs, the Agents SDK, the Batch API. Interviewers can tell the difference between "read the docs" and "hit the rate limits."
+3. **Use their platform seriously.** Build something real against the API - the Responses API with function calling and structured outputs, the Agents SDK or the Agents API, the Batch API (the Assistants API is gone). OpenAI contributed Open Responses, a provider-neutral spec based on the Responses API, to the Agentic AI Foundation in October 2026, so be ready to say what a common interface across providers buys and costs. Interviewers can tell the difference between "read the docs" and "hit the rate limits."
 4. **Prepare a project deep-dive (and slides).** A presentation round is publicly reported for some loops; even without one, every loop includes defending a past system under rapid follow-ups. Pick your most technically complex ownership story and rehearse being probed three levels deep.
-5. **Have a specific view on AI trajectory and safety.** Behavioural rounds reportedly probe your take on where the technology is going and where it could go wrong. Read their model release notes/system cards and recent blog posts; generic enthusiasm reads as unprepared.
+5. **Have a specific view on AI trajectory and safety.** Behavioural rounds reportedly probe your take on where the technology is going and where it could go wrong. Read their model release notes/system cards (the GPT-6 Astra deployment safety overview is the obvious one) and recent blog posts; generic enthusiasm reads as unprepared.
 
 Compensation: no numbers here - see [levels.fyi](https://www.levels.fyi/companies/openai) for current data.
 
@@ -350,5 +386,9 @@ Compensation: no numbers here - see [levels.fyi](https://www.levels.fyi/companie
 - [IGotAnOffer - OpenAI Interview Process & Timeline](https://igotanoffer.com/en/advice/openai-interview-process) - progressive-gate screens, work-trial take-home reports, timelines
 - [Exponent - What it's actually like to interview at OpenAI in 2026](https://medium.com/exponent/what-its-actually-like-to-interview-at-openai-in-2026-03a646c9436c) - difficulty-gate coding format, refactoring exercise, product-tied design rounds, behavioural themes
 - [techinterview.org - OpenAI Interview Process 2026: Team-by-Team Variation](https://www.techinterview.org/post/3233474915/openai-interview-process-2026-team-by-team/) - AI-tool policy by track (research, applied, infrastructure, safety), updated July 2026
+- [OpenAI API changelog](https://developers.openai.com/api/docs/changelog) - GPT-6 family releases, Agents API, Assistants API shutdown, Fast and Ultrafast modes
+- [GPT-6 Astra deployment safety overview](https://deploymentsafety.openai.com/gpt-6-astra) - Critical cybersecurity level, phased and trusted-access rollout
+- [Open Responses](https://www.openresponses.org/) - provider-neutral spec based on the Responses API
+- [aced.io - OpenAI Staff Security Engineer interview](https://www.aced.io/experiences/openai-staff-security-engineer-interview-f477ec) - single candidate report of a Staff L6 security infrastructure loop
 - [Glassdoor - OpenAI Interview Questions](https://www.glassdoor.com/Interview/OpenAI-Interview-Questions-E2210885.htm) - aggregated candidate reports (varies widely by team)
 - [levels.fyi - OpenAI](https://www.levels.fyi/companies/openai) - compensation data

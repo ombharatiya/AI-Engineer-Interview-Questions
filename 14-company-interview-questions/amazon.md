@@ -1,27 +1,28 @@
 # 📦 Amazon (AWS + AGI) - AI Engineer Interview Questions
 
-> **Last reviewed: October 2026.** Based only on public information - official pages, engineering blogs, and publicly shared candidate reports. Processes change and vary by team; treat this as a map, not a contract. No confidential or leaked material.
+> **Last reviewed: November 2026.** Based only on public information - official pages, engineering blogs, and publicly shared candidate reports. Processes change and vary by team; treat this as a map, not a contract. No confidential or leaked material.
 
 ## TL;DR
 
 - **Leadership Principles are half the interview.** Every interviewer in the loop is assigned 2-3 of Amazon's 16 Leadership Principles and grades you against them with STAR-format behavioural questions. This is not a formality - candidates with strong technical rounds fail on weak LP stories. Prepare 8-10 quantified stories before you touch LeetCode.
 - **The Bar Raiser is real and has veto power.** One interviewer from outside the hiring team, specially trained, whose job is to keep the bar high. They ask the hardest behavioural questions and probe your STAR stories several "why" levels deep.
 - **The loop shape is well documented.** Recruiter screen → (sometimes) online assessment → 1-2 technical phone screens → 4-6 back-to-back ~60-minute interviews covering coding, (ML) system design, domain depth, and behavioural. Amazon publishes official prep pages for several tracks.
-- **"AI engineer" spans very different orgs.** AWS AI platform teams (Bedrock, SageMaker, Amazon Quick, Q Developer and Kiro) interview like senior SDE loops with an ML flavour; the AGI org (Nova models, AGI SF Lab agents) runs science-style loops with ML breadth/depth rounds and - per candidate reports - fewer behavioural questions and heavy modern-LLM content. The AGI org has been reshaped: since December 2025 it sits under Peter DeSantis alongside Amazon's custom silicon, and 2026 reports describe job cuts, a narrower Nova model roadmap, and the SF Lab's founding lead leaving. Confirm the team's current remit with your recruiter (reported, varies).
+- **"AI engineer" spans very different orgs.** AWS AI platform teams (Bedrock, SageMaker, Amazon Quick, Q Developer and Kiro) interview like senior SDE loops with an ML flavour; the AGI org (Nova models and agents) runs science-style loops with ML breadth/depth rounds and - per candidate reports - fewer behavioural questions and heavy modern-LLM content. The AGI org has been reshaped: since December 2025 it sits under Peter DeSantis alongside Amazon's custom silicon, and 2026 reports describe job cuts, a narrower Nova model roadmap, the SF Lab's founding lead leaving in February, and the San Francisco AGI site closing by late July, with frontier-model work consolidating under a new Frontier Model Research effort led by Pieter Abbeel. Confirm the team's current remit with your recruiter (reported, varies). AWS also now has a dedicated Forward Deployed Engineering org (see roles).
 - **Coding is still classic DS&A.** Unlike most frontier labs, Amazon keeps traditional algorithm rounds (graphs, heaps, design-a-cache) alongside ML content. System design is at genuine extreme scale: multi-tenancy, throttling, cell-based isolation, and operational excellence are native vocabulary.
-- **Know the AI-use rules for your loop.** Amazon has begun mixing an AI-assisted coding task into some online assessments (documented in its own newsroom), while treating unauthorised AI-generated code in evaluations as misrepresentation. 2026 candidate reports describe one conventional problem followed by a repository task where you work from failing tests alongside a guard-railed AI assistant, while other candidates in the same season still got two conventional problems; live interview rounds remain no-AI (reported, varies). AI is allowed only where candidate instructions explicitly permit it - read them carefully.
+- **Know the AI-use rules for your loop.** Amazon has begun mixing an AI-assisted coding task into some online assessments (documented in its own newsroom), while treating unauthorised AI-generated code in evaluations as misrepresentation. 2026 candidate reports describe one conventional problem followed by a repository task where you work from failing tests alongside a guard-railed AI assistant, while other candidates in the same season still got two conventional problems; live interview rounds remain no-AI (reported, varies). AI is allowed only where candidate instructions explicitly permit it - read them carefully. Separately, an October 2026 engineering leadership update expects leaders to use AI hands-on and to say which tasks it improved and which it did not, and calls token-usage and code-volume metrics "deeply flawed", so expect LP questions on how you chose and measured AI use (Q14).
 
 ## Company context
 
-Amazon runs two distinct AI bets: AWS sells the picks and shovels - Bedrock (multi-model inference platform), SageMaker, Amazon Quick (the agentic workplace assistant that succeeded Q Business, which closed to new customers at the end of July 2026), Q Developer and the Kiro agentic IDE, and Trainium silicon - while the AGI org builds Amazon's own models (the Nova family) and agents (Nova Act, the AGI SF Lab founded around Adept's team). Since a December 2025 reorganisation, the AGI org, Nova, and custom silicon (Trainium, Graviton, Nitro) report to Peter DeSantis, which pulls model work closer to the hardware teams. Engineers want in for scale you cannot get elsewhere - Bedrock serves foundation-model inference to a large share of the world's enterprises - and, on the AGI side, for a funded frontier-model effort with its own silicon. "AI engineer" at Amazon therefore means anything from multi-tenant GPU serving infrastructure, to applied GenAI teams embedding LLMs in every product org (search, ads, Alexa+, Rufus), to research engineering on pretraining and agents.
+Amazon runs two distinct AI bets: AWS sells the picks and shovels - Bedrock (multi-model inference platform), SageMaker, Amazon Quick (the agentic workplace assistant that succeeded Q Business, which closed to new customers at the end of July 2026), Q Developer and the Kiro agentic IDE, and Trainium silicon - while the AGI org builds Amazon's own models (the Nova family) and agents (Nova Act, built by the AGI SF Lab founded around Adept's team). The SF site had closed by late July 2026 (reported): Nova Premier, Omni, Reel and Canvas are being wound down, Nova 2 Lite, Nova 2 Sonic, Nova Forge and Nova Act stay available, and frontier-model resources are moving to a Frontier Model Research effort led by Pieter Abbeel, with a new flagship model expected at re:Invent. Since a December 2025 reorganisation, the AGI org, Nova, and custom silicon (Trainium, Graviton, Nitro) report to Peter DeSantis, which pulls model work closer to the hardware teams. On silicon, Trn3 UltraServers (up to 144 Trainium3 chips) have been generally available since December 2025, TorchNeuron (a native PyTorch backend for Trainium) is in beta on Trn2 and Trn3, and AWS and Cerebras announced in March 2026 a Bedrock disaggregated-inference offering with Trainium doing prefill and Cerebras CS-3 doing decode (announced for "the coming months"; check whether it has launched). Inference-infrastructure loops can probe heterogeneous prefill/decode and running PyTorch on Trainium. On the agent side, product-org postings now name the AWS agent stack directly: Amazon Stores Finance SWE roles, for example, ask candidates to build agents on Bedrock AgentCore with the Strands SDK, including MCP tools, context and memory management, evaluation harnesses and guardrails. Engineers want in for scale you cannot get elsewhere - Bedrock serves foundation-model inference to a large share of the world's enterprises - and, on the AGI side, for a funded frontier-model effort with its own silicon. "AI engineer" at Amazon therefore means anything from multi-tenant GPU serving infrastructure, to applied GenAI teams embedding LLMs in every product org (search, ads, Alexa+, Rufus), to research engineering on pretraining and agents.
 
 ## Roles & titles they hire
 
 - **Software Development Engineer (SDE I/II/III)** - on Bedrock, SageMaker, Quick, Q Developer/Kiro, and GenAI feature teams; the most common door into AI work at Amazon
 - **Applied Scientist / Senior Applied Scientist** - science track; official interview-prep page exists; heavy ML breadth/depth
 - **Machine Learning Engineer / ML Ops Engineer** - productionising models, more common in product orgs
-- **Research Scientist / Research Engineer (AGI, AGI SF Lab)** - frontier model training and agents; the SF Lab publicly recruits strong quantitative people from any discipline
-- **Solutions Architect / Prototyping Architect (GenAI specialist)** - customer-facing AWS roles; Amazon's closest analogue to forward-deployed engineering
+- **Research Scientist / Research Engineer (AGI org)** - frontier model training and agents. Amazon's San Francisco AGI site had closed by late July 2026 (reported), frontier-model work is consolidating under a Frontier Model Research effort led by Pieter Abbeel, and Nova Act remains a shipped product. Ask your recruiter which AGI team the role sits in
+- **Forward Deployed Engineer (AWS Forward Deployed Engineering)** - FDE, Senior, Principal and manager roles posted since October 2026 in the US, Berlin, London, Sydney and Melbourne. FDEs embed with customers and own production AI systems: monitoring, evaluations, guardrails, CI/CD and rollback, with 30-50% travel. Basic qualifications include "agentic and spec-driven development" plus eval frameworks, agent tooling, RAG and prompt engineering. A **Model Customization and Optimization** variant covers SFT, preference optimization and RL on open-weight models. US Government variants require an active TS/SCI clearance
+- **Solutions Architect / Prototyping Architect (GenAI specialist)** - customer-facing AWS pre-sales roles, adjacent to the FDE track
 - **Data Scientist** - analytics-leaning, separate loop
 
 ## The interview loop
@@ -236,7 +237,7 @@ The senior signal: saying explicitly that no offline eval fully predicts online 
 
 <details><summary><b>Answer</b></summary>
 
-This is the AGI SF Lab / Nova Act problem shape: agents that act in real environments, where the bar is reliability, not demos.
+This is the Nova Act problem shape (the agent product built by the former AGI SF Lab): agents that act in real environments, where the bar is reliability, not demos.
 
 **Core loop:** observe (DOM accessibility tree + screenshot - DOM for precision and cheap tokens, vision for canvas/rendered content the DOM misses) → plan → act (a small, typed action space: click element-by-reference, type, scroll, navigate) → verify. The verify step is what separates shippable from demo: after each action, check an explicit postcondition (did the cart count increment?) rather than assuming success and drifting silently off-course.
 
@@ -354,6 +355,29 @@ Common ways to fail: accepting a confident but wrong explanation, letting the as
 
 </details>
 
+### 14. Leadership wants to track AI adoption across engineering, and someone proposes a token-usage leaderboard. What would you measure instead, and how do you stop the metric becoming the target?
+
+<details><summary><b>Answer</b></summary>
+
+This is a Frugality, Dive Deep and Insist on the Highest Standards question dressed up as a metrics question. It is topical: Amazon's October 2026 engineering guidance calls token usage, AI-tool adoption and code-change counts "deeply flawed" measures, says tokenmaxxing is at odds with Frugality, and asks leaders to name one task where AI helped and one where it did not, treating work that does not benefit from AI as "a finding, not a failing". CNBC reported that Amazon shut down an internal usage leaderboard in May.
+
+**Why the leaderboard fails.** Tokens are a cost, not an output. Ranking people on spend rewards long contexts, agent loops left running and regenerating the same answer, which is Goodhart's law with a bill attached. Code-change counts fail the same way: they reward volume, while Invent and Simplify rewards deleting code.
+
+**What to measure instead.** Measure outcomes at the team level, paired with guardrails:
+
+- **Delivery.** Lead time from ticket to production, review turnaround and deployment frequency, compared with the team's own baseline before and after adoption, not across teams.
+- **Quality, so speed cannot be bought with defects.** Change failure rate, rollbacks, Sev-2s traced to recent changes, and post-merge defects in AI-assisted code compared with the rest.
+- **Cost per outcome.** AI spend per shipped change or per resolved ticket, so spend that buys nothing shows up.
+- **Qualitative evidence.** Each team writes up where AI helped and where it did not, with an example of each. This is cheap, hard to game, and it spreads what works.
+
+**Keeping it from becoming the target.** Report at team level only, never as individual rankings. Use the numbers for decisions (which tools to fund, where to invest in better context or tests) rather than for performance reviews. Pair every speed metric with a quality metric. Rotate in a few spot-check deep dives each quarter, because a metric with no audit gets gamed. Treat "AI did not help here" as useful data, so people do not feel pushed to inflate adoption.
+
+In an interview, back it with a story: a time you chose not to use a tool, or measured that it was not helping, and changed course. The Bar Raiser will want to know what you measured and what decision it drove.
+
+**Follow-ups:** A team's lead time improves 30% but its rollback rate doubles. What do you do? How would you run a fair experiment to decide whether a new coding agent is worth its cost? Tell me about a time you pushed back on a metric your leadership wanted.
+
+</details>
+
 ## How to prepare
 
 Priority order for this repo, given Amazon's loop shape:
@@ -363,15 +387,16 @@ Priority order for this repo, given Amazon's loop shape:
 - **[01-ml-and-dl-foundations](../01-ml-and-dl-foundations/)** + **[02-llm-fundamentals](../02-llm-fundamentals/)** - the ML breadth round is a real filter, and AGI loops go deep on attention, KV caching, training techniques, and evaluation metrics.
 - **[08-inference-and-production](../08-inference-and-production/)** - batching, KV-cache memory, quantization, latency decomposition. This is AWS's home turf; shallow answers here hurt more than anywhere else.
 - **[07-evaluation-and-observability](../07-evaluation-and-observability/)** - launch gates, LLM-judge calibration, canary/rollback thinking pairs directly with Amazon's operational culture.
-- **[04-rag-and-retrieval](../04-rag-and-retrieval/)** and **[06-agents-and-tool-use](../06-agents-and-tool-use/)** - Bedrock Knowledge Bases/Agents, Q, and the AGI SF Lab's agent focus make both fair game.
+- **[04-rag-and-retrieval](../04-rag-and-retrieval/)** and **[06-agents-and-tool-use](../06-agents-and-tool-use/)** - Bedrock Knowledge Bases/Agents, Q, AgentCore and Strands, and Nova Act's agent focus make both fair game.
 
 Company-specific moves:
 
 1. **Write your LP stories first.** 8-10 STAR stories, quantified, first-person, covering at minimum: Customer Obsession, Ownership, Dive Deep, Invent and Simplify, Have Backbone/Disagree and Commit, Deliver Results, and a genuine failure. Practise them aloud - Bar Raiser follow-ups destroy stories you've only written down.
 2. **Build something small on Bedrock.** A weekend RAG or agent project using Knowledge Bases and Guardrails teaches you the platform's real seams (provisioned vs on-demand throughput, model routing, guardrail layering) - exactly the vocabulary of their design rounds.
 3. **Read the official prep pages** for your track on amazon.jobs ("how we hire," the applied-scientist interview-prep page) - Amazon is unusually explicit about what it grades.
-4. **Skim the AWS Machine Learning Blog and Amazon Science blog** for posts from your target team (Bedrock, Quick, Kiro, Nova, AGI SF Lab) - referencing their actual architecture posts lands well and generates good questions for you to ask.
-5. **For AGI-org loops:** weight prep toward ML depth - modern training techniques, distributed training, data curation, eval design - and expect fewer behavioural questions than a standard Amazon loop (per candidate reports; still prepare LP stories).
+4. **Skim the AWS Machine Learning Blog and Amazon Science blog** for posts from your target team (Bedrock, AgentCore, Quick, Kiro, Nova, Trainium/Neuron) - referencing their actual architecture posts lands well and generates good questions for you to ask.
+5. **For FDE loops:** expect the AWS operational bar applied to customer work: be ready to talk through evals, guardrails, CI/CD and rollback for an agent you put into production, and for the Model Customization track, SFT and RL on open-weight models.
+6. **For AGI-org loops:** weight prep toward ML depth - modern training techniques, distributed training, data curation, eval design - and expect fewer behavioural questions than a standard Amazon loop (per candidate reports; still prepare LP stories).
 
 Compensation data for Amazon is on [levels.fyi](https://www.levels.fyi/companies/amazon/salaries).
 
@@ -381,7 +406,7 @@ Compensation data for Amazon is on [levels.fyi](https://www.levels.fyi/companies
 - [Amazon official: Leadership Principles](https://www.amazon.jobs/content/en/our-workplace/leadership-principles) - the 16 LPs interviewers grade against
 - [Amazon official: AGI team page](https://www.amazon.jobs/content/en/teams/agi) - AGI org scope
 - [Amazon AGI Labs](https://labs.amazon.science/) - AGI SF Lab, agents focus
-- [Amazon Science blog: Amazon opens new AI lab in San Francisco](https://www.amazon.science/blog/amazon-opens-new-ai-lab-in-san-francisco-focused-on-long-term-research-bets) - SF Lab mission and hiring
+- [Amazon Science blog: Amazon opens new AI lab in San Francisco](https://www.amazon.science/blog/amazon-opens-new-ai-lab-in-san-francisco-focused-on-long-term-research-bets) - SF Lab mission and hiring (historical; the site had closed by late July 2026, as reported)
 - [TechCrunch: Amazon forms an AI agent-focused lab led by Adept's co-founder](https://techcrunch.com/2024/12/09/amazon-forms-a-new-ai-agent-focused-lab-led-by-adept-co-founder/) - AGI SF Lab background
 - [Dataford: Amazon AI Engineer interview guide](https://dataford.io/interview-guides/amazon/ai-engineer) - loop stages, Bar Raiser, evaluation areas
 - [IGotAnOffer: Amazon Machine Learning Engineer interview](https://igotanoffer.com/blogs/tech/amazon-machine-learning-engineer-interview) - MLE loop structure (surfaced in search; page body not fully retrievable at review time)
@@ -393,4 +418,8 @@ Compensation data for Amazon is on [levels.fyi](https://www.levels.fyi/companies
 - [The Register - Jassy taps Peter DeSantis to run AGI org (December 2025)](https://www.theregister.com/2025/12/17/jassy_taps_peter_desantis_to_run_agi/) - AGI, Nova, and custom silicon combined under one leader
 - [GeekWire - Head of Amazon's AGI lab is leaving (2026)](https://www.geekwire.com/2026/head-of-amazons-agi-lab-is-leaving-in-latest-exit-from-high-profile-adept-deal/) - AGI SF Lab leadership change (surfaced via search)
 - [Neowin - Amazon reportedly winds down most Nova models in AGI strategy overhaul](https://www.neowin.net/news/amazon-reportedly-winds-down-most-nova-models-in-major-agi-strategy-overhaul/) - reported Nova roadmap narrowing and AGI-group cuts; Nova 2 Lite, Nova 2 Sonic, Nova Forge, and Nova Act stay available (surfaced via search)
+- [The Next Web - Amazon winds down Nova models, shifts to Frontier Model Research (July 2026)](https://thenextweb.com/news/amazon-winds-down-nova-ai-models-frontier-model-research) - SF AGI site closure (citing GeekWire), Pieter Abbeel leading FMR, which Nova products stay
+- [About Amazon - The software engineer role guideline in the AI era (October 2026)](https://www.aboutamazon.com/news/company-news/amazon-software-engineer-role-guideline-ai) and [The Next Web on the tokenmaxxing memo](https://thenextweb.com/news/amazon-tokenmaxxing-memo-engineers-ai-metrics) - input metrics "deeply flawed", tokenmaxxing at odds with Frugality
+- [amazon.jobs - Senior Forward Deployed Engineer, AWS Forward Deployed Engineering](https://www.amazon.jobs/en/jobs/10596078/senior-forward-deployed-engineer-aws-forward-deployed-engineering) - FDE scope, travel, basic qualifications
+- [AWS - Trn3 UltraServers generally available (December 2025)](https://aws.amazon.com/about-aws/whats-new/2025/12/amazon-ec2-trn3-ultraservers/), [Neuron docs - TorchNeuron](https://awsdocs-neuron.readthedocs-hosted.com/en/latest/_sources/frameworks/torch/about/index.rst) and [Cerebras - AWS collaboration (March 2026)](https://www.cerebras.ai/press-release/awscollaboration)
 - [levels.fyi: Amazon](https://www.levels.fyi/companies/amazon/salaries) - compensation data

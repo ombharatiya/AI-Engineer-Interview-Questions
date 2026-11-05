@@ -1,12 +1,12 @@
 # 🧠 Zhipu AI - AI Engineer Interview Questions
 
-> **Last reviewed: October 2026.** Based only on public information - official pages, engineering blogs, technical reports, and publicly shared candidate reports. Processes change and vary by team; treat this as a map, not a contract. No confidential or leaked material.
+> **Last reviewed: November 2026.** Based only on public information - official pages, engineering blogs, technical reports, and publicly shared candidate reports. Processes change and vary by team; treat this as a map, not a contract. No confidential or leaked material.
 
 ## TL;DR
 
 - **Public detail on the interview loop is thin.** Zhipu AI does not publish a process skeleton, and there are few English-language candidate write-ups. The loop below is the typical shape for a research-driven Chinese LLM lab, clearly labelled as inference, anchored to their real job requirements (PhD or MS plus publications, strong Python/C++). Treat it as a map, not a contract.
 - Expect a research-heavy bar: their public postings ask for a track record at KDD, ICML, NeurIPS, ICLR, or ACL, and name pre-training, alignment, instruction tuning, RLHF, and evaluation as the actual work.
-- The technical centre of gravity is the **GLM lineage**: the autoregressive blank-infilling objective, the GLM-4.5 and GLM-5 series MoE architectures (GLM-5.3 and GLM-5.3-Flash are the current open-weight releases as of October 2026), sparse attention for long context, hybrid thinking / non-thinking reasoning with selectable effort levels, and their **ARC focus** (agentic, reasoning, coding). Know how their models actually work, not just the API surface.
+- The technical centre of gravity is the **GLM lineage**: the autoregressive blank-infilling objective, the GLM-4.5 and GLM-5 series MoE architectures (GLM-5.3 and GLM-5.3-Flash are still the current open-weight releases as of November 2026; per the GLM-5 repository, GLM-5.3-Flash also adopts manifold-constrained hyper-connections (mHC) and a 30T-token multimodal pre-training corpus), sparse attention for long context, hybrid thinking / non-thinking reasoning with selectable effort levels, and their **ARC focus** (agentic, reasoning, coding). Know how their models actually work, not just the API surface.
 - **Agents are a first-class product line**, not a side project: AutoGLM (phone GUI agent) and CogAgent (vision-language GUI agent) mean long-horizon tool use, GUI grounding, and agentic RL are fair game.
 - Chinese big-tech and startup loops commonly include a written/online assessment (笔试) and several technical rounds; be ready to reason bilingually about tokenization, data, and evaluation for Chinese and English.
 
@@ -305,7 +305,7 @@ Company-specific moves:
 - [GLM-130B: An Open Bilingual Pre-Trained Model (Tsinghua KEG)](https://keg.cs.tsinghua.edu.cn/glm-130b/posts/glm-130b/) - bilingual pre-training roots, scale, and training setup
 - [GLM-4.5 GitHub (zai-org)](https://github.com/zai-org/GLM-4.5) - open-weight release, thinking/non-thinking modes, MTP, license
 - [GLM-5: from Vibe Coding to Agentic Engineering (arXiv 2602.15763)](https://arxiv.org/abs/2602.15763) - 744B / 40B active, 28.5T tokens, DSA, asynchronous RL infrastructure
-- [GLM-5 GitHub (zai-org)](https://github.com/zai-org/GLM-5) - GLM-5 through GLM-5.3 and GLM-5.3-Flash: IndexShare and 1M context (5.2), hybrid sparse and linear attention (5.3-Flash), reasoning-effort levels, MTP acceptance gains, Ascend support (consulted October 2026)
+- [GLM-5 GitHub (zai-org)](https://github.com/zai-org/GLM-5) - GLM-5 through GLM-5.3 and GLM-5.3-Flash: IndexShare and 1M context (5.2), hybrid sparse and linear attention (5.3-Flash), reasoning-effort levels, MTP acceptance gains, mHC and the 30T-token multimodal corpus (5.3-Flash), Ascend support (consulted November 2026)
 - [CogAgent: A Visual Language Model for GUI Agents (CVPR 2024)](https://openaccess.thecvf.com/content/CVPR2024/papers/Hong_CogAgent_A_Visual_Language_Model_for_GUI_Agents_CVPR_2024_paper.pdf) - GUI grounding and agent design
 - [CogAgent GitHub (zai-org)](https://github.com/zai-org/CogAgent) - open GUI-agent model based on GLM-4V-9B
 - [Zhipu AI NLP Researcher posting (ISWC 2023)](https://iswc2023.semanticweb.org/job-posting/zhipu-ai-nlp-researcher/) - real role requirements (pre-training, alignment, RLHF, evaluation; publication and coding bar)

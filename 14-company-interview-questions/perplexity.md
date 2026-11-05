@@ -1,10 +1,10 @@
 # 🔍 Perplexity - AI Engineer Interview Questions
 
-> **Last reviewed: October 2026.** Based only on public information - official pages, engineering blogs, and publicly shared candidate reports. Processes change and vary by team; treat this as a map, not a contract. No confidential or leaked material.
+> **Last reviewed: November 2026.** Based only on public information - official pages, engineering blogs, and publicly shared candidate reports. Processes change and vary by team; treat this as a map, not a contract. No confidential or leaked material.
 
 ## TL;DR
 
-- **The loop is short and officially documented.** Perplexity publishes its own interview guide: recruiter screen → technical screen ("a standard technical programming interview" for engineers) → onsite of 4-5 interviews including a hiring-manager deep dive → a final conversation with a founder or leader → decision within about a week of the onsite. Publicly reported end-to-end times are among the fastest anywhere - often under two weeks.
+- **The loop is short and officially documented.** Perplexity publishes its own interview guide: recruiter screen → technical screen ("a standard technical programming interview" for engineers) → onsite of 4-5 interviews including a hiring-manager deep dive → a final conversation with a founder or leader → decision within about a week of the onsite. Team matching is flexible and happens during the onsite, and applicants should hear back within two weeks of the initial application review. Experience building AI products is not expected, but knowledge of how to use AI is required. Publicly reported end-to-end times are among the fastest anywhere - often under two weeks.
 - **Python, practical, production-flavoured.** Candidate reports converge on Python-first coding rounds built around realistic problems - data streams, dedup, provider failover, batching - graded on working code and edge-case handling, not LeetCode trickery.
 - **RAG-at-web-scale is the home turf.** System design rounds reportedly centre on exactly what they build: retrieval pipelines, LLM serving, ranking, and search infrastructure, with latency as a first-class constraint.
 - **Product usage is checked, not assumed.** Multiple reports say "why Perplexity" is probed with the expectation that you've used the product seriously and have specific opinions about it.
@@ -12,7 +12,7 @@
 
 ## Company context
 
-Perplexity builds an AI answer engine: conversational search that retrieves from a live web index and generates cited answers, plus the Sonar API for developers, enterprise offerings, the Comet browser with agentic capabilities, and (since February 2026) Perplexity Computer, a general-purpose agent that runs long multi-step tasks and reportedly routes work across many models. For engineers, it is one of the clearest examples of "RAG as the entire company" - the retrieval pipeline, the ranking stack, the inference layer, and the product are the same system, serving hundreds of millions of queries a month with hard latency budgets. The agent products add a second engineering surface: long-running orchestration, tool use, and untrusted web content. "AI engineer" there mostly means building and operating that pipeline - search infrastructure, LLM serving, orchestration, evaluation - rather than pretraining models, though they also hire research roles that post-train and optimise models (e.g., the Sonar family).
+Perplexity builds an AI answer engine: conversational search that retrieves from a live web index and generates cited answers, plus the Sonar API for developers, enterprise offerings, the Comet browser with agentic capabilities, and (since February 2026) Perplexity Computer, a general-purpose agent that runs long multi-step tasks and reportedly routes work across many models. For engineers, it is one of the clearest examples of "RAG as the entire company" - the retrieval pipeline, the ranking stack, the inference layer, and the product are the same system, serving hundreds of millions of queries a month with hard latency budgets. The agent products add a second engineering surface: long-running orchestration, tool use, and untrusted web content. Autumn 2026 pushed that surface further. SPACE, the VM-per-session sandbox that has run every Computer session since July, was open-sourced in October (Perplexity reports millions of sandbox creations a day and a red team in which all 108 VM-escape attempts failed). Computer can now run fully locally on a Mac. Perplexity gained FedRAMP certification in late October. Teammates (November) are standing agents that remember goals, task history and files across runs, act when things change without a new query, send approval requests, and each run in a separate environment with their own browser sessions and encrypted credentials. Agent-sandbox, standing-agent and local or hybrid inference questions are now on-topic. "AI engineer" there mostly means building and operating that pipeline - search infrastructure, LLM serving, orchestration, evaluation - rather than pretraining models, though they also hire research roles that post-train and optimise models (e.g., the Sonar family).
 
 ## Roles & titles they hire
 
@@ -34,14 +34,14 @@ Perplexity's own careers site hosts an interview guide describing the loop, and 
 |---|---|---|
 | Recruiter screen | ~30-45 min call | Background, motivation, why Perplexity specifically, compensation fit; expect product-usage questions |
 | Technical screen | ~45-60 min live coding, Python strongly preferred (official guide calls it "a standard technical programming interview" for engineers); some 2026 reports describe an online assessment or a second screen at this stage instead (reported, varies) | Working code on practical problems; reasoning out loud; edge cases |
-| Onsite | 4-5 interviews, typically virtual (official guide) | Mix of coding, system design, and a hiring-manager deep dive on past work |
+| Onsite | 4-5 interviews, typically virtual (official guide). Team matching happens here: the hiring manager describes potential teams (official guide) | Mix of coding, system design, and a hiring-manager deep dive on past work |
 | - Coding rounds | Practical problems: streams, text processing, service components (reported, varies) | Production readiness, correctness under changing requirements |
 | - System design | RAG/search/serving-flavoured design; sometimes infra debugging scenarios (reported, varies) | Retrieval + ranking + LLM pipeline thinking, latency budgets, failure modes |
 | - HM deep dive | Detailed walkthrough of past projects (official guide: "be prepared to discuss past work and experience anecdotes in detail") | Ownership, real depth on systems you claim to have built |
 | Founder/leader interview | Final conversation with a founder or senior leader (official guide) | Mission alignment, product opinions, velocity mindset |
-| Decision | Within ~1 week of onsite (official guide); post-offer chats for team matching | - |
+| Decision | Within ~1 week of onsite (official guide). Post-offer conversations help you learn more about Perplexity, meet the people you would work with, and refine the team match | - |
 
-Publicly aggregated timelines range from ~11 to ~23 days end-to-end - fast by industry standards.
+Publicly aggregated timelines range from ~11 to ~23 days end-to-end - fast by industry standards. The guide does not state a rule on using AI tools during interviews, so ask your recruiter.
 
 ## What they emphasise
 
@@ -393,6 +393,47 @@ Treat it as a durable workflow engine with an LLM planner, not a chat loop that 
 
 </details>
 
+### 14. Design an agent that owns an ongoing responsibility, such as a weekly pipeline review or watching a service, rather than a one-off task. How do memory across runs, triggers that fire without a user prompt, mid-task approval requests, and per-agent environments and credentials fit together?
+
+<details><summary><b>Answer</b></summary>
+
+This is the shape of Perplexity's Teammates (November 2026): agents that remember goals, task history and files across runs, act on changes without a fresh query, send approval requests, and run in separate environments with their own browser sessions and encrypted credentials. The difference from Q13 is that the agent has a standing identity and lives for weeks, so it needs to be designed like a service account with a job description, not like a long chat.
+
+**The agent as a durable object.** Each agent has a record holding its goal and success criteria, a schedule and trigger set, a permission scope, a budget, and an owner. Runs are separate executions against that record.
+
+**Memory across runs.** Split it three ways. *Working state* covers the current run's plan and artefacts and is discarded or compacted at the end. *Episodic memory* is a per-run log ("checked pipeline on 3 Nov, flagged two stalled deals, user dismissed one"), summarised and retrievable by time and entity. *Durable facts and preferences* ("ignore deals under $10k", "the on-call channel is #ops") are written only through explicit, reviewable updates, ideally confirmed by the user, so one bad run cannot poison every later run. Store files in the agent's own artefact store, versioned.
+
+**Triggers without a prompt.** There are three sources: schedules (cron), events (webhooks, a watched page or dashboard changing, a new email matching a filter) and thresholds evaluated by cheap checks. Each trigger first runs a cheap *should I act?* step (a rule or a small model) before waking the expensive planner, so watching costs little. Deduplicate and debounce, so a flapping metric does not start 40 runs. Every trigger is logged with its cause, because "why did it do that at 3 a.m.?" is the first support question.
+
+**Approvals mid-task.** Classify actions by risk. Reads and drafts run freely. Messages, writes to systems of record and spending need approval. Account or permission changes are never done by the agent. When approval is needed, the run checkpoints and pauses with a structured request: the proposed action, its diff or preview, why, and what happens if it is declined. The request should be approvable from a notification. It has an expiry, after which the agent re-checks the world before acting, because state may have changed while it waited.
+
+**Environment and credentials.** Each agent gets its own sandbox (Perplexity's SPACE uses a small VM per workspace) with its own browser profile and sessions, so agents cannot read each other's cookies or files. Credentials live in a vault outside the sandbox and are injected per action or used through a proxy, scoped to what this agent's job needs, never visible as plain text to the model. Network egress is limited to the domains the job needs. Web content stays untrusted data, as in Q13, and a standing agent is a better target for prompt injection than a one-off task because it returns to the same sources repeatedly.
+
+**Budgets and health.** Set per-run and per-month caps on spend and actions. If the agent keeps failing or its approvals keep being declined, it backs off and tells its owner instead of retrying forever.
+
+**Evaluation.** Replay historical event streams to measure precision and recall of "acted when it should" and the false-alarm rate, approval-decline rate as a quality signal, and cost per useful action.
+
+**Worth sketching.** Optional, but it helps to show where the run pauses.
+
+```mermaid
+sequenceDiagram
+    participant T as Trigger
+    participant G as "Should-act check"
+    participant A as "Agent run (sandbox)"
+    participant V as "Credential vault"
+    participant U as User
+    T->>G: "event or schedule"
+    G->>A: "wake with context"
+    A->>V: "scoped credential request"
+    A->>U: "approval request with preview"
+    U-->>A: approve
+    A->>A: "act, log, update memory"
+```
+
+**Follow-ups:** How do you stop memory growing stale or contradicting itself after six months? What happens if the user who owns the agent leaves the company? How would you let a user see and correct what the agent believes about them?
+
+</details>
+
 ## How to prepare
 
 Priority order for this repo, given Perplexity's focus:
@@ -406,19 +447,23 @@ Priority order for this repo, given Perplexity's focus:
 
 Company-specific moves:
 
-- **Read their official interview guide** at perplexity.ai/hub/careers/interview-guide - few companies document their loop; take the free information.
-- **Use the product hard for two weeks.** Regular search, Deep Research, follow-up threads, the Sonar API if you can, Comet, and Perplexity Computer if your plan includes it. Log concrete failures and delights; question 12 above is built from exactly this.
+- **Read their official interview guide** at perplexity.ai/hub/careers/interview-guide - few companies document their loop; take the free information. Note its line that knowing how to use AI is required even though building AI products is not: be ready to show how you use AI tools in your own work.
+- **Use the product hard for two weeks.** Regular search, Deep Research, follow-up threads, the Sonar API if you can, Comet, Perplexity Computer if your plan includes it, and Teammates. Log concrete failures and delights; question 12 above is built from exactly this.
 - **Build a toy answer engine** (search API → fetch/parse → rerank → streamed cited answer) and instrument per-stage latency. Nothing prepares you better for their system-design round than having felt the retrieval tail-latency problem yourself.
+- **Read the SPACE write-up and repository** (github.com/perplexityai/SPACE). Agent-sandbox design (VM isolation, credentials held outside the sandbox, incremental snapshots) is a natural system-design topic for the agent teams, and Q14 below builds on it.
 - **Do every practice problem in Python** - multiple independent reports say it's the expected language.
 - **Skim their blog posts** on the Sonar models and pplx-api for how they talk about serving and model choices, and be ready to discuss the answer-engine competitive landscape (Google AI Overviews/AI Mode, ChatGPT search) in engineering terms.
 
 ## Sources
 
-- [Perplexity - official interview guide](https://www.perplexity.ai/hub/careers/interview-guide) (confirmed to exist; page blocks automated fetching, so its contents are cited here as quoted by the search results and secondary sources below)
+- [Perplexity - official interview guide](https://www.perplexity.ai/hub/careers/interview-guide) (loop stages, team matching during the onsite, two-week response time after application review, AI-usage knowledge required; no rule on AI tools in interviews)
 - [Perplexity - careers page](https://www.perplexity.ai/hub/careers)
 - [JobsByCulture - Perplexity AI Interview Prep 2026](https://jobsbyculture.com/blog/perplexity-interview-prep-2026) (fetched)
 - [LinkJob - 2026 Perplexity AI interview process and questions (candidate report)](https://www.linkjob.ai/interview-questions/perplexity-ai-interview/) (fetched)
 - [Medium - "How I Actually Passed My 2025 Perplexity AI Interview" (candidate report)](https://medium.com/@anqi.silvia/how-i-actually-passed-my-2025-perplexity-ai-interview-actual-questions-4007209bce5b) (fetched)
 - [Interview Query - Perplexity AI Software Engineer prep guide (updated for 2026)](https://www.interviewquery.com/prep-guides/perplexity-ai-software-engineer) (seen in search results; describes a technical screen or online assessment, one or two rounds)
 - [Semafor - "Perplexity's Computer wasn't always planned" (February 2026)](https://semafor.com/article/02/27/2026/perplexitys-computer-wasnt-always-planned) - launch context for the Computer agent
+- [Perplexity blog - Open-sourcing SPACE (October 2026)](https://www.perplexity.ai/hub/blog/open-sourcing-space) - agent sandbox architecture and red-team results
+- [Perplexity blog - Teammates are agents for complex, ongoing work (November 2026)](https://www.perplexity.ai/hub/blog/teammates-are-agents-for-complex-ongoing-work)
+- [Perplexity news](https://www.perplexity.ai/hub/blog/category/news) - Computer local on Mac, FedRAMP, Computer Automations (September to November 2026)
 - [Glassdoor - Perplexity AI interview questions](https://www.glassdoor.com/Interview/Perplexity-AI-Interview-Questions-E8515634.htm) (seen in search results; not fetched)

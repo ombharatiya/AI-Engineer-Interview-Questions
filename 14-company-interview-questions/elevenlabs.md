@@ -1,10 +1,10 @@
 # 🎙️ ElevenLabs - AI Engineer Interview Questions
 
-> **Last reviewed: October 2026.** Based only on public information - official pages, engineering blogs, technical reports, and publicly shared candidate reports. Processes change and vary by team; treat this as a map, not a contract. No confidential or leaked material.
+> **Last reviewed: November 2026.** Based only on public information - official pages, engineering blogs, technical reports, and publicly shared candidate reports. Processes change and vary by team; treat this as a map, not a contract. No confidential or leaked material.
 
 ## TL;DR
 
-- Reported loop is five stages: recruiter screen, async coding screen (~90 min on CoderPad, 2-3 practical problems), project deep-dive/behavioural, a live practical coding round framed as a customer problem, and a **Product Decomposition** round. The official careers page adds that most processes end with a founder or Bar Raiser conversation.
+- Reported loop is five stages: recruiter screen, async coding screen (~90 min on CoderPad, 2-3 practical problems), project deep-dive/behavioural, a live practical coding round framed as a customer problem, and a **Product Decomposition** round. The official careers FAQ (November 2026) describes most processes as a pre-screen and virtual interviews, sometimes with a take-home or case-study skills assessment, then a hiring-manager conversation and a final round with a founder or Bar Raiser.
 - **Product Decomposition is the round candidates fail.** It is not infra system design. You get a messy real-world workflow and must decompose it into UI, API, data model and backend, then defend the trade-offs. One publicly shared Forward Deployed Engineer report describes the interviewer role-playing an airline CTO whose team reschedules flights by hand.
 - Before your first live recruiter call you may meet an **ElevenLabs conversational agent**. The company has publicly described voice agents cloned from two of its own recruiters that answer candidate questions ahead of the human screen (2026 guides name them Becky and Oscar). Treat it as an FAQ, not a scored stage (reported, varies).
 - Coding leans practical: data manipulation, API logic, "build something a customer would actually use." One report describes live Python in a Google Doc rather than an IDE (reported, varies). But at least one 2026 software-engineer guide describes the async screen as two LeetCode-medium problems plus a separate 60-minute live algorithmic screen (tree traversal, cycle detection, string manipulation) before the virtual onsite, so do not skip standard medium problems (reported, varies). Individual ownership is weighted heavily throughout - team-level language is explicitly discounted in several reports.
@@ -12,11 +12,11 @@
 
 ## Company context
 
-ElevenLabs builds audio AI: text to speech, speech to text (Scribe), voice cloning, dubbing, music, and an Agents platform that stitches ASR, an LLM and TTS into real-time voice agents over web and telephony. The technical centre of gravity is **latency under a hard real-time deadline** - their own guidance targets sub-700 ms end-to-end for natural conversation. As of October 2026 the models docs list Flash v2.5 at roughly 75 ms model inference, **Eleven v4 Turbo** as the most expressive real-time model at a median of roughly 100 ms across 90+ languages, Eleven v3 Conversational at roughly 280 ms, and Scribe v2 Realtime partial transcripts at roughly 150 ms (its launch post quoted 30-80 ms). Eleven v3 itself went GA in February 2026 as the expressive but non-real-time flagship. "AI engineer" here rarely means training foundation models; outside the research group it means shipping product on top of speech models fast, usually full-stack, often with a customer on the call. The company is a heavy hirer of **Forward Deployed Engineers** and Enterprise Solutions Engineers across dozens of countries, and the interview loop is shaped around that: can you take an ambiguous customer workflow and ship an end-to-end thing that works.
+ElevenLabs builds audio AI: text to speech, speech to text (Scribe), voice cloning, dubbing, music, and an Agents platform that stitches ASR, an LLM and TTS into real-time voice agents over web and telephony. The technical centre of gravity is **latency under a hard real-time deadline** - their own guidance targets sub-700 ms end-to-end for natural conversation. **Eleven v4** (28 September 2026) is now the flagship TTS model, which the docs describe as the most emotive high-quality synthesis model; **Eleven v4 Turbo** is its real-time variant, and Eleven v3 is labelled the previous generation. As of November 2026 the models overview lists medians, excluding application and network latency, of roughly 100 ms for both Flash v2.5 and Eleven v4 Turbo, roughly 165 ms for Eleven v3 Conversational, and roughly 150 ms for Scribe v2 Realtime partial transcripts (its launch post quoted 30-80 ms). On 20 October 2026 it added **Eleven Realtime v1 Mini and Max**: complete voice-agent models marketed as speech-to-speech but built on a cascade of ASR, VAD, turn-taking, an LLM and TTS tuned end to end, behind an OpenAI Realtime-compatible, WebSocket-only API. The company's valuation rose to $22B on 30 September 2026. "AI engineer" here rarely means training foundation models; outside the research group it means shipping product on top of speech models fast, usually full-stack, often with a customer on the call. The company is a heavy hirer of **Forward Deployed Engineers** and Enterprise Solutions Engineers across dozens of countries, and the interview loop is shaped around that: can you take an ambiguous customer workflow and ship an end-to-end thing that works.
 
 ## Roles & titles they hire
 
-From the public ElevenLabs careers board (August 2026):
+From the public ElevenLabs careers board (titles as of August 2026; in November 2026 the careers page listed 144 open positions across 48 locations):
 
 - **Forward Deployed Engineer - Software Engineer** - posted across ANZ, Belgium, Brazil, Canada, Denmark, France, Germany, Italy, LATAM, Netherlands, Poland, Saudi Arabia, Singapore, Spain, Sweden, Switzerland, UAE and the US
 - **Enterprise Solutions Engineer** - a similarly wide regional spread
@@ -44,7 +44,8 @@ Public information is moderate. There is no official process page beyond a short
 | Project deep-dive / behavioural | 45-60 min | Projects you personally led. Probes decisions, failures, cost, deployment. Side projects with real users reportedly land well (reported, varies) |
 | Practical coding | ~60 min live, framed as a customer problem | Requirements clarification then working code, usually Python. One report describes coding in a Google Doc, not an IDE (reported, varies) |
 | Product decomposition | ~60 min, no code | Decompose a workflow into UI, API, data model and backend, and defend trade-offs. One FDE report: interviewer role-plays an airline CTO with manual flight rescheduling (reported, varies) |
-| Final: hiring manager, founder or Bar Raiser | Conversation | The careers page states most processes end with a founder or Bar Raiser round |
+| Skills assessment (some roles) | Take-home or case study | The careers FAQ says some processes include one |
+| Final: hiring manager, founder or Bar Raiser | Conversation | The careers FAQ describes a hiring-manager conversation followed by a final round with a founder or Bar Raiser |
 
 Reported timeline is roughly 2-5 weeks, with at least one first-hand account nearer six. For account executive roles, 2026 guides report that the CEO personally holds the final conversation (reported, varies). Candidate sentiment on Glassdoor is mixed: interviews are rated moderately difficult, and the recurring complaints are patchy communication between rounds and rejections without feedback. Drive the process actively and ask for timelines in writing.
 
@@ -72,7 +73,7 @@ In a cascade the floors add, so budget term by term:
 - **Turn detection.** Silence-based VAD costs whatever hangover you configure, commonly 200-500 ms. This is usually the cheapest place to buy time back, which is why semantic turn prediction using prosody and syntax beats a fixed silence timer.
 - **ASR finalisation.** Scribe v2 Realtime was quoted at 30-80 ms at launch, and the current models docs give roughly 150 ms for partial transcripts. Measure it on your own audio rather than trusting either number.
 - **LLM time-to-first-token.** ElevenLabs' own writing calls this the single biggest contributor in most systems. Model choice and system prompt length are your levers.
-- **TTS time-to-first-audio.** Flash v2.5 is quoted at ~75 ms model inference, with ~135 ms end-to-end to first audio byte. Eleven v4 Turbo, the more expressive real-time option, is quoted at a median of ~100 ms.
+- **TTS time-to-first-audio.** The latency guide has quoted Flash v2.5 at ~75 ms model inference, with ~135 ms end-to-end to first audio byte; the current models overview lists both Flash v2.5 and Eleven v4 Turbo, the more expressive real-time option, at a median of ~100 ms excluding application and network latency. Budget ~100 ms and measure your own.
 - **Network.** 20-200 ms per hop depending on geography, largely irreducible.
 - **Player jitter buffer.** A 500 ms buffer is common and can silently dominate everything above it.
 
@@ -85,7 +86,7 @@ flowchart LR
     A["User stops speaking"] --> B["Turn detection<br/>VAD plus semantic"]
     B --> C["ASR finalise<br/>~30-150 ms"]
     C --> D["LLM TTFT<br/>usually the largest term"]
-    D --> E["TTS first audio<br/>~75 ms inference"]
+    D --> E["TTS first audio<br/>~100 ms median inference"]
     E --> F["Jitter buffer<br/>~500 ms typical"]
     F --> G["First audio heard"]
 ```
@@ -105,6 +106,8 @@ Default to the cascade for enterprise support in 2026, and be able to say precis
 **Speech-to-speech wins on what text destroys.** Reducing audio to text discards paralinguistics: the caller's frustration, hesitation, sarcasm, accent, whether they trailed off or finished. A native model keeps prosody and emotion in the representation and can respond in kind, and it removes two serialisation hops so latency floors drop materially. Published comparisons put S2S in the 250-350 ms range against 400-600 ms for tuned cascades.
 
 **Where S2S is still uncomfortable for enterprise:** tool-calling maturity, harder guardrailing (you must moderate audio, or transcribe anyway and lose the advantage), no vendor hot-swap, evaluation that requires scoring audio in and audio out, and reported cost roughly an order of magnitude higher once conversational context accumulates per turn.
+
+Note that the vendor line has blurred: ElevenLabs' own Realtime v1 models (October 2026) are sold as speech-to-speech but run a tuned cascade underneath (see Q14).
 
 The honest answer is hybrid: cascade as the production spine, and lift specific paralinguistic signals such as detected emotion or interruption intent into the LLM context so you get some of the S2S benefit without giving up the transcript.
 
@@ -188,6 +191,8 @@ Treat this as defence in depth, because a single control will be bypassed. Eleve
 **At generation: policy plus provenance.** Text-side moderation for prohibited use classes, tighter limits on unverified free-tier accounts (they staff a dedicated free-tier abuse engineering role for a reason), and an inaudible watermark embedded in every output plus C2PA-style content credentials in the container.
 
 **After the fact: detection and traceability.** A public classifier that answers "did this come from us", and per-account traceability so a flagged sample maps to the generating account. Both have real limits worth stating in an interview: watermarks degrade under aggressive re-encoding and re-recording through the air, classifiers have false positives that matter enormously when the accusation is fraud, and metadata is stripped by most platforms. So detection supports investigation, it does not replace upstream controls.
+
+**This is now compliance work, not only trust and safety.** EU AI Act Article 50 marking of synthetic content, audio included, has applied since 2 August 2026, with providers of systems already on the market given until 2 December 2026; a final Code of Practice (June 2026) and Commission guidelines (July 2026) support it. In California, AB 2713 and SB 1000 (signed 30 September 2026) strengthen the AI Transparency Act on keeping watermarks in place and giving access to provenance metadata. Expect follow-ups on watermark robustness to re-encoding and on how you would expose detection to third parties at scale.
 
 **Operationally:** red-team before release, human review queues, user reporting, and a law-enforcement escalation path.
 
@@ -402,9 +407,9 @@ Also: geography. A model close to the caller saves 20-200 ms of the budget, so r
 
 <details><summary><b>Answer</b></summary>
 
-Treat it as a product experiment with a latency and risk budget, not a model upgrade. In 2026 the lineup forces a real choice: Flash v2.5 at roughly 75 ms, Eleven v4 Turbo described as the most expressive real-time model at a median of roughly 100 ms, and Eleven v3 Conversational at roughly 280 ms for dramatic, multi-speaker delivery. The question is whether the expressiveness buys task outcomes worth the added milliseconds and new failure modes.
+Treat it as a product experiment with a latency and risk budget, not a model upgrade. In late 2026 the lineup forces a real choice: Flash v2.5 and Eleven v4 Turbo, the most emotive real-time model, both listed at a median of roughly 100 ms; Eleven v3 Conversational at roughly 165 ms for dramatic, multi-speaker delivery; and standard Eleven v4, the flagship for high-quality synthesis, which is not the real-time option. With medians this close, the question is less about milliseconds and more about whether the expressiveness buys task outcomes worth the new failure modes.
 
-**Latency.** Put the new median into the Q1 budget, but decide on p95 and p99 TTFA measured from the customer's regions over their telephony path. A 25 ms median gap is noise next to LLM TTFT, while a fatter tail is not. A 280 ms model eats much of a sub-700 ms budget on its own.
+**Latency.** Put the new median into the Q1 budget, but decide on p95 and p99 TTFA measured from the customer's regions over their telephony path. The medians are close enough that they rarely decide this; a fatter p99 tail does. A model at roughly 165 ms median still takes a noticeable share of a sub-700 ms budget once its tail and network are added, so reserve it for flows where delivery matters more than speed.
 
 **Behaviour.** Expressive models interpret text. That is the point, and also the risk: a cheerful lilt on "your claim was denied", inconsistent delivery of the same scripted line across calls, or a regulated disclosure read with the wrong emphasis. If emotion is steered by tags the LLM emits, those tags are now model output that needs guardrails, because a prompt-injected caller can influence them.
 
@@ -415,6 +420,30 @@ Treat it as a product experiment with a latency and risk budget, not a model upg
 **Rollout.** Model choice should be per agent and ideally per intent: expressive for sales or companionship flows, Flash for authentication and payments, where clarity and predictability beat warmth. Keep instant rollback to the old model with the old voice settings.
 
 **Follow-ups:** The A/B shows higher CSAT but a small rise in "can you repeat that?". What do you ship? How would you guardrail emotion tags without flattening delivery?
+
+</details>
+
+### 14. We sell a "speech-to-speech" model behind an OpenAI Realtime-compatible WebSocket API, but internally it is a cascade of ASR, VAD, turn-taking, an LLM and TTS tuned end to end. Why build it that way rather than a native audio model? What does the customer gain and lose compared with wiring their own cascade, and how would you benchmark it?
+
+<details><summary><b>Answer</b></summary>
+
+This is the shape of Eleven Realtime v1 Mini and Max (October 2026): complete voice agents, marketed as speech-to-speech, built on a cascade, exposed over a WebSocket-only API compatible with OpenAI's Realtime API.
+
+**Why a cascade underneath.** It keeps everything Q2 says the enterprise needs: a transcript for redaction, QA and guardrails; text-layer tool calling, which is still more reliable than native audio models; and stage-level debugging. Building it in-house means the vendor owns the joins, which is where self-built cascades lose most of their time: turn detection tuned against the LLM's actual latency, TTS that starts on the first stable clause, ASR partials fed forward speculatively, and all of it co-located so there are no extra network hops between stages.
+
+**Why a Realtime-compatible API.** Switching cost. A customer already on another vendor's realtime protocol can point the same client at a new endpoint and compare like for like. The cost is that WebSocket-only rules out some telephony and browser paths that prefer WebRTC, so you need a media gateway in front for those.
+
+**What the customer gains versus their own cascade:** lower and more predictable time to first audio, less engineering to tune turn-taking, one vendor to hold to an SLA. **What they lose:** the ability to swap one stage (their preferred ASR for a dialect, a specific LLM for policy reasons), visibility into intermediate latencies, and some control over prompt and model upgrades.
+
+**Benchmarking.** Measure what the customer feels, on their audio and network:
+- **Time to first audio** from end of user speech, reported as p50, p95 and p99 per region. ElevenLabs reported averages of 0.57 s for Max and 0.62 s for Mini; averages hide the tail.
+- **Tool-use completion** on a scripted task set with real tool calls and failures injected. The published spread (87.1% Max against 60.3% Mini) is a reminder that the cheaper tier is not just slower thinking, it completes far fewer tasks.
+- **Turn-taking quality:** false barge-ins, missed interruptions, and responses to backchannels ("mm-hm") that were not turns.
+- **Cost per resolved call**, not per minute.
+
+Run the same suite against the customer's existing cascade so the comparison is on their workload, not the vendor's.
+
+**Follow-ups:** A customer needs a specific LLM for compliance. Can you still offer them the integrated product? How would you detect that a latency regression comes from turn detection rather than the LLM? What would make you ship a truly native audio model instead?
 
 </details>
 
@@ -434,7 +463,7 @@ Treat it as a product experiment with a latency and risk budget, not a model upg
 **Company-specific moves:**
 
 1. **Build something on their API before the interview.** Wire up a voice agent, measure your own time-to-first-audio, break it deliberately. Public reports say side projects with real users are premium material, and "I built X and hit Y ms" is the strongest possible opener.
-2. **Read their latency material closely.** The docs page on latency, the conversational AI latency posts, the Flash and Scribe announcements, and the current models overview, which is where newer real-time models such as Eleven v4 Turbo appear first. Memorise the per-stage numbers so you can build a budget out loud in Q1's shape.
+2. **Read their latency material closely.** The docs page on latency, the conversational AI latency posts, the Flash and Scribe announcements, and the current models overview, which is where newer real-time models such as Eleven v4 Turbo and the Realtime v1 models appear first. Memorise the per-stage numbers so you can build a budget out loud in Q1's shape.
 3. **Rehearse Product Decomposition as a format, not a topic.** Take three messy manual workflows you know, and for each produce the unit of work, data model, API, UI surface and a one-week thin slice in twenty minutes. Ask diagnostic questions before designing.
 4. **Convert every project story to first person and to shipped outcomes.** Multiple reports say interviewers actively separate your work from your team's. Have the deploy, the cost and the thing that broke ready.
 5. **If you are interviewing for FDE or Enterprise Solutions Engineer,** prepare for role-play. Practise being handed a hostile, vague customer problem and asking five sharp questions before saying a single word about architecture.
@@ -442,14 +471,18 @@ Treat it as a product experiment with a latency and risk budget, not a model upg
 
 ## Sources
 
-- [ElevenLabs - Careers](https://elevenlabs.io/careers) (fetched August 2026; interview-process paragraph and hiring philosophy)
+- [ElevenLabs - Careers](https://elevenlabs.io/careers) (fetched August and November 2026; interview-process FAQ, open-position count, hiring philosophy)
 - [ElevenLabs - Open positions](https://elevenlabs.io/careers/positions) (fetched August 2026; role titles and locations above)
 - [ElevenLabs Jobs on Ashby](https://jobs.ashbyhq.com/elevenlabs/)
 - [ElevenLabs - Agents and the candidate experience](https://elevenlabs.io/blog/agents-and-candidate-experience) (the recruiter voice agents)
 - [ElevenLabs docs - Understanding latency](https://elevenlabs.io/docs/eleven-api/concepts/latency) (time-to-first-audio components, buffering, model trade-offs)
 - [ElevenLabs - How do you optimize latency for Conversational AI?](https://elevenlabs.io/blog/how-do-you-optimize-latency-for-conversational-ai) (per-stage budget and the sub-700 ms target)
 - [ElevenLabs - Scribe v2 Realtime in ElevenLabs Agents](https://elevenlabs.io/blog/scribe-v2-realtime-in-elevenlabs-agents) (30-80 ms ASR latency, FLEURS WER claim)
-- [ElevenLabs - Meet Flash](https://elevenlabs.io/blog/meet-flash) and [Models overview](https://elevenlabs.io/docs/overview/models) (fetched October 2026; Eleven v4 Turbo ~100 ms median, Eleven v3 Conversational ~280 ms, Scribe v2 Realtime partials ~150 ms, Agents Platform model recommendations)
+- [ElevenLabs - Meet Flash](https://elevenlabs.io/blog/meet-flash) and [Models overview](https://elevenlabs.io/docs/overview/models) (fetched November 2026; Flash v2.5 and Eleven v4 Turbo ~100 ms median, Eleven v3 Conversational ~165 ms, Scribe v2 Realtime partials ~150 ms, all excluding application and network latency; Agents Platform model recommendations)
+- [ElevenLabs - Eleven v4](https://elevenlabs.io/blog/eleven-v4) (September 2026; v4 and v4 Turbo)
+- [ElevenLabs - Realtime](https://elevenlabs.io/blog/realtime) (October 2026; Realtime v1 Mini and Max, cascade architecture, OpenAI Realtime-compatible API, time to first audio and tool-use results)
+- [EU Code of Practice on AI-generated content](https://digital-strategy.ec.europa.eu/en/policies/code-practice-ai-generated-content) and [AI Act implementation timeline](https://ai-act-service-desk.ec.europa.eu/en/ai-act/timeline/timeline-implementation-eu-ai-act) (Article 50 marking duties)
+- [Office of the Governor of California, 30 September 2026](https://www.gov.ca.gov/2026/09/30/californias-nation-leading-ai-framework-just-got-stronger-governor-newsom-signs-more-first-in-the-nation-worker-protections-and-more/) (AB 2713 and SB 1000)
 - [TechPrep - ElevenLabs's interview process (2026)](https://www.techprep.app/blog/elevenlabs-interview-process) (third-party guide; recruiter agents, two-problem async screen, live algorithmic screen, 2-4 week timeline)
 - [ElevenLabs - Eleven v3](https://elevenlabs.io/blog/eleven-v3)
 - [ElevenLabs - Safety](https://elevenlabs.io/safety) (layered defences, no-go voices, AI Speech Classifier, C2PA, traceability)

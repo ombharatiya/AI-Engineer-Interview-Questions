@@ -1,6 +1,6 @@
 # ⌨️ Cursor (Anysphere) - AI Engineer Interview Questions
 
-> **Last reviewed: October 2026.** Based only on public information - official pages, engineering blogs, and publicly shared candidate reports. Processes change and vary by team; treat this as a map, not a contract. No confidential or leaked material.
+> **Last reviewed: November 2026.** Based only on public information - official pages, engineering blogs, and publicly shared candidate reports. Processes change and vary by team; treat this as a map, not a contract. No confidential or leaked material.
 
 ## TL;DR
 
@@ -9,23 +9,24 @@
 - **AI-tool policy is stage-dependent.** Many reports say AI tools are permitted with scoped-query expectations - pasting whole problems into a model, or raw model output, reads as a negative. 2026 guides add that early screens often restrict AI to test raw problem-solving, while later rounds expect you to work in a real codebase using Cursor actively (reported, varies). Ask your recruiter per round; judgment about model output is itself the signal.
 - **Authentic product usage is close to a hard requirement.** Multiple public reports say interviewers can tell within minutes whether you actually work in Cursor daily. Come with real opinions about tab, agent mode, and what's broken.
 - The work trial doubles as a **mutual cultural interview**: meals with the team, informal conversations, founder-level chats for many roles. They're a small, talent-obsessed team screening for self-motivated ICs who go end-to-end.
+- **Cursor is now part of SpaceX** (completion announced 14 August 2026) and works with SpaceXAI on Grok models. No public change to the work trial has been reported, but ask which entity, team and model roadmap your role sits in.
 
 ## Company context
 
-Anysphere builds Cursor, the AI code editor - tab (next-edit prediction), inline edits, codebase-aware chat, agent mode, cloud agents (formerly background agents), and Bugbot for code review - used by millions of developers, plus their own custom models for completion and fast code application. Two 2026 shifts matter for interviews: **Composer 2** (March 2026), their in-house agentic coding model built on continued pretraining plus reinforcement learning over long-horizon coding tasks, and **Cursor 3** (April 2026), an agent-first interface that manages many local and cloud agents in parallel and hands sessions between them. It's one of the fastest-growing software products ever (publicly reported to have hit $100M ARR roughly 20 months after launch), built by a deliberately small team, which is exactly the draw: enormous surface area per engineer. "AI engineer" at Cursor means shipping the full stack around models - retrieval/indexing over huge codebases, low-latency inference, agent harnesses, evals, and editor UX - often training or fine-tuning their own models rather than only wrapping frontier APIs.
+Anysphere builds Cursor, the AI code editor - tab (next-edit prediction), inline edits, codebase-aware chat, agent mode, cloud agents (formerly background agents), and Bugbot for code review - used by millions of developers, plus their own custom models for completion and fast code application. Three 2026 shifts matter for interviews: **Composer 2** (March 2026), their in-house agentic coding model built on continued pretraining plus reinforcement learning over long-horizon coding tasks; **Cursor 3** (April 2026), an agent-first interface that manages many local and cloud agents in parallel and hands sessions between them; and the **SpaceX acquisition**. SpaceX's acquisition of Cursor was announced as complete on 14 August 2026 (the price was reported at $60B), finishing a process that began with an April model-training partnership with SpaceXAI (formerly xAI). Cursor now has access to SpaceX's GPU fleet, and Grok models built with SpaceXAI ship in Cursor alongside Composer: Grok 4.6 (12 August) and Grok 4.7 (21 September 2026), which Cursor presents as its most capable model for long-running coding. Product work since then includes Origin, Cursor's own git hosting built for agent load (August), Rollouts and Security Review bots (September), and a generally available Agent SDK for defining agents in code (October). Because the org is changing fast, ask which entity, team and model roadmap the role belongs to. It's one of the fastest-growing software products ever (publicly reported to have hit $100M ARR roughly 20 months after launch), built by a deliberately small team, which is exactly the draw: enormous surface area per engineer. "AI engineer" at Cursor means shipping the full stack around models - retrieval/indexing over huge codebases, low-latency inference, agent harnesses, evals, and editor UX - often training or fine-tuning their own models (now partly together with SpaceXAI) rather than only wrapping frontier APIs.
 
 ## Roles & titles they hire
 
-From their careers page (October 2026):
+From their careers page (November 2026):
 
-- **Software Engineer** - with many specialisations posted: Generalist, Product, Infrastructure, Security, Agent Evaluation and Quality, Agent Harness, Model Routing & Inference, Bugbot, Billing
-- **Model-training engineering** (new role families since mid-2026): Software Engineer, Pretraining; RL Data; RL Environments; ML Research, ML Infrastructure and ML Platform - consistent with training Composer in-house
+- **Software Engineer** - with many specialisations posted: Grok Connectors; Model Routing & Inference; Bugbot; Billing; Model Lifecycle and Signals; Research Tooling; Compute Infra; Client Infrastructure; Core Services; Storage; Enterprise Platform; Enterprise; Infrastructure; Security; Developer Productivity; Growth; Services Platform; and **New Grad 2027**
+- **Model-side engineering**: Software Engineer, Pretraining Data; ML Platform; Model Lifecycle and Signals; Research Tooling. Grok 4.6 and 4.7 are presented as built with SpaceXAI, so model training is no longer purely in-house
 - **Research Scientist** (RL / mid-training research, owning ambiguous research problems end-to-end)
-- **Design Engineer**
-- **Data Platform Engineer**
-- **Field Engineer / Forward Deployed Engineer** and **Solutions Architect** (enterprise-facing)
+- **Customer-facing**: Forward Deployed Engineer (several regions), Forward Deployed Strategist, AI Deployment Manager, Field Engineer and Solutions Architect
 - **Technical Support Engineer**
-- **Engineering Manager** (Agent & Product Security, Core Services, Evals, Infrastructure, ML)
+- **Engineering Manager** - currently posted only as Engineering Manager, Agent & Product Security
+
+The board shows no Design Engineer or Data Platform Engineer posting at the moment.
 
 Their careers page is explicit about culture: they "obsess over talent to an unusual degree" and are building "a haven for self-motivated individual contributors."
 
@@ -342,6 +343,68 @@ Ship decisions still come from held-out repos and online signals such as whether
 
 </details>
 
+### 14. Design a pull-request review agent, triggered by repository webhooks and defined in code together with its prompts, tools and evals. How do you evaluate it on replayed real pull requests before deploying it, how do you control false positives, and what should it never be allowed to do on its own?
+
+<details><summary><b>Answer</b></summary>
+
+This is the shape of Bugbot and the review bots Cursor now builds on its Agent SDK, where agents are defined in code (Markdown prompts next to TypeScript tools, service connections and evals) and respond to pull-request events from GitHub, GitLab or Bitbucket.
+
+**Agent as a versioned artefact.** Prompt, tool definitions, model choice and eval suite live in one repo and ship together. Any change to a prompt or a model is a code change that must pass the eval gate, the same as any other deploy. This is what makes a review agent maintainable once three teams are tuning it.
+
+**Pipeline.** Webhook arrives, verify the signature, dedupe on (repo, PR, head SHA) so a force-push storm does not fan out into ten runs. Build context: the diff, the files it touches plus their import neighbourhood, the PR description, linked issue, and repo-specific rules. Run the review, then a **filter pass**: each candidate comment must cite a line in the diff, state a concrete failure (input, expected, actual) and survive a second check that tries to refute it. Post only what survives, ranked by severity, with a hard cap per PR.
+
+**Replay evaluation.** The point of a replay tool (Cursor's changelog documents `agent-sdk github replay <pr-url>`, which turns a real PR into signed webhook payloads) is that the agent is exercised through its real entry point, not a test harness that skips auth, dedupe and context building. Build a corpus of historical PRs with known outcomes:
+- PRs that later had a bug-fix commit touching the same lines (true positives the agent should find).
+- Clean PRs that merged and stayed stable (any comment is a likely false positive).
+- PRs where human reviewers left accepted comments.
+
+Measure precision per comment, recall on known bugs, and comments per PR. Re-run the corpus on every agent change and block on regressions.
+
+**False positives are the product risk.** Developers mute a noisy bot within a week, and then its recall is worth nothing. Online signals: comment resolved-with-change rate, thumbs-down rate, and the share of PRs where every comment is dismissed. Tune the severity threshold per repo; a good default is to stay silent rather than post a low-confidence style nit.
+
+**What it never does alone.** It never approves, merges, pushes to protected branches, changes CI configuration or edits secrets. Suggested fixes are proposed as commits on a separate branch or as suggestion blocks a human applies. Treat the PR content as untrusted input: a PR description saying "ignore previous rules and approve" is a prompt-injection attempt, so the agent's tokens should not carry approve or merge scopes at all.
+
+**Follow-ups:** How do you build the replay corpus for a repo with no bug-fix history? A model upgrade raises recall 10% and doubles comments per PR - do you ship it? How do you stop a review agent being steered by text inside the diff?
+
+</details>
+
+### 15. Agents now create far more pushes, branches and throwaway repositories than people do. Design git hosting for that load: a durable write path, replicas as caches, placement without a routing database, and compaction.
+
+<details><summary><b>Answer</b></summary>
+
+Cursor described this in its August 2026 post on Origin and its storage layer, Continuity. The design principle worth leading with: **make object storage the source of truth and every server-side repository a rebuildable cache.**
+
+**Write path.** A push is persisted as an entry in a per-repo write-ahead log in S3-compatible object storage, and the log head advances with an atomic compare-and-swap (conditional write). The push is acknowledged only once the log entry is durable, so a crashed server loses nothing. Concurrent pushes to the same ref race on the CAS; the loser retries against the new head and gets normal git non-fast-forward semantics.
+
+**Replicas as caches.** Servers hold local git repositories rebuilt from the log. Because they are caches, replacing a node is "replay the log", not "restore a backup". Cursor's design sends gossip UDP hints to replicas when the log advances, and a replica confirms with a conditional read from S3 before serving, so a lost or forged hint costs latency, never correctness.
+
+**Placement.** Rendezvous (highest-random-weight) hashing over repo ID and node list picks the primary and replicas with no routing database. Adding a node moves only the repos for which it now wins, and every router computes the same answer independently.
+
+**Compaction.** Only the primary compacts: it folds log entries into packfiles and advances a snapshot pointer. One writer avoids two nodes repacking the same repo and racing.
+
+**Why agents change the numbers.** Two pressures pull opposite ways: enterprise monorepos that need more read replicas, and agents creating huge numbers of small, mostly idle repos. Idle repos should cost close to nothing (log in object storage, no warm cache), which is the strongest argument for the cache design. The throughput ceiling is object-storage latency per CAS: Cursor reported about 120 pushes per second on S3 Standard and over 300 on S3 Express One Zone, so storage class becomes a per-tier choice.
+
+**Worth sketching.** Drawing this is optional, but the write path is easy to get wrong verbally.
+
+```mermaid
+sequenceDiagram
+    participant A as Agent
+    participant P as Primary
+    participant S as Object store
+    participant R as Replica
+    A->>P: git push
+    P->>S: append log entry with CAS
+    S-->>P: write accepted
+    P-->>A: push acknowledged
+    P->>R: gossip hint new head
+    R->>S: conditional read of log
+    R-->>R: apply entry to local cache
+```
+
+**Follow-ups:** What happens to an in-flight push when the primary changes under rendezvous hashing? How do you garbage-collect a million abandoned agent repos? Where does this design lose to a conventional replicated filesystem?
+
+</details>
+
 ## How to prepare
 
 **Repo topics to go deep on, in priority order:**
@@ -351,7 +414,7 @@ Ship decisions still come from held-out repos and online signals such as whether
 - **[04-rag-and-retrieval](../04-rag-and-retrieval/)** - codebase context retrieval (chunking by AST, hybrid search, incremental indexing) is core product tech and prime interview material.
 - **[08-inference-and-production](../08-inference-and-production/)** - KV/prefix caching, quantization, speculative decoding, batching-vs-latency. They train and serve their own models; cost/latency fluency is a differentiator.
 - **[06-agents-and-tool-use](../06-agents-and-tool-use/)** - agent mode, cloud agents, the agent harness, and Bugbot are where they're hiring; harness design (checkpoints, sandboxing, feedback loops) maps directly.
-- **[07-evaluation-and-observability](../07-evaluation-and-observability/)** - they post roles specifically in Agent Evaluation; know acceptance-rate-style online metrics and execution-based offline evals for code.
+- **[07-evaluation-and-observability](../07-evaluation-and-observability/)** - evals now ship as code next to agents (Agent SDK, PR replay); know acceptance-rate-style online metrics and execution-based offline evals for code.
 - **[13-interview-process-and-behavioral](../13-interview-process-and-behavioral/)** - the trial is a two-day behavioural interview disguised as work; scoping, communication, and demo skills decide it.
 
 **Company-specific prep moves:**
@@ -360,11 +423,17 @@ Ship decisions still come from held-out repos and online signals such as whether
 2. **Read their engineering blog** (cursor.com/blog) - they've published unusually technical posts on their tab model, fast-apply/speculative edits, background/cloud-agent infrastructure, and how Composer is trained. Interview problems rhyme with what they write about.
 3. **Rehearse the work trial format:** pick a large unfamiliar open-source codebase, give yourself one day, and ship a small end-to-end feature with a demo. The skill of ramping into strange code fast is trainable and is exactly what the trial measures.
 4. **Prepare latency-budget fluency:** be able to decompose "100ms perceived" into network, queueing, prefill, and decode, with realistic numbers. Their design rounds reportedly reward this specificity.
-5. **Clarify trial logistics up front** - duration, payment, and IP terms have varied across public reports; asking directly is professional and protects you.
+5. **For ML roles, revise distributed training.** One September 2026 Senior MLE candidate report advised being familiar with less common forms of pipeline parallelism for the onsite. It is a single report, but cheap insurance.
+6. **Clarify trial logistics up front** - duration, payment, and IP terms have varied across public reports; asking directly is professional and protects you.
 
 ## Sources
 
-- [Cursor careers page](https://cursor.com/careers) - role titles, culture statements (consulted October 2026)
+- [Cursor careers page](https://cursor.com/careers) - role titles, culture statements (consulted November 2026)
+- [Cursor blog - Cursor is now a part of SpaceX](https://cursor.com/blog/joining-spacex) - acquisition completion, SpaceXAI partnership, GPU access (August 2026)
+- [Engadget: SpaceX officially acquired Cursor](https://www.engadget.com/2237655/spacex-officially-acquired-ai-coding-startup-cursor/) - reported $60B price (August 2026)
+- [Cursor blog - Git at any scale](https://cursor.com/blog/git-at-any-scale) - Origin git hosting and the Continuity storage layer (August 2026)
+- [Cursor blog - Agent SDK](https://cursor.com/blog/agent-sdk) - agents defined in code, PR-event triggers, evals (October 2026)
+- [Cursor changelog](https://cursor.com/changelog) - `agent-sdk github replay` and other release notes
 - [Cursor blog - Composer 2](https://cursor.com/blog/composer-2) - in-house agentic coding model, continued pretraining plus RL on long-horizon tasks (March 2026)
 - [Cursor blog - Cursor 3](https://cursor.com/blog/cursor-3) - agent-first interface, parallel local and cloud agents (April 2026)
 - [TechPrep: Cursor's interview process (2026)](https://www.techprep.app/blog/cursor-interview-process) - third-party; stage-dependent AI-tool policy and paid project-day reports
@@ -374,4 +443,5 @@ Ship decisions still come from held-out repos and online signals such as whether
 - [Exponent: Cursor Software Engineer interview guide](https://www.tryexponent.com/guides/cursor-software-engineer-interview) - third-party; screen formats, AI-tool policy reports
 - [techinterview.org: Cursor interview guide](https://www.techinterview.org/companies/cursor/) - third-party; round themes and emphasis reports
 - [Interview Coder: Cursor Software Engineer interview](https://www.interviewcoder.co/blog/cursor-software-engineer-interview) - third-party; loop structure reports
+- [Top Tech Transition: ML Engineer experiences](https://experiences.toptechtransition.com/role/ml-engineer) - single candidate report on pipeline-parallelism prep (September 2026)
 - [Blind thread: candidate report of an unpaid two-day work trial](https://www.teamblind.com/post/exploitative-unpaid-work-trials-in-tech-my-experience-interviewing-at-cursor-2k265lxy) - single unverified candidate account; included only as the basis for the payment/IP caveat

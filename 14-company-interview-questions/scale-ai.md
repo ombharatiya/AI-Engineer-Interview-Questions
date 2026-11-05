@@ -1,6 +1,6 @@
 # 📏 Scale AI - AI Engineer Interview Questions
 
-> **Last reviewed: October 2026.** Based only on public information - official pages, engineering blogs, and publicly shared candidate reports. Processes change and vary by team; treat this as a map, not a contract. No confidential or leaked material.
+> **Last reviewed: November 2026.** Based only on public information - official pages, engineering blogs, and publicly shared candidate reports. Processes change and vary by team; treat this as a map, not a contract. No confidential or leaked material.
 
 ## TL;DR
 
@@ -8,18 +8,20 @@
 - System design is **not generic web-scale trivia** - expect their actual problems: data labelling platforms, human-in-the-loop pipelines, LLM evaluation systems, RAG backends, multi-tenant data isolation.
 - ML deep dives cover transformers/attention, decoding, post-training (SFT/RLHF/DPO/RLVR), evaluation methodology, and adversarial robustness; some candidates report a research-paper discussion round.
 - The behavioural round is a genuine filter: Scale's published credos ("Ownership is the job," "Results speak loudest," and a broader emphasis on truth-seeking and high standards) translate into probing for urgency, extreme ownership, and comfort with intensity. A relaxed, process-heavy vibe reads badly here.
-- Context you should know walking in: Meta's June 2025 investment (~49% non-voting stake) and founder Alexandr Wang's departure to Meta reshaped the customer base; under CEO Jason Droege, Scale has leaned into evaluations (SEAL), enterprise agent applications, robotics data, and public-sector work.
+- Context you should know walking in: Meta's June 2025 investment (~49% non-voting stake) and founder Alexandr Wang's departure to Meta reshaped the customer base; under interim CEO Jason Droege, Scale leaned into evaluations (SEAL), enterprise agent applications, robotics data, and public-sector work. Francis deSouza has been CEO since 10 August 2026 (formerly COO and President of Security Products at Google Cloud, and earlier President and CEO of Illumina), with Droege supporting the transition. His stated priorities are wider deployment in businesses and governments, the best data for AI labs, and showing value through provable outcomes.
 
 ## Company context
 
-Scale AI is a data-and-evaluation company for the AI industry: the **Data Engine** (human+model data annotation, RLHF/preference data, RL environments, robotics data), **SEAL** (Safety, Evaluations, and Alignment Lab - private benchmarks and public leaderboards like Humanity's Last Exam, SWE-Bench Pro, and MCP Atlas), an enterprise **GenAI Platform**, and **Donovan** plus other public-sector/defence products. After the June 2025 Meta deal (reported at $14.3B for a ~49% non-voting stake) and Wang's exit to lead Meta's superintelligence effort, some frontier-lab customers pulled back, and the company reoriented towards evaluations, enterprise agents, and government. "AI engineer" at Scale usually means building the systems *around* models - data pipelines, eval harnesses, agent infrastructure, and customer-deployed applications - with a strong customer-facing, ship-this-week flavour rather than pretraining research.
+Scale AI is a data-and-evaluation company for the AI industry: the **Data Engine** (human+model data annotation, RLHF/preference data, RL environments, robotics data), **SEAL** (Safety, Evaluations, and Alignment Lab - private benchmarks and public leaderboards like Humanity's Last Exam, SWE-Bench Pro, and MCP Atlas), an enterprise **GenAI Platform**, and **Donovan** plus other public-sector/defence products. After the June 2025 Meta deal (reported at $14.3B for a ~49% non-voting stake) and Wang's exit to lead Meta's superintelligence effort, some frontier-lab customers pulled back, and the company reoriented towards evaluations, enterprise agents, and government. Jason Droege led that reorientation as interim CEO from June 2025. Scale named Francis deSouza CEO on 30 July 2026, effective 10 August; the announcement describes Alexandr Wang as Founder and Chairman of the Board. International expansion continues: Scale opened an office at the Dubai AI Campus in DIFC in October 2026, and its blog lists posts on a long-term investment in Qatar and on DualChem, an evaluation of dual-use chemistry risk. "AI engineer" at Scale usually means building the systems *around* models - data pipelines, eval harnesses, agent infrastructure, and customer-deployed applications - with a strong customer-facing, ship-this-week flavour rather than pretraining research.
 
 ## Roles & titles they hire
 
-Actual posting titles from their careers page / Greenhouse board:
+Actual posting titles from their Greenhouse board (checked November 2026; the older "Forward Deployed Engineer, GenAI" titles are no longer listed). Customer-facing engineering now hires mainly under **Frontier Agents Engineer**:
 
-- **Forward Deployed Engineer, GenAI** - full-stack, customer-embedded engineering inside the GenAI Data Engine (RLHF, model evaluation, AI-safety data programs)
-- **Software Engineer, Forward Deployed Engineer - GenAI Tasking Experience**
+- **Frontier Agents Engineer (Applied AI)** and **Frontier Agents Engineer (Forward Deployed Engineering)** - at base, Senior and Staff levels, plus **Senior Staff Frontier Agents Engineer**. The base-level Applied AI posting lists $180k-$225k (SF, New York, Seattle) and names MCP, agent frameworks and LLM-as-a-Judge
+- **Senior / Staff Applied AI Engineer** (London) and **Frontier Agent Engineering Manager, Enterprise** (SF, New York, London)
+- **Forward Deployed Software Engineer, Public Sector** and **Senior / Staff Full-Stack Software Engineer (Forward Deployed), GPS**
+- **Staff Software Engineer, RL Environments** - the platform for thousands of environments and millions of rollouts
 - **Machine Learning Research Engineer** - Agents (Enterprise GenAI), GenAI Applied ML, ML Systems
 - **Machine Learning Research Scientist** - Post-Training, Reasoning, Agents
 - **Research Scientist** - Agent Robustness, AI Controls and Monitoring (SEAL / Scale Labs)
@@ -197,7 +199,7 @@ The methods form a ladder of data cost versus signal precision.
 
 **DPO** consumes the same preference pairs but optimises the policy directly, no reward model, no RL loop. Dramatically simpler and often comparable for alignment-style objectives; weaker when you need on-policy exploration or fine-grained credit assignment, and it's more sensitive to preference-data distribution shift from the policy.
 
-**RLVR** replaces the learned reward with a programmatic verifier - unit tests, math checkers, environment success signals. No reward model to hack, but it only works where correctness is checkable, and it shifts the data problem to *building environments and verifiers* - which is exactly the product Scale now sells (RL environments were a named 2026 priority in their CEO's public letter). GRPO-style methods cut PPO's cost by using group-relative baselines instead of a value model.
+**RLVR** replaces the learned reward with a programmatic verifier - unit tests, math checkers, environment success signals. No reward model to hack, but it only works where correctness is checkable, and it shifts the data problem to *building environments and verifiers* - which is exactly the product Scale now sells (RL environments were a named 2026 priority in Jason Droege's January 2026 letter, written while he led Scale as interim CEO). GRPO-style methods cut PPO's cost by using group-relative baselines instead of a value model.
 
 Practical sequencing: SFT → DPO for broad alignment → RLVR on verifiable domains (code, math, agents).
 
@@ -336,9 +338,9 @@ Name the constraint first: this data cannot be scraped. It is produced one inter
 
 **Company-specific moves:**
 
-1. Read Scale's own blog - especially the SEAL leaderboard posts and the CEO's "next era / building for 2026" letter - so you can speak to their current business mix (evals, enterprise agents, robotics data, public sector), not the 2023-era labelling story.
+1. Read Scale's own blog - especially the SEAL leaderboard posts, Jason Droege's January 2026 "next era / building for 2026" letter (written as interim CEO) and the July 2026 announcement of Francis deSouza as CEO - so you can speak to their current business mix (evals, enterprise agents, robotics data, public sector), not the 2023-era labelling story.
 2. Spend an hour on the SEAL leaderboards at labs.scale.com: know which benchmarks are theirs (Humanity's Last Exam, SWE-Bench Pro, MCP Atlas, ToolComp) and how they handle private vs. public sets.
-3. Have an informed, neutral take on the Meta investment and leadership change ready - it *will* come up in "why Scale" conversations, and naivety about it reads poorly.
+3. Have an informed, neutral take on the Meta investment and the leadership changes ready (Wang's exit, Droege's interim period, deSouza's appointment and his "provable outcomes" framing) - it *will* come up in "why Scale" conversations, and naivety about it reads poorly.
 4. For behavioural rounds, prepare stories tuned to their published values - ownership under deadline, results over process, changing your mind on evidence. Their culture materials are explicit that intensity is expected.
 5. For FDE/applied roles, rehearse scoping an ambiguous customer ask out loud: constraint discovery → thin slice → measurable pilot. That conversational skill is the round.
 
@@ -349,9 +351,11 @@ Name the constraint first: this data cannot be scraped. It is produced one inter
 - https://www.techinterview.org/post/3233476369/scale-ai-interview-after-meta-deal/ (July 2026: debugging round now standard, ~3-week timeline)
 - https://dataford.io/interview-guides/scale/ai-engineer
 - https://www.interviewquery.com/interview-guides/scaleai-machine-learning-engineer
-- https://scale.com/careers/4593571005 (Forward Deployed Engineer, GenAI posting)
-- https://scale.com/careers and https://job-boards.greenhouse.io/scaleai (role titles)
-- https://scale.com/blog/scales-next-era-building-for-2026 (CEO letter: 2025 results, 2026 priorities)
+- https://scale.com/careers and https://job-boards.greenhouse.io/scaleai (role titles; checked November 2026)
+- https://boards-api.greenhouse.io/v1/boards/scaleai/jobs/4694861005 and https://boards-api.greenhouse.io/v1/boards/scaleai/jobs/4751081005 (Frontier Agents Engineer and RL Environments postings)
+- https://scale.com/blog/scales-next-era-building-for-2026 (Jason Droege's January 2026 letter: 2025 results, 2026 priorities)
+- https://scale.com/blog/scale-appoints-new-ceo (Francis deSouza named CEO, effective 10 August 2026)
+- https://www.thenationalnews.com/business/2026/10/26/scale-ai-uae-dubai/ (Dubai office, October 2026)
 - https://scale.com/blog/scale-ai-announces-next-phase-of-company-evolution (Meta investment / leadership announcement)
 - https://techcrunch.com/2025/06/13/scale-ai-confirms-significant-investment-from-meta-says-ceo-alexandr-wang-is-leaving/
 - https://techcrunch.com/2025/08/29/cracks-are-forming-in-metas-partnership-with-scale-ai/

@@ -1,6 +1,6 @@
 # 🤖 Figure AI - AI Engineer Interview Questions
 
-> **Last reviewed: October 2026.** Based only on public information - official pages, engineering blogs, technical reports, and publicly shared candidate reports. Processes change and vary by team; treat this as a map, not a contract. No confidential or leaked material.
+> **Last reviewed: November 2026.** Based only on public information - official pages, engineering blogs, technical reports, and publicly shared candidate reports. Processes change and vary by team; treat this as a map, not a contract. No confidential or leaked material.
 
 ## TL;DR
 
@@ -13,7 +13,7 @@
 
 ## Company context
 
-Figure builds general-purpose humanoid robots (the Figure 03 platform) and the AI system that drives them (Helix). Helix is a vision-language-action model: cameras, tactile sensors, proprioception and a natural-language goal go in, continuous joint commands come out, with a single set of weights covering many behaviours rather than a policy per task. They manufacture their own robots at a facility called BotQ and deploy them into logistics and industrial customers, which means every fielded robot is also a data-collection unit. In 2026 they added a second data engine, Index, a crowd-sourced human-video dataset collected through a contributor app, and signed a compute partnership with Nscale for up to 100,000 GPUs. Engineers want in because this is one of the few places where a frontier-scale learned model closes the loop on physical hardware at commercial scale, and because the hard problems (data, generalisation, evaluation) are genuinely unsolved. "AI engineer" here means modelling, robot learning, RL, perception, pretraining, training infrastructure, and whole-body control - not LLM API plumbing.
+Figure builds general-purpose humanoid robots (the Figure 03 platform) and the AI system that drives them (Helix). Helix is a vision-language-action model: cameras, tactile sensors, proprioception and a natural-language goal go in, continuous joint commands come out, with a single set of weights covering many behaviours rather than a policy per task. They manufacture their own robots at a facility called BotQ and deploy them into logistics and industrial customers, which means every fielded robot is also a data-collection unit. In 2026 they added a second data engine, Index, a crowd-sourced human-video dataset collected through a contributor app, and signed a compute partnership with Nscale for up to 100,000 GPUs. Figure's 30 September 2026 post on decommissioning F.02 also mentions an upcoming F.04 launch, without a date. Engineers want in because this is one of the few places where a frontier-scale learned model closes the loop on physical hardware at commercial scale, and because the hard problems (data, generalisation, evaluation) are genuinely unsolved. "AI engineer" here means modelling, robot learning, RL, perception, pretraining, training infrastructure, and whole-body control - not LLM API plumbing.
 
 ## Roles & titles they hire
 
@@ -33,7 +33,7 @@ From Figure's public Greenhouse board (August 2026), the AI group is organised a
 - Controls: **Reinforcement Learning Engineer - Whole Body Control**, **AI Training Infrastructure Engineer - Humanoid Whole Body Control**, **State Estimation Engineer - Data Collection Systems**
 - Data side: **Helix Data Creator** (teleoperation operators) and **AI Data Operations Manager**
 
-A recheck of the board in October 2026 (roughly 98 open roles) also showed **Helix AI Engineer, Data Infrastructure**, **Helix AI Engineer, Backend**, **Helix AI Engineer, Android** and a **Humanoid Robot Pilot** role, while some titles above were no longer listed. Postings rotate, so treat the list as a snapshot.
+A recheck of the board in October 2026 (roughly 98 open roles) also showed **Helix AI Engineer, Data Infrastructure**, **Helix AI Engineer, Backend**, **Helix AI Engineer, Android** and a **Humanoid Robot Pilot** role, while some titles above were no longer listed. By November 2026 the board showed 105 jobs, including **Data Creators** lead and coordinator roles in Mexico City and Sao Paulo, so teleoperation data collection is scaling beyond San Jose alongside the Helix Data Infrastructure and Video Pretraining roles. Postings rotate, so treat the list as a snapshot.
 
 Most AI roles are San Jose, CA, onsite. The postings name PyTorch, behaviour cloning, reinforcement learning, imitation learning, offline RL, distributed training, and simulation and digital-twin tooling. Several list prior work at a frontier lab (OpenAI, DeepMind, Anthropic, xAI are named in postings) as a bonus, which tells you the calibre bar and the fact that they hire pure ML people without robotics backgrounds. Figure AI is listed on [levels.fyi](https://www.levels.fyi/jobs/company/figure-ai) if you want to track postings there.
 
@@ -223,7 +223,9 @@ flowchart LR
     G -->|"targeted gaps"| A
 ```
 
-**Follow-ups:** How would you detect a systematically bad operator without watching every episode? What would make you accept a lower-quality episode into the training set?
+Scaling collection geographically changes the pipeline too. With Data Creators roles now posted in Mexico City and Sao Paulo, the same task is recorded by different operator pools, in different workspaces, with different objects. That is good for diversity and bad for consistency: standardise capture rigs and calibration, track site and operator as first-class metadata, and check per-site quality and success rates before mixing data into training.
+
+**Follow-ups:** How would you detect a systematically bad operator without watching every episode? What would make you accept a lower-quality episode into the training set? A new site's data improves diversity metrics but lowers eval success - what do you check?
 
 </details>
 
@@ -453,7 +455,8 @@ Crowd-sourced, paid data also brings its own risks: fraud, staged clips and task
 - [Figure - Figure and Nscale strategic partnership](https://www.figure.ai/news/figure-and-nscale-sign-strategic-partnership) (September 2026; compute context)
 - [Figure - News index](https://www.figure.ai/news) and [Helix overview](https://www.figure.ai/helix)
 - [Figure - Careers](https://www.figure.ai/careers) (fetched August 2026; no interview-process detail published)
-- [Figure - Greenhouse job board](https://job-boards.greenhouse.io/figureai) (fetched August 2026 and rechecked October 2026; role titles and team structure above)
+- [Figure - Greenhouse job board](https://job-boards.greenhouse.io/figureai) (fetched August 2026, rechecked October and November 2026; role titles and team structure above)
+- [Figure - F.02 decommission](https://www.figure.ai/news/f-02-decommission) (September 2026; mentions an upcoming F.04)
 - [Helix AI Engineer, Robot Learning posting](https://job-boards.greenhouse.io/figureai/jobs/4649851006), [Helix AI Engineer, Modeling posting](https://job-boards.greenhouse.io/figureai/jobs/4671712006), [Helix AI Engineer, Reinforcement Learning posting](https://job-boards.greenhouse.io/figureai/jobs/4671707006) (fetched August 2026; requirements quoted above)
 - [Glassdoor - Figure AI interview questions](https://www.glassdoor.com/Interview/Figure-AI-Interview-Questions-E9642582.htm) (blocks automated fetch; stage counts, timeline, difficulty rating and the no-coding first-round report reached via search summaries and marked "reported, varies")
 - [levels.fyi - Figure AI](https://www.levels.fyi/jobs/company/figure-ai)
