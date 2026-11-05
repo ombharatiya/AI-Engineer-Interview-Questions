@@ -85,7 +85,7 @@ If you can clear all 75, you are ready for most AI engineering loops. If you can
 | 1 week | The 75 + the [1-week cram plan](STUDY_PLAN.md) | 75 items + 6 crash courses |
 | 2-4 weeks | The [4-week plan](STUDY_PLAN.md): all 13 crash courses, full question banks on your weak topics, 3 design mocks | 200+ questions + 3 case studies + all 19 challenges |
 | 1-2 months+ | The [8-week plan](STUDY_PLAN.md): all 596 topic questions, all 10 case studies, all 19 challenges, plus a portfolio project | Everything, plus building |
-| Targeting a company | Add that company's interview questions from the banner above | +10-12 tailored questions and the loop map |
+| Targeting a company | Add that company's interview questions from the banner above | +12-14 tailored questions and the loop map |
 | Not an "AI Engineer" title | Start from your [role guide](#role-guides) instead | Role-calibrated study map |
 | Loop booked, want real feedback | Do one [mock interview](https://enginebogie.com/u/om) with an experienced interviewer before the real thing | Honest scoring on where you lose points |
 
